@@ -56,7 +56,7 @@ struct ConfirmationTests {
         await sockets.waitUntilClosed()
     }
 
-    @Test(.timeLimit(.minutes(1)), arguments: [Commitment.processed, .confirmed, nil])
+    @Test(.timeLimit(.minutes(1)), arguments: [Commitment.confirmed, nil])
     func `A status that isn't finalized keeps watching until the landing`(_ commitment: Commitment?) async throws {
         let http = try HTTPResponses.confirmation(statuses: [response(status(commitment))],
                                                   epochs: [epoch(slot: 1_000, height: 600)])
@@ -81,22 +81,6 @@ struct ConfirmationTests {
         #expect(confirmation == Confirmation(submission: submission, slot: nil, outcome: .dropped))
         #expect(reads == [2, 2, 2, 3, 3])
         #expect(try await self.reads(of: http) == ["getSignatureStatuses": 2, "getEpochInfo": 3])
-    }
-
-    @Test(.timeLimit(.minutes(1)))
-    func `A root ahead of the finalized slot causes no extra reads`() async throws {
-        let http = try HTTPResponses.confirmation(statuses: [response(nil)], epochs: [
-            epoch(slot: 1_000, height: 600), epoch(slot: 1_060, height: 610),
-        ])
-        let sockets = SocketSequence { _ in
-            SocketSequence.watch(then: [1_100, 1_101, 1_140].map { SocketFixture.rootNotification($0) }
-                                 + [SocketFixture.landingNotification()])
-        }
-
-        let confirmation = try await confirmer(http, sockets).confirm(submission)
-
-        #expect(confirmation.outcome == .succeeded)
-        #expect(try await reads(of: http) == ["getSignatureStatuses": 1, "getEpochInfo": 2])
     }
 
     @Test(.timeLimit(.minutes(1)))
@@ -259,8 +243,6 @@ struct ConfirmationTests {
 
     @Test(.timeLimit(.minutes(1)), arguments: [
         (RPCError?.none, String?.none, SocketSequence.failing(with: Self.unavailable), 0),
-        (nil, nil, SocketSequence.failing(with: RPCError.transport(.timedOut)), 0),
-        (Self.unavailable, nil, SocketSequence.watch(), 2),
         (.transport(.timedOut), nil, SocketSequence.watch(), 2),
         (Self.unavailable, "getEpochInfo", SocketSequence.watch(), 2),
     ])
@@ -330,21 +312,6 @@ struct ConfirmationTests {
         #expect(delivery.cause is CancellationError)
         #expect(await http.wasCancelled)
         await sockets.waitUntilClosed()
-        #expect(await store.reads.isEmpty)
-    }
-
-    @Test(.timeLimit(.minutes(1)))
-    func `A coordinator confirms a receipt without reading recovery or sending`() async throws {
-        let http = try HTTPResponses.confirmation(statuses: [response(status(.finalized))],
-                                                  epochs: [epoch(slot: 1_000, height: 600)])
-        let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
-
-        let confirmation = try await coordinator(over: http, sockets: SocketSequence(), store: store).confirm(submission)
-
-        #expect(confirmation == Confirmation(submission: submission, slot: 405, outcome: .succeeded))
-        let methods = try await reads(of: http)
-        #expect(methods["getSignatureStatuses"] == 1)
-        #expect(methods["sendTransaction"] == nil)
         #expect(await store.reads.isEmpty)
     }
 

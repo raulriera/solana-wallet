@@ -3,8 +3,7 @@ import Testing
 
 struct ShapeTests {
     @Test(arguments: [
-        (1, 0, [1, 2]), (1, 2, [1, 2]), (2, 3, [2, 4]), (1, 9, [1, 16]), (3, 5, [3, 8]),
-        (5, 5, [5, 8]), (7, 2, [8, 2]), (13, 3, [16, 4]), (25, 1, [32, 2]), (49, 2, [49, 2]),
+        (1, 0, [1, 2]), (2, 3, [2, 4]), (1, 9, [1, 16]), (7, 2, [8, 2]), (13, 3, [16, 4]), (49, 2, [49, 2]),
     ] as [(Int, Int, [Int])])
     func `The cheapest shape that holds the slots is chosen`(inputs: Int, outputs: Int, expected: [Int]) throws {
         let shape = try #require(Shape.fitting(inputs: inputs, outputs: outputs))

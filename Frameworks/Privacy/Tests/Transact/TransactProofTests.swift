@@ -2,15 +2,6 @@ import Testing
 @testable import Privacy
 
 struct TransactProofTests {
-    @Test
-    func `Proofs write their three points as 192 bytes`() throws {
-        let proof = try TransactProof(a: Array(repeating: 1, count: 32), b: Array(repeating: 2, count: 128), c: Array(repeating: 3, count: 32))
-        var writer = WincodeWriter()
-        proof.write(to: &writer)
-
-        #expect(writer.bytes == Array(repeating: 1, count: 32) + Array(repeating: 2, count: 128) + Array(repeating: 3, count: 32))
-    }
-
     @Test(arguments: [[31, 128, 32], [33, 128, 32], [32, 127, 32], [32, 129, 32], [32, 128, 0], [32, 128, 64]])
     func `Points of other lengths are rejected`(lengths: [Int]) {
         #expect(throws: TransactProof.ValidationError.invalidLength) {

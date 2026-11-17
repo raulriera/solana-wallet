@@ -56,26 +56,6 @@ struct WalletPortfolioTests {
     }
 
     @Test
-    func `A refresh reloads the observed wallet`() async throws {
-        let service = PortfolioResponses()
-        let portfolio = WalletPortfolio(owner: "wallet-a", service: service)
-        var requests = service.requests.makeAsyncIterator()
-        let viewing = Task { await portfolio.observe() }
-        defer { viewing.cancel() }
-        _ = try #require(await requests.next())
-
-        let refreshing = Task { await portfolio.refresh() }
-        let reload = try #require(await requests.next())
-        reload.continuation.finish()
-        await refreshing.value
-
-        #expect(reload.kind == .reload)
-        #expect(reload.owner == "wallet-a")
-        viewing.cancel()
-        await viewing.value
-    }
-
-    @Test
     func `A wallet that nothing observes isn't read`() async {
         let service = PortfolioResponses()
         let portfolio = WalletPortfolio(owner: "wallet-a", service: service)

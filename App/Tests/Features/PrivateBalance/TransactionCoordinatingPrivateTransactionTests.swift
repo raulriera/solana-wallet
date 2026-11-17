@@ -58,15 +58,6 @@ struct TransactionCoordinatingPrivateTransactionTests {
         }
     }
 
-    @Test
-    func `A fee above the sweep's lamports is underfunded`() async throws {
-        let fixture = try SigningFixture()
-
-        await #expect(throws: PrivateBalanceError.codeUnderfunded) {
-            try await Self.coordinator(fixture, Self.responses(fees: [Self.available + 1])).simulate(Self.sweep(fixture))
-        }
-    }
-
     private static func coordinator(_ fixture: SigningFixture, _ responses: HTTPResponses) throws
         -> any TransactionCoordinating {
         try TransactionCoordinator.simulating(with: Preparer(rpc: responses.client),

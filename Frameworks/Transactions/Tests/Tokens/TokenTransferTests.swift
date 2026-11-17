@@ -3,26 +3,6 @@ import Testing
 import Transactions
 
 struct TokenTransferTests {
-    @Test(arguments: TokenFixtures.transfers.filter(\.createsDestination))
-    func `Token transfers include the exact SOL service tip before the checked transfer`(_ fixture: TokenFixture) throws {
-        let sender = try Address(TokenFixtures.sender)
-        let transfer = try TokenTransfer(sender: sender, recipient: Address(TokenFixtures.recipient),
-                                         mint: fixture.mint(), source: fixture.source(), destination: nil, amount: 1)
-        let tip = try SystemProgram.transfer(from: sender, to: Address(TokenFixtures.recipient), lamports: 5_000)
-        let builder = MessageBuilder()
-        let message = try builder.message(instructions: [tip] + transfer.instructions(), payer: transfer.sender, recentBlockhash: MessageFixture.zeroBlockhash,
-                                          configuration: configuration())
-        let transaction = try TransactionDecoder().decode(TransactionBuilder().simulationTransaction(for: message))
-
-        try #require(transaction.instructions.count == 3)
-        let instruction = transaction.instructions[0]
-        #expect(transaction.instructions[2].data.first == 12)
-        #expect(transaction.accounts[instruction.programIndex].address.value == "11111111111111111111111111111111")
-        #expect(instruction.accountIndices.map { transaction.accounts[$0].address } == [sender, tip.accounts[1].address])
-        #expect(instruction.data == Data([2, 0, 0, 0, 0x88, 0x13, 0, 0, 0, 0, 0, 0]))
-        #expect(transaction.accounts.filter(\.isSigner).map(\.address) == [sender])
-    }
-
     @Test(arguments: TokenFixtures.transfers)
     func `Token transfers match SDK instructions and account privileges`(_ fixture: TokenFixture) throws {
         let transfer = try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
@@ -77,17 +57,6 @@ struct TokenTransferTests {
     }
 
     @Test
-    func `Fee-bearing transfers reject a destination missing its required fee extension`() throws {
-        let fixture = TokenFixtures.transfers[2]
-        #expect(throws: TokenError.accountMismatch) {
-            try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
-                              mint: fixture.mint(TokenFixtures.feeMint),
-                              source: fixture.source(Data(base64Encoded: TokenFixtures.feeSource)),
-                              destination: fixture.target(), amount: 1, epoch: 100)
-        }
-    }
-
-    @Test
     func `Memo-required transfers place the memo immediately before the token instruction`() throws {
         let fixture = TokenFixtures.transfers[2]
         let transfer = try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
@@ -125,32 +94,28 @@ struct TokenTransferTests {
         }
     }
 
-    @Test
-    func `Token transfers reject a sender who does not own the source account`() throws {
-        let fixture = TokenFixtures.transfers[0]
-        #expect(throws: TokenError.accountMismatch) {
-            try TokenTransfer(sender: Address(TokenFixtures.recipient), recipient: Address(TokenFixtures.sender),
-                              mint: fixture.mint(), source: fixture.source(), destination: nil, amount: 1)
+    @Test(arguments: Mismatch.allCases)
+    func `Token transfers reject accounts that don't match the transfer`(_ mismatch: Mismatch) throws {
+        let fixture = TokenFixtures.transfers[mismatch == .destinationWithoutFeeExtension ? 2 : 0]
+        var sender = try Address(TokenFixtures.sender)
+        var recipient = try Address(TokenFixtures.recipient)
+        var mint = try fixture.mint()
+        var source = try fixture.source()
+        var destination: Token?
+        switch mismatch {
+        case .unownedSource: swap(&sender, &recipient)
+        case .otherProgramsSource: mint = try TokenFixtures.transfers[2].mint()
+        case .otherWalletsDestination: destination = try fixture.target(fixture.sourceData)
+        case .mintRecipient: recipient = try Address(TokenFixtures.mint)
+        case .destinationWithoutFeeExtension:
+            mint = try fixture.mint(TokenFixtures.feeMint)
+            source = try fixture.source(Data(base64Encoded: TokenFixtures.feeSource))
+            destination = try fixture.target()
         }
-    }
 
-    @Test
-    func `Token transfers reject accounts belonging to another token program`() throws {
         #expect(throws: TokenError.accountMismatch) {
-            try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
-                              mint: TokenFixtures.transfers[2].mint(), source: TokenFixtures.transfers[0].source(),
-                              destination: nil, amount: 1)
-        }
-    }
-
-    @Test
-    func `Token transfers reject a destination controlled by another wallet`() throws {
-        let fixture = TokenFixtures.transfers[0]
-        let wrongOwner = try Token(address: Address(fixture.destination), programAddress: Address(fixture.program),
-                                          data: #require(Data(base64Encoded: fixture.sourceData)))
-        #expect(throws: TokenError.accountMismatch) {
-            try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
-                              mint: fixture.mint(), source: fixture.source(), destination: wrongOwner, amount: 1)
+            try TokenTransfer(sender: sender, recipient: recipient, mint: mint, source: source,
+                              destination: destination, amount: 1, epoch: 100)
         }
     }
 
@@ -167,14 +132,6 @@ struct TokenTransferTests {
         #expect(!transfer.createsDestination)
         try #require(instructions.count == 1)
         #expect(instructions[0].accounts[2].address == account.address)
-    }
-
-    @Test(arguments: TokenFixtures.transfers.filter(\.createsDestination))
-    func `Token transfers reject the mint as the recipient`(_ fixture: TokenFixture) throws {
-        #expect(throws: TokenError.accountMismatch) {
-            try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.mint),
-                              mint: fixture.mint(), source: fixture.source(), destination: nil, amount: 1)
-        }
     }
 
     @Test
@@ -218,5 +175,13 @@ struct TokenTransferTests {
 
     private func configuration() throws -> Configuration {
         try Configuration(priorityFeeLamports: 0, computeUnitLimit: 200_000, loadedAccountsDataSizeLimit: 65_536)
+    }
+
+    enum Mismatch: CaseIterable {
+        case unownedSource
+        case otherProgramsSource
+        case otherWalletsDestination
+        case mintRecipient
+        case destinationWithoutFeeExtension
     }
 }

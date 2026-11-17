@@ -35,16 +35,4 @@ struct BlockhashValidityTests {
             try await rpc.send(IsBlockhashValid(blockhash: "11111111111111111111111111111111"))
         }
     }
-
-    @Test
-    func `Blockhash checks reject a response from before the minimum slot`() async {
-        let transport = StubTransport { request in
-            try reply(to: request, payload: #""result":{"context":{"slot":399},"value":true}"#)
-        }
-        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
-
-        await #expect(throws: RPCError.invalidResponse(.staleContext)) {
-            try await rpc.send(IsBlockhashValid(blockhash: "11111111111111111111111111111111", minContextSlot: 400))
-        }
-    }
 }

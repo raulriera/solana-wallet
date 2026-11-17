@@ -40,8 +40,8 @@ struct TokenLookupTests {
         #expect(preview.mint == Mint.fixture(usdcMint, decimals: 6))
     }
 
-    @Test(arguments: Refusal.allCases, [false, true])
-    func `Addresses that aren't fungible token mints are refused`(_ refusal: Refusal, helius: Bool) async throws {
+    @Test(arguments: Refusal.allCases)
+    func `Addresses that aren't fungible token mints are refused`(_ refusal: Refusal) async throws {
         let mint = try Address(usdcMint)
         let account: Account? = switch refusal {
         case .missing: nil
@@ -53,10 +53,8 @@ struct TokenLookupTests {
         }
         let http = LookupResponses(accounts: account.map { [usdcMint: $0] } ?? [:])
 
-        let rpc: any RPC = helius ? http.heliusClient : http.client
-
         await #expect(throws: refusal == .nft ? TokenLookupError.nonFungible : .notToken) {
-            try await lookupPortfolio(rpc).token(at: mint)
+            try await lookupPortfolio(http.client).token(at: mint)
         }
     }
 

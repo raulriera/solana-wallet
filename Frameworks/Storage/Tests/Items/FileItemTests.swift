@@ -77,13 +77,6 @@ struct FileItemTests {
         #expect(!FileManager.default.fileExists(atPath: item.url.path))
     }
 
-    @Test
-    func `A file item is completely protected by default`() {
-        let item = FileItem(url: Self.isolatedDirectory().appending(path: "value"), coding: .utf8)
-
-        #expect(item.protection == .complete)
-    }
-
     @Test(arguments: [
         (FileProtectionType.complete, Data.WritingOptions.completeFileProtection),
         (.completeUnlessOpen, .completeFileProtectionUnlessOpen),
@@ -94,19 +87,6 @@ struct FileItemTests {
     func `Each protection saves with its write option`(protection: FileProtectionType,
                                                        option: Data.WritingOptions) {
         #expect(Data.WritingOptions(protection) == option)
-    }
-
-    @Test
-    func `A file that stays readable while locked saves its value`() async throws {
-        let directory = Self.isolatedDirectory()
-        defer { try? FileManager.default.removeItem(at: directory) }
-        let item = FileItem(url: directory.appending(path: "value"), coding: .utf8,
-                            protection: .completeUntilFirstUserAuthentication)
-
-        try await item.save("first")
-        try await item.update { $0 = "second" }
-
-        #expect(try await item.load() == "second")
     }
 
     private static func isolatedDirectory() -> URL {

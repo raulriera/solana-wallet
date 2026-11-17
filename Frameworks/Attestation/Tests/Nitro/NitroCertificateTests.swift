@@ -5,7 +5,9 @@ import Testing
 
 struct NitroCertificateTests {
     @Test(arguments: try NitroCertificateFixtures.load().certificates)
-    func `Certificates from OpenSSL decode into their fields`(fixture: NitroCertificateFixtures.Certificate) throws {
+    func `Certificates from OpenSSL decode into the fields, validity, and constraints OpenSSL reads`(
+        fixture: NitroCertificateFixtures.Certificate
+    ) throws {
         let certificate = try NitroCertificate(decoding: fixtureBytes(fixture.der))
 
         #expect(certificate.tbsCertificateBytes == (try fixtureBytes(fixture.tbsCertificate)))
@@ -26,14 +28,6 @@ struct NitroCertificateTests {
                     )
                 })
         )
-    }
-
-    @Test(arguments: try NitroCertificateFixtures.load().certificates)
-    func `Certificates from OpenSSL decode the validity and constraints OpenSSL reads`(
-        fixture: NitroCertificateFixtures.Certificate
-    ) throws {
-        let certificate = try NitroCertificate(decoding: fixtureBytes(fixture.der))
-
         #expect(NitroCertificateFixtures.Summary(certificate) == fixture.summary)
     }
 

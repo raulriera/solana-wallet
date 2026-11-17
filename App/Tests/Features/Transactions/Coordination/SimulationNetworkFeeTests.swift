@@ -5,43 +5,27 @@ import Transactions
 @testable import widgets
 
 struct SimulationNetworkFeeTests {
-    @Test func `Without tips the network fee is the fee`() async throws {
-        let fixture = try SigningFixture()
-        let responses = try HTTPResponses.preparation(fixture: fixture.preparation)
-
-        let simulation = try await Self.transfer(fixture, preparer: Preparer(rpc: responses.client))
-
-        #expect(simulation.networkFee == 10_000)
-    }
-
-    @Test func `Service tips add to the network fee`() async throws {
-        let fixture = try SigningFixture()
+    @Test(arguments: [
+        (SubmissionRequirements?.none, UInt64?(10_000), UInt64?(10_000)),
+        (SenderSubmissionProvider(tier: .standard).submissionRequirements, 10_000, 15_000),
+        (nil, nil, nil),
+    ])
+    func `The network fee adds any service tip to a known fee`(
+        requirements: SubmissionRequirements?, fee: UInt64?, networkFee: UInt64?
+    ) async throws {
+        var fixture = try SigningFixture()
+        let base = try PreparationFixture.preparation(fee: fee)
+        fixture.fee = base.fee
+        fixture.simulation = base.simulation
         let responses = try HTTPResponses.preparation(fixture: fixture.preparation)
         let rpc = try #require(responses.client(for: .solana, on: .mainnet))
-        let requirements = SenderSubmissionProvider(tier: .standard).submissionRequirements
+        let coordinator = try TransactionCoordinator.simulating(with: Preparer(rpc: rpc, requirements: requirements),
+                                                                configuration: fixture.configuration)
 
-        let simulation = try await Self.transfer(fixture, preparer: Preparer(rpc: rpc, requirements: requirements))
+        let simulation = try await coordinator.transfer(1, of: .nativeSOL, using: fixture.account,
+                                                        to: fixture.transfer.accounts[1].address)
 
-        #expect(simulation.networkFee == 10_000 + requirements.tipLamports)
-    }
-
-    @Test func `An unknown fee leaves the network fee unknown`() async throws {
-        var fixture = try SigningFixture()
-        fixture.simulation = SimulateTransaction.Response(context: fixture.simulation.context, value: SimulateTransaction.Value(
-            error: nil, logs: [], unitsConsumed: 150, loadedAccountsDataSize: 256, fee: nil, replacementBlockhash: nil,
-            preBalances: nil, postBalances: nil, preTokenBalances: nil, postTokenBalances: nil
-        ))
-        fixture.fee = GetFeeForMessage.Response(context: fixture.fee.context, value: nil)
-        let responses = try HTTPResponses.preparation(fixture: fixture.preparation)
-
-        let simulation = try await Self.transfer(fixture, preparer: Preparer(rpc: responses.client))
-
-        #expect(simulation.fee == nil)
-        #expect(simulation.networkFee == nil)
-    }
-
-    private static func transfer(_ fixture: SigningFixture, preparer: Preparer) async throws -> Simulation {
-        let coordinator = try TransactionCoordinator.simulating(with: preparer, configuration: fixture.configuration)
-        return try await coordinator.transfer(1, of: .nativeSOL, using: fixture.account, to: fixture.transfer.accounts[1].address)
+        #expect(simulation.fee == fee)
+        #expect(simulation.networkFee == networkFee)
     }
 }

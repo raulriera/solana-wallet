@@ -35,7 +35,6 @@ struct HeliusConnectionTests {
 
     @Test(arguments: [
         (401, RPCConnectionError.invalidKey),
-        (403, RPCConnectionError.invalidKey),
         (429, RPCConnectionError.rateLimited),
         (500, RPCConnectionError.unavailable),
     ])

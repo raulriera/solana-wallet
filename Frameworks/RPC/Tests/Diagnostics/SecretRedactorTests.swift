@@ -6,23 +6,14 @@ private let customEndpoint = "https://fixture-user:fixture-pass@rpc.example.com/
 
 struct SecretRedactorTests {
     @Test
-    func `Redaction replaces API keys and authenticated URLs`() {
+    func `Redaction replaces API keys and authenticated URLs and keeps other text`() {
         let key = "test-key"
         let endpoint = "https://devnet.helius-rpc.com/?api-key=\(key)"
         let redactor: any TextRedactor = SecretRedactor(secrets: [key, endpoint])
 
-        let message = redactor.redact("Request \(endpoint) failed for \(key); retry with \(key).")
-
-        #expect(message == "Request [redacted] failed for [redacted]; retry with [redacted].")
-    }
-
-    @Test
-    func `Redaction preserves messages without credentials`() {
-        let redactor = SecretRedactor(secrets: ["test-key"])
-
-        let message = redactor.redact("Retry after five seconds.")
-
-        #expect(message == "Retry after five seconds.")
+        #expect(redactor.redact("Request \(endpoint) failed for \(key); retry with \(key).")
+            == "Request [redacted] failed for [redacted]; retry with [redacted].")
+        #expect(redactor.redact("Retry after five seconds.") == "Retry after five seconds.")
     }
 
     @Test(arguments: [customEndpoint, "fixture-user", "fixture-pass", "path-token", "query-key", "bare-key"])

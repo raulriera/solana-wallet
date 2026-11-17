@@ -62,21 +62,7 @@ struct AccountDeletionModelTests {
     }
 
     @Test
-    func `A failed deletion explains why`() async throws {
-        let first = try widgets.Account.fixture(index: 0)
-        let store = AccountStore.inMemory(StoredValue([first], failsSaving: true))
-        await store.load()
-        let model = AccountDeletionModel()
-
-        model.delete(first.id)
-        await model.run(model.attempt, store: store, transactions: .unused)
-
-        #expect(model.error == .notDeleted)
-        #expect(store.accounts == [first])
-    }
-
-    @Test
-    func `A failed deletion keeps the account's records`() async throws {
+    func `A failed deletion explains why and keeps the account and its records`() async throws {
         let first = try widgets.Account.fixture(index: 0)
         let store = AccountStore.inMemory(StoredValue([first], failsSaving: true))
         await store.load()
@@ -86,6 +72,8 @@ struct AccountDeletionModelTests {
         model.delete(first.id)
         await model.run(model.attempt, store: store, transactions: .inMemory(records))
 
+        #expect(model.error == .notDeleted)
+        #expect(store.accounts == [first])
         #expect(await records[TransactionRecord.Key(account: first.id, network: .devnet)]?.value?.count == 1)
     }
 

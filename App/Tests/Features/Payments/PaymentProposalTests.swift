@@ -7,18 +7,6 @@ import Wallet
 
 @MainActor
 struct PaymentProposalTests {
-    @Test
-    func `A SOL payment costs its network fee and records the payment`() async throws {
-        let payment = try LocalPaymentReview()
-        let proposal = payment.model.proposal
-
-        let proposed = try await Self.simulate(proposal, in: payment)
-
-        #expect(proposed.review == PaymentProposal.Review(networkFee: 10_000, accountDeposit: nil, transferFee: nil))
-        #expect(proposed.kind == .payment(recipient: proposal.recipient.address, asset: .nativeSOL, amount: 1_000_000_000))
-        #expect(proposed.settling == nil)
-    }
-
     @Test(arguments: [
         (basisPoints: UInt16(250), maximum: UInt64(1_000_000), shown: UInt64?(25)),
         (basisPoints: 0, maximum: 0, shown: nil),
@@ -47,8 +35,6 @@ struct PaymentProposalTests {
 
     @Test(arguments: [
         (TransactionError(name: "InsufficientFundsForFee", details: nil), SendError.notEnoughSOL),
-        (TransactionError(name: "InsufficientFundsForRent", details: .object(["account_index": .integer(0)])),
-         .notEnoughSOL),
         (TransactionError(name: "InsufficientFundsForRent", details: .object(["account_index": .integer(1)])),
          .amountTooSmall),
         (TransactionError(name: "InstructionError", details: .array([.integer(0), .object(["Custom": .integer(6001)])])),

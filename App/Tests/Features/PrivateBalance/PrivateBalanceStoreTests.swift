@@ -9,14 +9,6 @@ import Transactions
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct PrivateBalanceStoreTests {
-    nonisolated private static let devnetUSDC = Holding(
-        asset: .token(.fixture("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU", decimals: 6,
-                                 name: "USD Coin", symbol: "USDC")),
-        balance: TokenAmount(amount: 5_000_000, decimals: 6),
-        imageURL: nil,
-        valuation: nil
-    )
-
     nonisolated private static let twoDecimalToken = Holding(
         asset: .token(.fixture("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU", decimals: 2,
                                  symbol: "TWO")),
@@ -24,16 +16,6 @@ struct PrivateBalanceStoreTests {
         imageURL: nil,
         valuation: nil
     )
-
-    @Test
-    func `Nothing shows before a window observes the account`() async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let responses = HTTPResponses.privateNotes()
-        let store = try PrivateBalanceStore.fixture(responses)
-
-        #expect(store.balance(for: account, on: .devnet) == nil)
-        #expect(await responses.requests.isEmpty)
-    }
 
     @Test
     func `Windows on the same account and network share one balance`() async throws {
@@ -48,26 +30,6 @@ struct PrivateBalanceStoreTests {
 
         #expect(store.balance(for: account, on: .devnet) === balance)
         #expect(store.balance(for: account, on: .mainnet) == nil)
-    }
-
-    @Test
-    func `A settled private move reads the balance again for every window`() async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let record = try await PrivateBalanceFixtures.keys(for: account)
-        let registry = try PrivateBalanceFixtures.registry(publishing: record.shieldedAccount(for: account.address))
-        let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered, registry])
-        let sent = try PendingMove(from: account.id)
-        let store = try PrivateBalanceStore.fixture(responses, keys: StoredValue([account.address.value: record]),
-                                                    transactions: sent.transactions)
-        let first = Task { await store.observe(account, on: .devnet) }
-        defer { first.cancel() }
-        let second = Task { await store.observe(account, on: .devnet) }
-        defer { second.cancel() }
-        try await PrivateBalanceFixtures.status(of: account, in: store, becomes: .unregistered)
-
-        #expect(try await sent.settle() == .succeeded)
-
-        try await PrivateBalanceFixtures.status(of: account, in: store, becomes: .balance(available: 0, pending: 0, of: .nativeSOL))
     }
 
     @Test
@@ -107,7 +69,6 @@ struct PrivateBalanceStoreTests {
     @Test(arguments: [
         (PrivateBalanceFixtures.Balance.available, PrivateBalanceFixtures.solHolding, Decimal(2),
          Decimal(string: "0.001")!),
-        (.availableToken, Self.devnetUSDC, 5, 1),
         (.availableToken, Self.twoDecimalToken, 50_000, 10_000),
     ])
     func `Moves take the balance they leave`(
@@ -159,10 +120,10 @@ struct PrivateBalanceStoreTests {
         #expect(store.move(.toPrivate, of: holding, for: account, on: .devnet) == nil)
     }
 
-    @Test(arguments: [PrivateBalanceFixtures.Balance.pending, .unregistered])
-    func `No withdrawal opens without available SOL`(holding: PrivateBalanceFixtures.Balance) async throws {
+    @Test
+    func `No withdrawal opens without available SOL`() async throws {
         let account = try await PrivateBalanceFixtures.account()
-        let store = try await PrivateBalanceFixtures.store(holding: holding, of: account)
+        let store = try await PrivateBalanceFixtures.store(holding: .pending, of: account)
         await store.refresh(account, on: .devnet)
 
         #expect(store.move(.toPublic, of: PrivateBalanceFixtures.solHolding, for: account, on: .devnet) == nil)

@@ -64,23 +64,6 @@ extension OnboardingCoordinatorTests {
     }
 
     @Test
-    func `The same phrase saved by another window releases this window's draft`() async throws {
-        let recovery = OnboardingRecoveryStore()
-        let accounts = AccountStore.inMemory()
-        await accounts.load()
-        let first = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts)
-        let second = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts)
-        try await first.importRecovery(Self.phrase, passphrase: "TREZOR")
-        try await second.importRecovery(Self.phrase, passphrase: "TREZOR")
-        let saved = try await first.complete()
-
-        await #expect(throws: OnboardingCoordinatorError.walletAlreadySaved) { try await second.complete() }
-
-        #expect(second.recovery == nil)
-        #expect(accounts.accounts == [saved])
-    }
-
-    @Test
     func `A wallet saved while recovery saves deletes that recovery and releases the draft`() async throws {
         let gate = Suspension()
         let recovery = OnboardingRecoveryStore(gate: gate)

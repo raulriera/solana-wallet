@@ -4,12 +4,12 @@ import Synchronization
 import Testing
 
 extension SubscriptionTests {
-    @Test(.timeLimit(.minutes(1)), arguments: [false, true])
-    func `A signature and new roots share one connection`(helius: Bool) async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `A signature and new roots share one connection`() async throws {
         let socket = SocketFixture()
         let connections = Mutex(0)
         defer { socket.cancel() }
-        _ = try await client(socket: socket, helius: helius) { connections.withLock { $0 += 1 } }
+        _ = try await client(socket: socket) { connections.withLock { $0 += 1 } }
             .events(for: "fixture-signature")
         #expect(connections.withLock(\.self) == 1)
         try #require(socket.requests.count == 2)

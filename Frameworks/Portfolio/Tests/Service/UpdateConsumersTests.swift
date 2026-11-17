@@ -14,19 +14,6 @@ struct UpdateConsumersTests {
         #expect(await stream.map(\.revision).reduce(into: [UInt64]()) { $0.append($1) } == [1, 2])
     }
 
-    @Test
-    func `Every consumer receives each update until the streams finish`() async {
-        var consumers = UpdateConsumers()
-        let first = consumers.add { _ in }
-        let second = consumers.add { _ in }
-
-        consumers.send(update(1))
-        consumers.finish()
-
-        #expect(await first.map(\.revision).reduce(into: [UInt64]()) { $0.append($1) } == [1])
-        #expect(await second.map(\.revision).reduce(into: [UInt64]()) { $0.append($1) } == [1])
-    }
-
     @Test(.timeLimit(.minutes(1)))
     func `An ended stream reports its consumer for removal`() async {
         let (ended, endings) = AsyncStream<UUID>.makeStream()

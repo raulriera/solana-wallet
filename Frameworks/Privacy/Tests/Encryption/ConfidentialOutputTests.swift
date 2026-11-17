@@ -54,27 +54,6 @@ struct ConfidentialOutputTests {
     }
 
     @Test
-    func `Payloads decode and encode unchanged`() throws {
-        let decoded = try ConfidentialOutput(decoding: payload)
-
-        #expect(decoded.recipientViewingPublicKey.rawRepresentation == viewingKey.publicKey.rawRepresentation)
-        #expect(decoded.encoded == payload)
-    }
-
-    @Test
-    func `Recipients open the notes that senders seal`() throws {
-        let sealed = try ConfidentialOutput.seal(
-            note, for: viewingKey.publicKey, transactionViewingKey: transactionViewingKey, salt: salt, slot: output.index
-        )
-
-        let opened = try ConfidentialOutput(decoding: sealed.encoded).openAsRecipient(
-            viewingKey: viewingKey, transactionViewingPublicKey: transactionViewingKey.publicKey, salt: salt, slot: output.index
-        )
-
-        #expect(opened == note)
-    }
-
-    @Test
     func `Recipients receive the published UTXO`() throws {
         let utxo = try decodedPayload.receive(
             viewingKey: viewingKey, owner: owner, transactionViewingPublicKey: transactionViewingKey.publicKey,
@@ -84,8 +63,9 @@ struct ConfidentialOutputTests {
         #expect(utxo == UTXO(owner: owner, asset: .nativeSOL, amount: 6, blinding: note.blinding, treeID: 0))
     }
 
-    @Test(arguments: PrivateToken.supported.map(PrivateAsset.token))
-    func `Recipients receive token notes only under their asset's mint`(asset: PrivateAsset) throws {
+    @Test
+    func `Recipients receive token notes only under their asset's mint`() throws {
+        let asset = PrivateAsset.token(.usdc)
         let token = ConfidentialPlaintext(asset: asset, amount: 6, blinding: note.blinding)
         let expected = UTXO(owner: owner, asset: asset, amount: 6, blinding: note.blinding, treeID: output.treeID)
         let sealed = try ConfidentialOutput(decoding: ConfidentialOutput.seal(

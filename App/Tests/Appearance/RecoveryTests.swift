@@ -15,21 +15,6 @@ struct AppearanceRecoveryTests {
         #expect(toggle["DefaultValue"] as? Bool == false)
     }
 
-    @Test func `Activation without request loads existing appearance`() async throws {
-        let files = try CatalogFixture()
-        let preferences = RecoveryFixture()
-        defer { files.remove(); preferences.remove() }
-        let catalog = ThemeCatalog(directory: files.directory)
-        let entry = try await catalog.install(PackService().read(from: files.source()))
-        let store = AppearanceStore(directory: files.directory)
-        let before = try await store.select(entry.id)
-        let request = SettingsRecoveryRequest(suiteName: preferences.suiteName)
-        let coordinator = AppearanceCoordinator(store: store, recovery: request)
-        try await coordinator.activate()
-        #expect(coordinator.snapshot == before)
-        #expect(try await request.isRequested() == false)
-    }
-
     @Test func `Requested reset restores original appearance once`() async throws {
         let files = try CatalogFixture()
         let preferences = RecoveryFixture()

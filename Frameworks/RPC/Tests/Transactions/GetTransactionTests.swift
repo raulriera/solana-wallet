@@ -19,11 +19,13 @@ struct GetTransactionTests {
     private static let readonly = "CiNmas621VuyofiDSrEPfTXHKrdZuB6jMKECyNiMpLXE"
 
     @Test
-    func `Transaction reads ask for finalized V1 transactions as JSON`() async throws {
+    func `Transaction reads ask for finalized V1 transactions as JSON and read unknown ones as nil`() async throws {
         let transport = StubTransport { try reply(to: $0, payload: #""result":null"#) }
+        let rpc = SolanaRPC.devnet(transport: transport)
 
-        _ = try await SolanaRPC.devnet(transport: transport).send(GetTransaction(signature: Self.signature))
+        let transaction = try await rpc.send(GetTransaction(signature: Self.signature))
 
+        #expect(transaction == nil)
         let body = try requestBody(try #require(await transport.requests.first))
         #expect(body["method"] as? String == "getTransaction")
         let params = try #require(body["params"] as? [Any])
@@ -71,11 +73,6 @@ struct GetTransactionTests {
 
         #expect(transaction?.error == TransactionError(name: "InstructionError", details: .array([.integer(0), .object(["Custom": .integer(6_001)])])))
         #expect(transaction?.instructionData(invoking: Self.pool) == [Data([16, 1, 2, 3])])
-    }
-
-    @Test
-    func `Transactions that the node doesn't hold read as nil`() async throws {
-        #expect(try await read("null") == nil)
     }
 
     @Test

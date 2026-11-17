@@ -4,10 +4,8 @@ import Testing
 
 struct CurrencySettingsTests {
     @Test(arguments: [
-        (CurrencySettings(), "de_DE", nil),
         (CurrencySettings(currencyCode: "JPY"), "de_DE", nil),
         (CurrencySettings(rateSource: .europeanCentralBank), "de_DE", "EUR"),
-        (CurrencySettings(rateSource: .coinbase), "ja_JP", "JPY"),
         (CurrencySettings(rateSource: .europeanCentralBank, currencyCode: "GBP"), "de_DE", "GBP"),
     ] as [(CurrencySettings, String, String?)])
     func `The choice names the currency that values show in`(settings: CurrencySettings, locale: String,

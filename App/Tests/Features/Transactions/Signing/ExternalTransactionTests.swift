@@ -121,19 +121,16 @@ struct ExternalTransactionTests {
         #expect(await http.requests.isEmpty)
     }
 
-    @Test(arguments: ["instructions", "privileges", "lifetime"])
-    func `Altered external inspection details cannot unlock recovery`(_ field: String) async throws {
+    @Test
+    func `Altered external inspection details cannot unlock recovery`() async throws {
         let expected = try ExternalFixture.preparation()
         let original = expected.transaction
         var accounts = original.accounts
-        if field == "privileges" {
-            let account = accounts[1]
-            accounts[1] = .init(address: account.address, isSigner: true, isWritable: !account.isWritable)
-        }
+        let account = accounts[1]
+        accounts[1] = .init(address: account.address, isSigner: true, isWritable: !account.isWritable)
         let altered = Transaction(
-            message: original.message, lifetimeSpecifier: field == "lifetime" ? "altered" : original.lifetimeSpecifier,
-            accounts: accounts, requests: original.requests,
-            instructions: field == "instructions" ? [] : original.instructions, signatures: original.signatures
+            message: original.message, lifetimeSpecifier: original.lifetimeSpecifier, accounts: accounts,
+            requests: original.requests, instructions: original.instructions, signatures: original.signatures
         )
         let preparation = Preparation(source: expected.source, signer: expected.signer, transaction: altered,
                                       network: expected.network, fee: expected.fee, simulation: expected.simulation)

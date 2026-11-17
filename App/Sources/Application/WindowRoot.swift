@@ -16,6 +16,11 @@ struct WindowRoot: View {
                 Color.clear
                     .task {
                         await services.rpcStore.load()
+                        #if DEBUG && targetEnvironment(simulator)
+                        if let wallet = ProcessInfo.processInfo.environment[UITestWallet.environmentKey] {
+                            await UITestWallet.prepare(wallet, with: services.makeOnboardingCoordinator())
+                        }
+                        #endif
                         guard !Task.isCancelled else { return }
                         window = WindowModel(accounts: services.accountStore)
                     }
@@ -33,5 +38,8 @@ struct WindowRoot: View {
         .environment(services.rpcStore)
         .environment(services.priceStore)
         .environment(services.transactionStore)
+        #if DEBUG && targetEnvironment(simulator)
+        .transaction { UITestAnimations.disableAnimations(in: &$0) }
+        #endif
     }
 }

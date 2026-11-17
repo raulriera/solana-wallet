@@ -4,25 +4,20 @@ import XCTest
 final class NetworkSwitchUITests: XCTestCase {
     @objc(testSwitchingTheNetworkReturnsThePortfolioToItsTokenListAndReturnError:)
     func `test Switching the network returns the portfolio to its token list`() throws {
-        let flow = OnboardingApp()
-        defer { flow.app.terminate() }
-        try flow.launch()
-        try flow.createWallet()
-        try flow.openWallet()
+        let app = UITestApp()
+        defer { app.terminate() }
+        app.launch(with: .newWallet)
+        let portfolio = PortfolioPage(driver: app)
 
-        try flow.tap(flow.holding("SOL"))
-        let details = flow.app.navigationBars["Solana"]
-        try flow.waitFor(details)
+        try app.tap(portfolio.holding("SOL"))
+        let details = portfolio.tokenDetails("Solana")
+        try app.waitFor(details)
 
-        try flow.tap(flow.settingsTab)
-        try flow.tap(flow.app.buttons["Network"])
-        try flow.tap(flow.app.buttons["Devnet"])
-        let chosen = NSPredicate(format: "label == %@ AND selected == true", "Devnet")
-        try flow.waitFor(flow.app.buttons.matching(chosen).firstMatch)
-        try flow.tap(flow.portfolioTab)
+        try SettingsPage(driver: app).switchNetwork(to: "Devnet")
+        try portfolio.open()
 
-        try flow.waitFor(flow.app.navigationBars.buttons["Add Token"])
-        try flow.waitForAbsence(details)
-        try flow.waitFor(flow.holding("SOL"))
+        try app.waitFor(portfolio.addTokenButton)
+        try app.waitForAbsence(details)
+        try app.waitFor(portfolio.holding("SOL"))
     }
 }

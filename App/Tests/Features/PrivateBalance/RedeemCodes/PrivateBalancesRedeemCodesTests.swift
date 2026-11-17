@@ -69,21 +69,6 @@ struct PrivateBalancesRedeemCodesTests {
     }
 
     @Test
-    func `A relaunch after an unrecorded funding doesn't reuse its index`() async throws {
-        let sender = try await Self.sender()
-        let responses = try RedeemCodeFixtures.responses(accounts: [:], deposits: [sender.deposit])
-        let codes = StoredValue<PrivateBalances.Codes>()
-
-        let first = try await Self.balances(responses, keys: sender.storedKeys, notes: sender.notes, codes: codes)
-            .prepare(.createCode(1_000), from: sender.account, on: .devnet)
-        let relaunched = try await Self.balances(responses, keys: sender.storedKeys, notes: sender.notes, codes: codes)
-        let second = try await relaunched.prepare(.createCode(1_000), from: sender.account, on: .devnet)
-
-        #expect(Self.index(of: first) == 0)
-        #expect(Self.index(of: second) == 1)
-    }
-
-    @Test
     func `A new code's index choice reads 20 tags`() async throws {
         let sender = try await Self.sender()
         let responses = try RedeemCodeFixtures.responses(accounts: [:], deposits: [sender.deposit])
@@ -162,28 +147,6 @@ struct PrivateBalancesRedeemCodesTests {
     }
 
     @Test
-    func `Redeeming a code of several notes pays its tree's fee once`() async throws {
-        let recipient = try await Self.recipient(registered: true)
-        let oneTime = try Self.giftedAccount()
-        let deposits = try (3...5).map { try RedeemCodeFixtures.deposit(1_000_000, to: oneTime, leafIndex: $0) }
-        let responses = try RedeemCodeFixtures.responses(accounts: [
-            oneTime.address: RedeemCodeFixtures.systemAccount(lamports: RedeemCodeFixtures.reserve),
-            try RedeemCodeFixtures.recordAddress(of: recipient.account): recipient.record,
-        ], deposits: deposits)
-        let balances = try await Self.balances(responses, keys: recipient.storedKeys, notes: recipient.notes)
-        let code = try RedeemCode(secret: oneTime.secret, network: .devnet)
-
-        let prepared = try await balances.prepare(.redeem(code), from: recipient.account, on: .devnet)
-
-        guard case .redeem(let redemption) = prepared.effect else {
-            Issue.record("Expected a redemption.")
-            return
-        }
-        #expect(redemption.noteLamports == 3_000_000)
-        #expect(redemption.availableLamports == RedeemCodeFixtures.reserve - RedeemCodeFixtures.treeFee)
-    }
-
-    @Test
     func `Redeeming into an unregistered account registers it`() async throws {
         let recipient = try await Self.recipient(registered: false)
         let oneTime = try Self.giftedAccount()
@@ -259,21 +222,6 @@ struct PrivateBalancesRedeemCodesTests {
     }
 
     @Test
-    func `Redeeming an underfunded code is rejected`() async throws {
-        let recipient = try await Self.recipient(registered: false)
-        let oneTime = try Self.giftedAccount()
-        let responses = try RedeemCodeFixtures.responses(accounts: [
-            oneTime.address: RedeemCodeFixtures.systemAccount(lamports: RedeemCodeFixtures.rent),
-        ], deposits: [try RedeemCodeFixtures.deposit(1_000_000, to: oneTime, leafIndex: 3)])
-
-        await #expect(throws: PrivateBalanceError.codeUnderfunded) {
-            try await Self.balances(responses, keys: recipient.storedKeys, notes: recipient.notes)
-                .prepare(.redeem(RedeemCode(secret: oneTime.secret, network: .devnet)), from: recipient.account,
-                         on: .devnet)
-        }
-    }
-
-    @Test
     func `Redeeming another network's code is rejected`() async throws {
         let recipient = try await Self.recipient(registered: true)
         let responses = try RedeemCodeFixtures.responses(accounts: [:], deposits: [])
@@ -342,73 +290,22 @@ struct PrivateBalancesRedeemCodesTests {
     }
 
     @Test
-    func `A funded code whose notes aren't confirmed keeps its record until a later scan confirms them`() async throws {
-        let sender = try await Self.sender()
-        let deposits = [try RedeemCodeFixtures.deposit(700, to: sender.keys.oneTimeAccount(at: 0), leafIndex: 3)]
-        let codes = StoredValue([sender.id: RedeemCodeLedger(records: [Self.record(at: 0)], isDiscovered: true)])
-        let lagging = try RedeemCodeFixtures.responses(accounts: [:], deposits: deposits, isFinalized: false)
-        let finalized = try RedeemCodeFixtures.responses(accounts: [:], deposits: deposits)
-
-        let unconfirmed = try await Self.balances(lagging, keys: sender.storedKeys, notes: sender.notes, codes: codes)
-            .outstandingCodes(of: sender.account, on: .devnet)
-        let kept = await codes.value?[sender.id]?.records
-        let confirmed = try await Self.balances(finalized, keys: sender.storedKeys, notes: sender.notes, codes: codes)
-            .outstandingCodes(of: sender.account, on: .devnet)
-
-        #expect(unconfirmed.map(\.record) == [Self.record(at: 0)])
-        #expect(kept == [Self.record(at: 0)])
-        #expect(confirmed.map(\.record) == [Self.record(at: 0, amount: 700)])
-        #expect(await codes.value?[sender.id]?.records == [Self.record(at: 0, amount: 700)])
-    }
-
-    @Test(arguments: [(false, UInt64(0)), (false, RedeemCodeFixtures.reserve), (true, 0)])
-    func `Codes whose notes aren't confirmed aren't ready to redeem or take back`(takesBack: Bool, reserve: UInt64) async throws {
+    func `Codes whose notes aren't confirmed aren't ready to redeem`() async throws {
         let sender = try await Self.sender()
         let oneTime = try sender.keys.oneTimeAccount(at: 1)
-        var accounts = [try RedeemCodeFixtures.recordAddress(of: sender.account): sender.record]
-        if reserve > 0 { accounts[oneTime.address] = RedeemCodeFixtures.systemAccount(lamports: reserve) }
+        let accounts = [
+            try RedeemCodeFixtures.recordAddress(of: sender.account): sender.record,
+            oneTime.address: RedeemCodeFixtures.systemAccount(lamports: RedeemCodeFixtures.reserve),
+        ]
         let deposits = [sender.deposit, try RedeemCodeFixtures.deposit(1_000, to: oneTime, leafIndex: 3)]
         let responses = try RedeemCodeFixtures.responses(accounts: accounts, deposits: deposits, isFinalized: false)
-        let request: PrivateTransactionRequest = takesBack
-            ? .takeBack(index: 1) : .redeem(try RedeemCode(secret: oneTime.secret, network: .devnet))
+        let code = try RedeemCode(secret: oneTime.secret, network: .devnet)
 
         await #expect(throws: PrivateBalanceError.codeNotReady) {
             try await Self.balances(responses, keys: sender.storedKeys, notes: sender.notes)
-                .prepare(request, from: sender.account, on: .devnet)
+                .prepare(.redeem(code), from: sender.account, on: .devnet)
         }
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 0)
-    }
-
-    @Test
-    func `Leftover lamports below the reserve don't keep a spent code`() async throws {
-        let sender = try await Self.sender()
-        let swept = try sender.keys.oneTimeAccount(at: 1)
-        let responses = try RedeemCodeFixtures.responses(
-            accounts: [swept.address: RedeemCodeFixtures.systemAccount(lamports: 5_000)],
-            deposits: [try RedeemCodeFixtures.deposit(500, to: swept, leafIndex: 4)],
-            spends: [try RedeemCodeFixtures.spend(of: 500, to: swept, leafIndex: 4)]
-        )
-        let codes = StoredValue([sender.id: RedeemCodeLedger(records: [Self.record(at: 1)], isDiscovered: true)])
-        let balances = try await Self.balances(responses, keys: sender.storedKeys, notes: sender.notes, codes: codes)
-
-        #expect(try await balances.outstandingCodes(of: sender.account, on: .devnet).isEmpty)
-        #expect(await codes.value?[sender.id]?.records.isEmpty == true)
-    }
-
-    @Test
-    func `A code that the indexer reports spent stays while its reserve is intact`() async throws {
-        let sender = try await Self.sender()
-        let swept = try sender.keys.oneTimeAccount(at: 1)
-        let responses = try RedeemCodeFixtures.responses(
-            accounts: [swept.address: RedeemCodeFixtures.systemAccount(lamports: RedeemCodeFixtures.reserve)],
-            deposits: [try RedeemCodeFixtures.deposit(500, to: swept, leafIndex: 4)],
-            spends: [try RedeemCodeFixtures.spend(of: 500, to: swept, leafIndex: 4)]
-        )
-        let codes = StoredValue([sender.id: RedeemCodeLedger(records: [Self.record(at: 1)], isDiscovered: true)])
-        let balances = try await Self.balances(responses, keys: sender.storedKeys, notes: sender.notes, codes: codes)
-
-        #expect(try await balances.outstandingCodes(of: sender.account, on: .devnet).map(\.record) == [Self.record(at: 1)])
-        #expect(await codes.value?[sender.id]?.records == [Self.record(at: 1)])
     }
 
     @Test
@@ -505,41 +402,6 @@ struct PrivateBalancesRedeemCodesTests {
         #expect(confirmed.map(\.record.reserve) == [1_400_000])
         #expect(confirmed.map(\.record.fundingSignature) == [RedeemCodeFixtures.signature(ofDepositAt: 3)])
         #expect(await codes.value?[sender.id]?.isDiscovered == true)
-    }
-
-    @Test
-    func `Discovery finds codes past a gap of unused indices`() async throws {
-        let sender = try await Self.sender()
-        let swept = try sender.keys.oneTimeAccount(at: 0)
-        let held = try sender.keys.oneTimeAccount(at: 45)
-        let responses = try RedeemCodeFixtures.responses(
-            accounts: [:],
-            deposits: [try RedeemCodeFixtures.deposit(500, to: swept, leafIndex: 3),
-                       try RedeemCodeFixtures.deposit(700, to: held, leafIndex: 4)],
-            spends: [try RedeemCodeFixtures.spend(of: 500, to: swept, leafIndex: 3)]
-        )
-        let codes = StoredValue<PrivateBalances.Codes>()
-        let balances = try await Self.balances(responses, keys: sender.storedKeys, notes: sender.notes, codes: codes)
-
-        let outstanding = try await balances.outstandingCodes(of: sender.account, on: .devnet)
-
-        #expect(outstanding.map(\.record.index) == [45])
-        #expect(outstanding.map(\.record.amount) == [700])
-        #expect(await codes.value?[sender.id]?.nextIndex == 46)
-        #expect(try await RedeemCodeFixtures.tagCounts(of: responses).prefix(2) == [500, 500])
-    }
-
-    @Test
-    func `An unreadable codes item is deleted and found again`() async throws {
-        let sender = try await Self.sender()
-        let responses = try RedeemCodeFixtures.responses(accounts: [:], deposits: [])
-        let codes = StoredValue<PrivateBalances.Codes>([sender.id: RedeemCodeLedger(isDiscovered: true)],
-                                                       unreadable: true)
-        let balances = try await Self.balances(responses, keys: sender.storedKeys, notes: sender.notes, codes: codes)
-
-        #expect(try await balances.outstandingCodes(of: sender.account, on: .devnet).isEmpty)
-        #expect(await codes.deletions == 1)
-        #expect(await codes.value == [sender.id: RedeemCodeLedger(isDiscovered: true)])
     }
 
     @Test

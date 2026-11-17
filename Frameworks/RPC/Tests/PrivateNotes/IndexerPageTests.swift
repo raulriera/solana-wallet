@@ -157,19 +157,23 @@ struct IndexerPageTests {
     }
 
     @Test
-    func `A read keeps its start slot while it follows tokens`() async throws {
+    func `A read keeps its start slot while it follows tokens and resumes at its next page`() async throws {
         var checkpoints: [IndexerCheckpoint] = []
-
-        let read = try await EndlessPage.read(from: IndexerCheckpoint(afterSlot: 5, paginationToken: nil), pageLimit: 2,
-                                              pageSize: 250) { checkpoint, _ in
+        let endless = { (checkpoint: IndexerCheckpoint, _: Int) in
             checkpoints.append(checkpoint)
             return EndlessPage(items: [checkpoints.count], paginationToken: "\(checkpoints.count)")
         }
+        let start = IndexerCheckpoint(afterSlot: 5, paginationToken: nil)
 
-        #expect(checkpoints == [IndexerCheckpoint(afterSlot: 5, paginationToken: nil),
-                                IndexerCheckpoint(afterSlot: 5, paginationToken: "1")])
-        #expect(read.resume == IndexerCheckpoint(afterSlot: 5, paginationToken: "2"))
-        #expect(!read.isComplete)
+        let first = try await EndlessPage.read(from: start, pageLimit: 2, pageSize: 250, fetching: endless)
+        let second = try await EndlessPage.read(from: first.resume, pageLimit: 2, pageSize: 250, fetching: endless)
+
+        #expect(first.items == [1, 2])
+        #expect(!first.isComplete)
+        #expect(first.resume == IndexerCheckpoint(afterSlot: 5, paginationToken: "2"))
+        #expect(second.items == [3, 4])
+        let tokens: [String?] = [nil, "1", "2", "3"]
+        #expect(checkpoints == tokens.map { IndexerCheckpoint(afterSlot: 5, paginationToken: $0) })
     }
 
     @Test
@@ -193,24 +197,6 @@ struct IndexerPageTests {
                 try JSONDecoder().decode(ShieldedTransactionPage.self, from: page(IndexerFixtures.page(next: "AQ==")))
             }
         }
-    }
-
-    @Test
-    func `A read stops at its page limit and resumes at its next page`() async throws {
-        var tokens: [String?] = []
-        let endless = { (checkpoint: IndexerCheckpoint, _: Int) in
-            tokens.append(checkpoint.paginationToken)
-            return EndlessPage(items: [tokens.count], paginationToken: "\(tokens.count)")
-        }
-
-        let first = try await EndlessPage.read(from: .start, pageLimit: 3, pageSize: 250, fetching: endless)
-        let second = try await EndlessPage.read(from: first.resume, pageLimit: 2, pageSize: 250, fetching: endless)
-
-        #expect(first.items == [1, 2, 3])
-        #expect(!first.isComplete)
-        #expect(first.resume == IndexerCheckpoint(afterSlot: nil, paginationToken: "3"))
-        #expect(second.items == [4, 5])
-        #expect(tokens == [nil, "1", "2", "3", "4"])
     }
 
     @Test

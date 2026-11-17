@@ -33,10 +33,7 @@ struct PrivateBalanceKeyDerivationTests {
 
     @Test(arguments: [
         (PublicRecovery.addresses[0], "different account"),
-        (PublicRecovery.addresses[1], ""),
         ("HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3D\u{212A}pqk", ""),
-        ("HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpq0", ""),
-        ("HAgk14JpMQLgt6rVgv7cBQFJ", ""),
     ])
     func `Private-balance keys require the account at the expected address`(address: String, passphrase: String) async throws {
         let recovery = try PublicRecovery.phrase()

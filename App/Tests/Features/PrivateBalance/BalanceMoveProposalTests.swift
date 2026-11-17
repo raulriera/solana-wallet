@@ -8,13 +8,11 @@ import Transactions
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct BalanceMoveProposalTests {
-    private static let rateLimit = RPCError.http(statusCode: 429, retryAfter: "3")
-
     private nonisolated static let assets = [PrivateAsset.nativeSOL, .token(.devnetUSDC)]
 
-    @Test(arguments: Self.assets)
-    func `Reviewing a deposit shows its network fee`(asset: PrivateAsset) async throws {
-        let deposit = try await LocalBalanceMove.deposit(of: asset)
+    @Test
+    func `Reviewing a deposit shows its network fee`() async throws {
+        let deposit = try await LocalBalanceMove.deposit(of: .nativeSOL)
         let model = deposit.model
 
         model.prepareReview()
@@ -48,14 +46,6 @@ struct BalanceMoveProposalTests {
         (
             PrivateAsset.nativeSOL, TransactionError(name: "InsufficientFundsForFee", details: nil), [String](),
             PrivateBalanceError.insufficientPublicBalance
-        ),
-        (
-            .nativeSOL,
-            TransactionError(
-                name: "InstructionError",
-                details: .array([.integer(0), .object(["Custom": .integer(1)])])
-            ),
-            ["Transfer: insufficient lamports 0, need 1000000000"], .insufficientPublicBalance
         ),
         (
             .nativeSOL,
@@ -126,34 +116,10 @@ struct BalanceMoveProposalTests {
         await deposit.sockets.waitUntilClosed()
     }
 
-    @Test
-    func `A stopped watch keeps the review waiting until a later watch settles it`() async throws {
-        let refusal = Self.rateLimit
-        let sockets = SocketSequence { $0 == 0 ? SocketSequence.failing(with: refusal) : SocketSequence.watch() }
-        let deposit = try await LocalBalanceMove.deposit(of: .nativeSOL, statuses: [.status(.finalized)], sockets: sockets)
-        let model = deposit.model
-        try await deposit.model.runReview()
-        let record = try await deposit.model.runApproval()
-        await #expect(throws: (any Error).self) { try await deposit.transactions.watch(record.id, for: record.key) }
-
-        #expect(model.status == .pending)
-        #expect(model.isSending)
-        #expect(model.outcome == nil)
-        #expect(model.error == nil)
-
-        await deposit.transactions.resume()
-
-        #expect(try await deposit.transactions.watch(record.id, for: record.key) == .succeeded)
-        #expect(model.outcome == .succeeded)
-        #expect(!model.isSending)
-        #expect(try await deposit.balances.refresh(deposit.account, on: .devnet)
-            == .balance(available: 0, pending: LocalBalanceMove.amount, of: .nativeSOL))
-        #expect(sockets.sockets.count == 2)
-        await sockets.waitUntilClosed()
-    }
-
-    @Test(arguments: [(PrivateAsset.nativeSOL, UInt64(0)), (.token(.devnetUSDC), 0), (.token(.devnetUSDC), 1_488_440)],
-          [UInt64(0), 3_000])
+    @Test(arguments: zip(
+        [(PrivateAsset.nativeSOL, UInt64(0)), (.token(.devnetUSDC), 0), (.token(.devnetUSDC), 1_488_440)],
+        [UInt64(0), 3_000, 3_000]
+    ))
     func `Reviewing a withdrawal shows a privacy fee and an account deposit only when it has them`(
         withdrawn: (asset: PrivateAsset, accountDeposit: UInt64),
         privacyFee: UInt64
@@ -188,20 +154,6 @@ struct BalanceMoveProposalTests {
 
         #expect(try #require(model.review).pendingChange == nil)
         #expect(model.error == nil)
-    }
-
-    @Test
-    func `A withdrawal that the public balance can't pay for shows the fees error`() async throws {
-        let failure = SimulateTransaction.Value.failure(TransactionError(name: "InsufficientFundsForFee", details: nil),
-                                                        fee: LocalBalanceMove.networkFee)
-        let withdrawal = try await LocalBalanceMove.withdrawal(of: .nativeSOL, simulation: failure)
-        let model = withdrawal.model
-
-        model.prepareReview()
-        await model.run(model.attempt)
-
-        #expect(model.error == .insufficientPublicBalanceForFees)
-        #expect(model.review == nil)
     }
 
     @Test

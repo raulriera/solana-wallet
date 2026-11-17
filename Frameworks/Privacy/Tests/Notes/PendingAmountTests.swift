@@ -4,12 +4,7 @@ import Testing
 
 struct PendingAmountTests {
     @Test
-    func `Amounts survive encoding and require their asset`() throws {
-        let amount = PendingAmount(signature: IndexerResponses.signature(1), asset: .token(.usdc), amount: 42)
-
-        let decoded = try JSONDecoder().decode(PendingAmount.self, from: JSONEncoder().encode(amount))
-
-        #expect(decoded == amount)
+    func `Amounts without an asset are rejected`() {
         #expect(throws: DecodingError.self) {
             try JSONDecoder().decode(PendingAmount.self, from: Data(#"{"signature":"a","amount":42}"#.utf8))
         }

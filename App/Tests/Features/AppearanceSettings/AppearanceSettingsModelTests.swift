@@ -106,25 +106,6 @@ struct AppearanceSettingsModelTests {
         #expect(settings.appearance.snapshot?.preferences == AppearancePreferences())
     }
 
-    @Test func `Exports complete default template`() async throws {
-        let fixture = try CatalogFixture()
-        defer { fixture.remove() }
-        let settings = makeSettings(fixture)
-        defer { settings.finishExport() }
-        settings.prepareExport()
-        await settings.waitForOperation()
-        let templateURL = try #require(settings.export?.url)
-        let template = try await PackService().read(from: templateURL)
-        #expect(template.id != OriginalAppearance.id)
-        #expect(!template.name.isEmpty)
-        let manifest = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: templateURL.appendingPathComponent("manifest.json"))) as? [String: Any])
-        let tokens = try #require(manifest["tokens"] as? [String: Any])
-        let colors = try #require(tokens["colors"] as? [String: [String: Any]])
-        #expect(Set(colors.keys) == ["light", "dark"])
-        #expect(colors.values.allSatisfy { $0.count == Palette.Role.allCases.count })
-        #expect(tokens["fontDesign"] as? String == "default")
-    }
-
     @Test func `Theme Packs opens an export staged before it appeared`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }

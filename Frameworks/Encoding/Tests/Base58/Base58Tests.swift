@@ -39,7 +39,12 @@ struct Base58Tests {
         #expect(Base58.decode(value, maximumCount: 32) == expected)
     }
 
-    @Test(arguments: ["0", "O", "I", "l", " 2", "2\n", "9WzDXwBbmkg8ZTbNMqUxvQRАyrZzDsGYdLVL9zYtAWWM"])
+    @Test(arguments: [
+        "0", "O", "I", "l", " 2", "2\n", "2\u{200B}",
+        "9WzDXwBbmkg8ZTbNMqUxvQRАyrZzDsGYdLVL9zYtAWWM",
+        "9WzDXwBbmkg8ZTbNMqUxvQŁAyrZzDsGYdLVL9zYtAWWM",
+        "9WzDXwBbmkg8ZTbNMqUxvQR0yrZzDsGYdLVL9zYtAWWM",
+    ])
     func `Base58 decoding up to a limit rejects lookalikes and forbidden characters`(_ value: String) {
         #expect(Base58.decode(value, maximumCount: 32) == nil)
     }
@@ -50,16 +55,6 @@ struct Base58Tests {
     ])
     func `Base58 decoding up to a limit rejects text that encodes more bytes`(value: String, maximumCount: Int) {
         #expect(Base58.decode(value, maximumCount: maximumCount) == nil)
-    }
-
-    @Test(arguments: [
-        "9WzDXwBbmkg8ZTbNMqUxvQRАyrZzDsGYdLVL9zYtAWWM",
-        "9WzDXwBbmkg8ZTbNMqUxvQŁAyrZzDsGYdLVL9zYtAWWM",
-        "9WzDXwBbmkg8ZTbNMqUxvQR0yrZzDsGYdLVL9zYtAWWM",
-        "O", "I", "l", " 2", "2\n", "2\u{200B}"
-    ])
-    func `Base58 decoding rejects lookalikes and forbidden characters`(_ value: String) {
-        #expect(Base58.decode(value, byteCount: 32) == nil)
     }
 
     @Test(arguments: [

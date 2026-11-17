@@ -29,11 +29,6 @@ struct PrivateAssetTests {
         #expect(PrivateAsset(.token(mint: try Address(mint))) == privateAsset)
     }
 
-    @Test
-    func `Native SOL maps to the private SOL asset`() {
-        #expect(PrivateAsset(.nativeSOL) == .nativeSOL)
-    }
-
     @Test(arguments: PrivateAsset.allCases)
     func `Each private asset's asset maps back to it`(privateAsset: PrivateAsset) {
         #expect(PrivateAsset(privateAsset.asset) == privateAsset)

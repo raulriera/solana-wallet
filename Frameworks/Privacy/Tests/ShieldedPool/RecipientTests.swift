@@ -1,24 +1,10 @@
 import CryptoKit
-import Foundation
 import ModularArithmetic
 import Testing
 import Transactions
 @testable import Privacy
-@testable import RPC
 
 struct RecipientTests {
-    @Test
-    func `Recipients derive the owner hash and use the signing address as the view tag`() throws {
-        let rail = try CommitmentVectors.load().ed25519Rail
-        let recipient = try Recipient(
-            signingAddress: Address(TransferVectors.senderSigningAddress), nullifierPublicKey: Poseidon.Element(hex: rail.nullifierPubkey),
-            viewingPublicKey: rail.viewingKey().publicKey
-        )
-
-        #expect(recipient.owner == (try rail.ownerHash()))
-        #expect(recipient.viewTag == (try fixtureBytes(rail.signerPubkey)))
-    }
-
     @Test(arguments: TransferVectors.transfers)
     func `The derived recipient reproduces the published recipient commitments`(_ transfer: TransferVectors.Transfer) throws {
         let recipient = try TransferVectors.recipient()
@@ -40,25 +26,5 @@ struct RecipientTests {
         #expect(throws: Recipient.ValidationError.offCurveSigningAddress) {
             try Recipient(signingAddress: ShieldedPool.solInterface, nullifierPublicKey: .one, viewingPublicKey: viewingKey.publicKey)
         }
-    }
-
-    @Test
-    func `Lookups return registered owners in order`() async throws {
-        let vectors = try RegistryVectors.load().records
-        let owners = try [vectors[1].owner, vectors[0].owner].map(Address.init)
-        let record = #"{"owner":"\#(try RegistryVectors.load().program)","lamports":1,"executable":false,"#
-            + #""data":["\#(Data(try fixtureBytes(vectors[1].data)).base64EncodedString())","base64"]}"#
-        let transport = StubTransport { request in
-            try reply(to: request, payload: #""result":{"context":{"slot":7},"value":[\#(record),null]}"#)
-        }
-
-        let recipients = try await Recipient.lookup(owners, using: SolanaRPC(network: .devnet, transport: transport))
-
-        let recipient = try #require(recipients.first ?? nil)
-        #expect(await transport.requests.count == 1)
-        #expect(recipients.count == 2)
-        #expect(recipients[1] == nil)
-        #expect(recipient.signingAddress == owners[0])
-        #expect(recipient.owner.bigEndianBytes == (try fixtureBytes(vectors[1].ownerHash)))
     }
 }

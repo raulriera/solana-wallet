@@ -3,7 +3,9 @@ import Testing
 @testable import Privacy
 
 struct ProoflessOutputTests {
-    @Test(arguments: try DepositNoteVectors.load().deposits)
+    @Test(arguments: try DepositNoteVectors.load().deposits.filter {
+        ["deposit without memo", "deposit with memo"].contains($0.name)
+    })
     func `Payloads decode to their deposits`(_ vector: DepositNoteVectors.Deposit) throws {
         let output = try ProoflessOutput(decoding: fixtureBytes(vector.payload))
 

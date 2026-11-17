@@ -4,17 +4,13 @@ import Testing
 @testable import widgets
 
 struct KeyRejectionTests {
-    @Test(arguments: [401, 403])
-    func `Unauthorized and forbidden statuses reject the key`(status: Int) {
-        #expect(RPCError.http(statusCode: status, retryAfter: nil).rejectsKey)
-    }
-
     @Test(arguments: [
-        RPCError.http(statusCode: 400, retryAfter: nil), .http(statusCode: 404, retryAfter: nil),
-        .http(statusCode: 429, retryAfter: "5"), .http(statusCode: 500, retryAfter: nil),
-        .server(code: 401, message: "Unauthorized"), .transport(.userAuthenticationRequired),
+        (RPCError.http(statusCode: 401, retryAfter: nil), true), (.http(statusCode: 403, retryAfter: nil), true),
+        (.http(statusCode: 400, retryAfter: nil), false), (.http(statusCode: 404, retryAfter: nil), false),
+        (.http(statusCode: 429, retryAfter: "5"), false), (.http(statusCode: 500, retryAfter: nil), false),
+        (.server(code: 401, message: "Unauthorized"), false), (.transport(.userAuthenticationRequired), false),
     ])
-    func `Other failures don't reject the key`(_ error: RPCError) {
-        #expect(!error.rejectsKey)
+    func `Only unauthorized and forbidden statuses reject the key`(_ error: RPCError, rejectsKey: Bool) {
+        #expect(error.rejectsKey == rejectsKey)
     }
 }

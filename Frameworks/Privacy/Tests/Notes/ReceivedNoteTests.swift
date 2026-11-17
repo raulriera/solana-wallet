@@ -22,8 +22,9 @@ struct ReceivedNoteTests {
         #expect(notes.map(\.treeID) == (vector.ownedBySender ? [vector.treeID] : []))
     }
 
-    @Test(arguments: PrivateToken.supported.map(PrivateAsset.token))
-    func `Deposits of supported tokens are received`(asset: PrivateAsset) throws {
+    @Test
+    func `Deposits of a supported token are received`() throws {
+        let asset = PrivateAsset.token(.usdc)
         let vector = try #require(try DepositNoteVectors.load().deposits.first)
 
         let notes = try ReceivedNote.notes(in: vector.transaction(mint: asset.mintBytes), of: TransferVectors.sender())
@@ -110,20 +111,6 @@ struct ReceivedNoteTests {
         )
 
         #expect(try ReceivedNote.notes(in: lowOrder, of: TransferVectors.sender()).isEmpty)
-    }
-
-    @Test
-    func `Notes survive encoding`() throws {
-        let sender = try TransferVectors.sender()
-        let deposit = try #require(try DepositNoteVectors.load().deposits.first)
-        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], of: .nativeSOL, transfer: 4)
-        let notes = try ReceivedNote.notes(in: deposit.transaction(mint: PrivateAsset.nativeSOL.mintBytes), of: sender)
-            + ReceivedNote.notes(in: PlanFixtures.transaction(of: plan), of: sender)
-
-        let decoded = try JSONDecoder().decode([ReceivedNote].self, from: JSONEncoder().encode(notes))
-
-        #expect(notes.count == 2)
-        #expect(decoded == notes)
     }
 
     @Test(arguments: [

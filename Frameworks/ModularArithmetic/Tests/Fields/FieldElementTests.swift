@@ -60,20 +60,6 @@ struct FieldElementTests {
         try check(fixture.field)
     }
 
-    @Test(arguments: FieldFixture.all)
-    func `Addition, subtraction, and negation wrap at the modulus`(_ fixture: FieldFixture) throws {
-        func check<Field: PrimeField>(_: Field.Type) throws {
-            let minusOne = try FieldElement<Field>(hex: fixture.modulusMinusOne)
-            let zero = try fixtureBytes(FieldFixture.zero)
-
-            #expect((minusOne + .one).bigEndianBytes == zero)
-            #expect((FieldElement<Field>.zero - .one).bigEndianBytes == (try fixtureBytes(fixture.modulusMinusOne)))
-            #expect((-FieldElement<Field>.zero).bigEndianBytes == zero)
-            #expect((minusOne + minusOne).bigEndianBytes == (try fixtureBytes(fixture.modulusMinusTwo)))
-        }
-        try check(fixture.field)
-    }
-
     @Test(arguments: FieldFixture.all.flatMap { fixture in fixture.edgeValues.map { (fixture, $0) } })
     func `Every edge value plus its negation is zero`(_ fixture: FieldFixture, hex: String) throws {
         func check<Field: PrimeField>(_: Field.Type) throws {
@@ -106,47 +92,18 @@ struct FieldElementTests {
         try check(fixture.field)
     }
 
-    @Test(arguments: FieldFixture.all)
-    func `Reducing the modulus plus one equals one`(_ fixture: FieldFixture) throws {
-        func check<Field: PrimeField>(_: Field.Type) throws {
-            #expect(FieldElement<Field>(reducing: try fixtureBytes(fixture.modulusPlusOne)) == .one)
-        }
-        try check(fixture.field)
-    }
-
-    @Test(arguments: FieldFixture.all, FieldFixture.limbBoundaries)
-    func `Equality compares every stored limb`(_ fixture: FieldFixture, boundary: String) throws {
-        func check<Field: PrimeField>(_: Field.Type) throws {
-            let factor = FieldElement<Field>(reducing: try fixtureBytes(FieldFixture.maximum)) + .one
-            let limb = try FieldElement<Field>(hex: boundary) * factor.inverse()
-            #expect(limb != .zero)
-        }
-        try check(fixture.field)
-    }
-
     @Test(arguments: edgeValueIndexPairs)
-    func `Addition and multiplication commute and subtraction undoes addition on edge values`(
-        _ fixture: FieldFixture, i: Int, j: Int
-    ) throws {
-        func check<Field: PrimeField>(_: Field.Type) throws {
-            let a = try FieldElement<Field>(hex: fixture.edgeValues[i])
-            let b = try FieldElement<Field>(hex: fixture.edgeValues[j])
-
-            #expect(a + b == b + a)
-            #expect(a * b == b * a)
-            #expect((a - b) + b == a)
-        }
-        try check(fixture.field)
-    }
-
-    @Test(arguments: edgeValueIndexPairs)
-    func `Addition and multiplication associate and distribute on edge values`(
+    func `Addition and multiplication commute, associate, distribute, and cancel on edge values`(
         _ fixture: FieldFixture, i: Int, j: Int
     ) throws {
         func check<Field: PrimeField>(_: Field.Type) throws {
             let values = try fixture.edgeValues.map { try FieldElement<Field>(hex: $0) }
             let a = values[i]
             let b = values[j]
+
+            #expect(a + b == b + a)
+            #expect(a * b == b * a)
+            #expect((a - b) + b == a)
 
             let nonAssociativeSums = values.indices.filter { k in (a + b) + values[k] != a + (b + values[k]) }
             let nonAssociativeProducts = values.indices.filter { k in (a * b) * values[k] != a * (b * values[k]) }

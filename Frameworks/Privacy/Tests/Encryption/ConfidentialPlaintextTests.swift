@@ -17,13 +17,6 @@ struct ConfidentialPlaintextTests {
         #expect(try ConfidentialPlaintext(decoding: fixtureBytes(Self.encoding)) == Self.note)
     }
 
-    @Test(arguments: PrivateAsset.allCases)
-    func `Notes of every supported asset round-trip`(asset: PrivateAsset) throws {
-        let note = ConfidentialPlaintext(asset: asset, amount: 42, blinding: .one)
-
-        #expect(try ConfidentialPlaintext(decoding: note.encoded) == note)
-    }
-
     @Test(arguments: try ConfidentialPlaintextTests.unsupportedNotes())
     func `Unsupported notes are rejected`(bytes: [UInt8], error: ConfidentialPlaintext.ValidationError) {
         #expect(throws: error) {

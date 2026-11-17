@@ -41,48 +41,29 @@ struct TransactionRecordTests {
             """))
     }
 
-    @Test
-    func `A saved SOL payment reads back`() throws {
+    @Test(arguments: [
+        (Asset.ID.nativeSOL, #"{"nativeSOL": {}}"#, UInt64(1_000_000_000)),
+        (try .token(mint: Address(Self.mint)), #"{"token": {"mint": "\#(Self.mint)"}}"#, 2_500_000),
+    ])
+    func `A saved payment reads back`(asset: Asset.ID, json: String, amount: UInt64) throws {
         let saved = Data("""
             {"account": "E621E1F8-C36C-495A-93FC-0C247A3E6E5F", "network": "devnet", "kind": "payment",
-             "recipient": "\(Self.recipient)", "asset": {"nativeSOL": {}}, "amount": 1000000000, "signature": "signature",
+             "recipient": "\(Self.recipient)", "asset": \(json), "amount": \(amount), "signature": "signature",
              "lastValidBlockHeight": 550, "status": "pending", "created": 800000000}
             """.utf8)
 
         let record = try JSONDecoder().decode(TransactionRecord.self, from: saved)
 
-        #expect(try record == Self.record(.payment(recipient: Address(Self.recipient), asset: .nativeSOL, amount: 1_000_000_000)))
+        #expect(try record == Self.record(.payment(recipient: Address(Self.recipient), asset: asset, amount: amount)))
     }
 
-    @Test
-    func `A saved token payment reads back`() throws {
+    @Test(arguments: [
+        #""kind": "payment", "recipient": "\#(Self.recipient)", "amount": 1000000000"#,
+        #""kind": "swap""#,
+    ])
+    func `A saved record without an asset or of an unknown kind can't be read`(fields: String) {
         let saved = Data("""
-            {"account": "E621E1F8-C36C-495A-93FC-0C247A3E6E5F", "network": "devnet", "kind": "payment",
-             "recipient": "\(Self.recipient)", "asset": {"token": {"mint": "\(Self.mint)"}}, "amount": 2500000,
-             "signature": "signature", "lastValidBlockHeight": 550, "status": "pending", "created": 800000000}
-            """.utf8)
-
-        let record = try JSONDecoder().decode(TransactionRecord.self, from: saved)
-
-        #expect(try record == Self.record(.payment(recipient: Address(Self.recipient),
-                                                   asset: .token(mint: Address(Self.mint)), amount: 2_500_000)))
-    }
-
-    @Test
-    func `A saved payment without an asset can't be read`() {
-        let saved = Data("""
-            {"account": "E621E1F8-C36C-495A-93FC-0C247A3E6E5F", "network": "devnet", "kind": "payment",
-             "recipient": "\(Self.recipient)", "amount": 1000000000, "signature": "signature",
-             "lastValidBlockHeight": 550, "status": "pending", "created": 800000000}
-            """.utf8)
-
-        #expect(throws: DecodingError.self) { try JSONDecoder().decode(TransactionRecord.self, from: saved) }
-    }
-
-    @Test
-    func `An unknown kind can't be read`() {
-        let saved = Data("""
-            {"account": "E621E1F8-C36C-495A-93FC-0C247A3E6E5F", "network": "devnet", "kind": "swap",
+            {"account": "E621E1F8-C36C-495A-93FC-0C247A3E6E5F", "network": "devnet", \(fields),
              "signature": "signature", "lastValidBlockHeight": 550, "status": "pending", "created": 800000000}
             """.utf8)
 

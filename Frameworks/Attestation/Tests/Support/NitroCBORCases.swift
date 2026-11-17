@@ -48,10 +48,6 @@ struct NitroCBORCases: Decodable, Sendable {
         try load().cases.filter { $0.expect == expectation }
     }
 
-    static func messages(expected expectation: Expectation) throws -> [Case] {
-        try cases(expected: expectation).filter { $0.cose != nil }
-    }
-
     func trustedPolicy() throws -> NitroPolicy {
         try policy.policy(root: fixtureBytes(root))
     }

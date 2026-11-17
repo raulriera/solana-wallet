@@ -4,13 +4,14 @@ import Testing
 
 struct DERTests {
     @Test(arguments: DERVectors.canonical)
-    func `Values decode into their tags and contents`(bytes: [UInt8], expected: DER) throws {
-        #expect(try DER(decoding: bytes) == expected)
-    }
+    func `Values decode into their tags and contents and encode to the bytes they came from`(
+        bytes: [UInt8],
+        expected: DER
+    ) throws {
+        let value = try DER(decoding: bytes)
 
-    @Test(arguments: DERVectors.canonical.map(\.0))
-    func `Decoded values encode to the bytes they came from`(bytes: [UInt8]) throws {
-        #expect(try DER(decoding: bytes).encoded == bytes)
+        #expect(value == expected)
+        #expect(value.encoded == bytes)
     }
 
     @Test(arguments: [DERVectors.certificate, DERVectors.rsaPublicKey])
@@ -53,16 +54,12 @@ struct DERTests {
         [0x30, 0x02, 0x04, 0x81, 0x80],
         [0x04, 0x88, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
         [0x04, 0x88, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff],
-    ] as [[UInt8]])
-    func `Values that run past their input or their enclosing value are rejected`(bytes: [UInt8]) {
-        #expect(throws: DER.ValidationError.malformed) { try DER(decoding: bytes) }
-    }
-
-    @Test(arguments: [
         [0x04, 0x89, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80] + DERVectors.filler(count: 128),
         [0x04, 0xff] + DERVectors.filler(count: 127),
     ] as [[UInt8]])
-    func `Lengths in more than eight octets are rejected`(bytes: [UInt8]) {
+    func `Values that overrun their input or enclosing value, or need over eight length octets, are rejected`(
+        bytes: [UInt8]
+    ) {
         #expect(throws: DER.ValidationError.malformed) { try DER(decoding: bytes) }
     }
 

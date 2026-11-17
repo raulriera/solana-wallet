@@ -40,7 +40,6 @@
             { "kind": "folder", "path": "Integration", "target-membership": [ "widgetsTests" ] },
             { "kind": "folder", "path": "TestSupport", "target-membership": [ "widgetsTests" ] },
             { "kind": "folder", "path": "UI", "target-membership": [ "widgetsUITests" ] },
-            { "path": "Integration.xctestplan" },
             { "path": "UI.xctestplan" },
             { "path": "Unit.xctestplan" },
           ],

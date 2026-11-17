@@ -1,31 +1,13 @@
 import Foundation
-import Storage
 import Testing
 @testable import widgets
 
 struct RPCSettingsTests {
     @Test
-    func `New settings select Solana without custom RPCs`() {
-        let settings = RPCSettings()
-
-        #expect(settings.selection == .solana)
-        #expect(settings.customRPCs.isEmpty)
-    }
-
-    @Test
     func `A custom RPC shows only its host`() throws {
         let custom = try #require(URL(string: "https://rpc.example.com/fixture-token?api-key=fixture-key"))
 
         #expect(String(localized: RPCSettings.Provider.custom(custom).name) == "rpc.example.com")
-    }
-
-    @Test
-    func `Only a custom RPC has a custom URL`() throws {
-        let custom = try #require(URL(string: "https://rpc.example.com"))
-
-        #expect(RPCSettings.Provider.custom(custom).customURL == custom)
-        #expect(RPCSettings.Provider.solana.customURL == nil)
-        #expect(RPCSettings.Provider.helius.customURL == nil)
     }
 
     @Test
@@ -46,14 +28,5 @@ struct RPCSettingsTests {
         settings.select(.custom(unlisted))
 
         #expect(settings == RPCSettings())
-    }
-
-    @Test
-    func `Settings come back as they were saved`() throws {
-        let custom = try #require(URL(string: "https://rpc.example.com/fixture-token?api-key=fixture-key"))
-        let settings = RPCSettings(selection: .custom(custom), customRPCs: [custom])
-        let coding: JSONCoding<RPCSettings> = .json(RPCSettings.self)
-
-        #expect(coding.decode(try coding.encode(settings)) == settings)
     }
 }

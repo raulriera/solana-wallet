@@ -16,22 +16,17 @@ struct SlotCipherTests {
     }
 
     @Test
-    func `Senders seal the published ciphertext`() throws {
+    func `Senders seal and recipients open the published ciphertext`() throws {
         let ciphertext = try SlotCipher.applyAsSender(
             to: fixtureBytes(vector.plaintext), transactionViewingKey: ephemeralKey,
             recipientViewingPublicKey: recipientKey.publicKey, salt: fixtureBytes(vector.salt), slot: vector.slotIndex
         )
-
-        #expect(ciphertext == (try fixtureBytes(vector.ciphertext)))
-    }
-
-    @Test
-    func `Recipients open the published ciphertext`() throws {
         let plaintext = try SlotCipher.applyAsRecipient(
             to: fixtureBytes(vector.ciphertext), viewingKey: recipientKey,
             transactionViewingPublicKey: ephemeralKey.publicKey, salt: fixtureBytes(vector.salt), slot: vector.slotIndex
         )
 
+        #expect(ciphertext == (try fixtureBytes(vector.ciphertext)))
         #expect(plaintext == (try fixtureBytes(vector.plaintext)))
     }
 

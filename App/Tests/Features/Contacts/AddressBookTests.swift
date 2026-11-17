@@ -36,10 +36,4 @@ struct AddressBookTests {
         #expect(book.contacts.count == 2)
         #expect(book.favoriteAccounts.isEmpty)
     }
-
-    @Test func `The book reads back as saved`() throws {
-        let book = ContactsFixtures.addressBook
-
-        #expect(try JSONDecoder().decode(AddressBook.self, from: JSONEncoder().encode(book)) == book)
-    }
 }

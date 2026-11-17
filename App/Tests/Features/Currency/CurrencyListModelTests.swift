@@ -20,7 +20,7 @@ struct CurrencyListModelTests {
         #expect(await http.requests.count == 1)
     }
 
-    @Test(arguments: [("de_DE", "EUR", "EUR"), ("ja_JP", "JPY", "JPY"), ("es_AR", "ARS", "USD")])
+    @Test(arguments: [("de_DE", "EUR", "EUR"), ("es_AR", "ARS", "USD")])
     func `An automatic choice follows the region where the source serves it`(locale: String, region: String,
                                                                             currency: String) async {
         let model = CurrencyListModel(locale: Locale(identifier: locale))

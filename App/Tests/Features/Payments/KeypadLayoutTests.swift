@@ -6,25 +6,21 @@ struct KeypadLayoutTests {
     private static let count = 12
 
     @Test(arguments: [
-        ProposedViewSize.unspecified,
-        ProposedViewSize.infinity,
-        ProposedViewSize(width: 1000, height: 1000),
-        ProposedViewSize(width: 338, height: 456),
-    ])
-    func `Roomy space keeps the largest keypad`(proposal: ProposedViewSize) {
-        #expect(KeypadLayout.size(fitting: proposal, count: Self.count) == CGSize(width: 338, height: 456))
-    }
-
-    @Test(arguments: [
-        ProposedViewSize(width: 400, height: 228),
-        ProposedViewSize(width: 169, height: nil),
-    ])
-    func `Space short in either dimension scales the whole keypad down`(proposal: ProposedViewSize) {
-        #expect(KeypadLayout.size(fitting: proposal, count: Self.count) == CGSize(width: 169, height: 228))
-    }
-
-    @Test func `No space shrinks the keypad away`() {
-        #expect(KeypadLayout.size(fitting: .zero, count: Self.count) == .zero)
+        (ProposedViewSize.unspecified, 12, CGSize(width: 338, height: 456)),
+        (.infinity, 12, CGSize(width: 338, height: 456)),
+        (ProposedViewSize(width: 1000, height: 1000), 12, CGSize(width: 338, height: 456)),
+        (ProposedViewSize(width: 338, height: 456), 12, CGSize(width: 338, height: 456)),
+        (ProposedViewSize(width: 400, height: 228), 12, CGSize(width: 169, height: 228)),
+        (ProposedViewSize(width: 169, height: nil), 12, CGSize(width: 169, height: 228)),
+        (.zero, 12, .zero),
+        (.unspecified, 0, .zero),
+        (.unspecified, 1, CGSize(width: 338, height: 126)),
+        (.unspecified, 10, CGSize(width: 338, height: 456)),
+    ] as [(ProposedViewSize, Int, CGSize)])
+    func `The keypad takes whole rows for its keys at the largest size that fits`(
+        proposal: ProposedViewSize, count: Int, size: CGSize
+    ) {
+        #expect(KeypadLayout.size(fitting: proposal, count: count) == size)
     }
 
     @Test func `Scaled down keys keep their gaps and margins in proportion`() {
@@ -53,14 +49,5 @@ struct KeypadLayoutTests {
     ])
     func `The gap between rows scales with the keys`(size: CGSize, gap: CGFloat) {
         #expect(KeypadLayout.rowGap(inKeypadOf: size, count: Self.count) == gap)
-    }
-
-    @Test(arguments: [
-        (0, CGSize.zero),
-        (1, CGSize(width: 338, height: 126)),
-        (10, CGSize(width: 338, height: 456)),
-    ])
-    func `The keypad takes whole rows for its keys`(count: Int, size: CGSize) {
-        #expect(KeypadLayout.size(fitting: .unspecified, count: count) == size)
     }
 }

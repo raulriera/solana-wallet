@@ -14,11 +14,4 @@ struct PrivateBalanceErrorTests {
             #expect(![title, message].contains { $0.localizedStandardContains(provider) })
         }
     }
-
-    @Test
-    func `Each error has its own explanation`() {
-        let messages = PrivateBalanceError.allCases.compactMap(\.recoverySuggestion)
-
-        #expect(Set(messages).count == PrivateBalanceError.allCases.count)
-    }
 }

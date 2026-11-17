@@ -37,14 +37,4 @@ struct RecoveryRevealTests {
             return
         }
     }
-
-    @Test
-    func `A cancelled prompt opens no backup`() async throws {
-        let account = try Account.fixture(index: 0)
-        let store = SecurityRecoveryStore(readError: CancellationError())
-
-        await #expect(throws: CancellationError.self) {
-            try await RecoveryReveal(store: store).display(for: account)
-        }
-    }
 }

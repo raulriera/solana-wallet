@@ -21,9 +21,9 @@ struct RPCCoordinatorTests {
         #expect(coordinator.error == nil)
     }
 
-    @Test(arguments: [nil, RPCSettings(selection: .helius)])
-    func `Helius is in use once its key is saved`(saved: RPCSettings?) async throws {
-        let rpcStore = RPCStore.inMemory(StoredValue(saved))
+    @Test
+    func `Helius is in use once its key is saved`() async throws {
+        let rpcStore = RPCStore.inMemory()
         let coordinator = RPCCoordinator.inMemory(rpcStore)
         coordinator.select(.helius)
         await coordinator.run(coordinator.attempt)
@@ -102,9 +102,11 @@ struct RPCCoordinatorTests {
     }
 
     @Test
-    func `Helius's details open without a key check`() {
+    func `Helius's details open without a key check, and Solana's open nothing`() {
         let coordinator = RPCCoordinator.inMemory(.inMemory(key: StoredValue("fixture-key")))
 
+        coordinator.showDetails(for: .solana)
+        #expect(coordinator.path.isEmpty)
         coordinator.showDetails(for: .helius)
 
         #expect(coordinator.path == [.apiKeyDetails])
@@ -173,16 +175,6 @@ struct RPCCoordinatorTests {
     }
 
     @Test
-    func `Solana's details open nothing`() {
-        let coordinator = RPCCoordinator.inMemory(.inMemory())
-
-        coordinator.showDetails(for: .solana)
-
-        #expect(coordinator.path.isEmpty)
-        #expect(coordinator.keyEntry == nil)
-    }
-
-    @Test
     func `Taps during a choice are ignored`() async throws {
         let url = try #require(URL(string: "https://rpc.example.com"))
         let settings = StoredValue(RPCSettings(selection: .helius, customRPCs: [url]))
@@ -206,10 +198,15 @@ struct RPCCoordinatorTests {
         #expect(await settings.value == RPCSettings(selection: .solana, customRPCs: [url]))
     }
 
-    @Test
-    func `A cancelled choice opens no key entry and shows no error`() async throws {
-        let coordinator = RPCCoordinator.inMemory(.inMemory())
-        coordinator.select(.helius)
+    @Test(arguments: [
+        (RPCSettings?.none, RPCSettings.Provider.helius, false),
+        (RPCSettings(selection: .helius), .solana, true),
+    ])
+    func `A cancelled choice opens no key entry and shows no error, even when it can't be saved`(
+        saved: RPCSettings?, choice: RPCSettings.Provider, failsSaving: Bool
+    ) async throws {
+        let coordinator = RPCCoordinator.inMemory(.inMemory(StoredValue(saved, failsSaving: failsSaving)))
+        coordinator.select(choice)
         let attempt = try #require(coordinator.attempt)
 
         let running = Task { await coordinator.run(attempt) }
@@ -221,10 +218,9 @@ struct RPCCoordinatorTests {
         #expect(coordinator.attempt == nil)
     }
 
-    @Test(arguments: [false, true])
-    func `Settings that can't be read explain it`(isKeyUnreadable: Bool) async {
-        let coordinator = RPCCoordinator.inMemory(.inMemory(StoredValue(failsLoading: !isKeyUnreadable),
-                                                            key: StoredValue(failsLoading: isKeyUnreadable)))
+    @Test
+    func `Settings that can't be read explain it`() async {
+        let coordinator = RPCCoordinator.inMemory(.inMemory(StoredValue(failsLoading: true)))
 
         await coordinator.load()
 
@@ -251,35 +247,6 @@ struct RPCCoordinatorTests {
         await coordinator.run(coordinator.attempt)
 
         #expect(coordinator.error == .selectionUnreadable)
-        #expect(coordinator.attempt == nil)
-    }
-
-    @Test
-    func `A cancelled choice that fails shows no error`() async throws {
-        let settings = StoredValue(RPCSettings(selection: .helius), failsSaving: true)
-        let coordinator = RPCCoordinator.inMemory(.inMemory(settings))
-        coordinator.select(.solana)
-        let attempt = try #require(coordinator.attempt)
-
-        let running = Task { await coordinator.run(attempt) }
-        running.cancel()
-        await running.value
-
-        #expect(coordinator.error == nil)
-        #expect(coordinator.attempt == nil)
-    }
-
-    @Test
-    func `A choice that can't be saved explains it and keeps the checkmark`() async {
-        let rpcStore = RPCStore.inMemory(StoredValue(RPCSettings(selection: .helius), failsSaving: true))
-        let coordinator = RPCCoordinator.inMemory(rpcStore)
-        await coordinator.load()
-
-        coordinator.select(.solana)
-        await coordinator.run(coordinator.attempt)
-
-        #expect(coordinator.error == .selectionUnsaved)
-        #expect(rpcStore.settings?.selection == .helius)
         #expect(coordinator.attempt == nil)
     }
 

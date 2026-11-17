@@ -26,23 +26,16 @@ struct WindowStartupTests {
     }
 
     @Test
-    func `A restored window reopens its own saved account`() async throws {
+    func `A restored window reopens its saved account, or the first saved account if it's gone`() async throws {
         let saved = try [Account.fixture(index: 0), Account.fixture(index: 1)]
-        let window = WindowModel(accounts: .inMemory(StoredValue(saved)))
+        let restored = WindowModel(accounts: .inMemory(StoredValue(saved)))
+        let removed = WindowModel(accounts: .inMemory(StoredValue(saved)))
 
-        await window.restore(preferring: saved[1].id)
+        await restored.restore(preferring: saved[1].id)
+        await removed.restore(preferring: UUID())
 
-        #expect(window.destination == .wallet(saved[1]))
-    }
-
-    @Test
-    func `A restored account that is no longer saved opens the first saved account`() async throws {
-        let saved = try [Account.fixture(index: 0), Account.fixture(index: 1)]
-        let window = WindowModel(accounts: .inMemory(StoredValue(saved)))
-
-        await window.restore(preferring: UUID())
-
-        #expect(window.destination == .wallet(saved[0]))
+        #expect(restored.destination == .wallet(saved[1]))
+        #expect(removed.destination == .wallet(saved[0]))
     }
 
     @Test

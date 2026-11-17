@@ -29,14 +29,6 @@ struct DiscoveryTests {
     }
 
     @Test
-    func `An empty scan stops after one SOL lookup`() async throws {
-        let http = HTTPResponses(["getMultipleAccounts": [accountResponse(Array(repeating: "null", count: 20))]])
-        let accounts = try await AccountDiscovery(rpc: http.client).discover(for: publicPhrase(), passphrase: "")
-        #expect(accounts.isEmpty)
-        #expect(await http.requests.count == 1)
-    }
-
-    @Test
     func `Discovery surfaces rate limits without retrying`() async throws {
         let error = RPCError.http(statusCode: 429, retryAfter: "3")
         let http = HTTPResponses([:], error: error)

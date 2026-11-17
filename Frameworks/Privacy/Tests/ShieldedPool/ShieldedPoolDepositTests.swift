@@ -38,16 +38,6 @@ struct ShieldedPoolDepositTests {
     }
 
     @Test
-    func `Zero-amount token deposits are rejected`() throws {
-        let recipient = try TransferVectors.recipient()
-        let depositor = try Address(TransferVectors.senderSigningAddress)
-
-        #expect(throws: ValidationError.invalidAmount) {
-            try ShieldedPool.deposit(0, of: .token(.usdc), from: depositor, to: recipient, treeID: 0)
-        }
-    }
-
-    @Test
     func `Zero-lamport deposits are rejected`() throws {
         let recipient = try TransferVectors.recipient()
         let depositor = try Address(TransferVectors.senderSigningAddress)

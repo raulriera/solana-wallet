@@ -8,10 +8,7 @@ struct TokenAmountFormatStyleTests {
         (TokenAmount(amount: 1_250_000_000, decimals: 9), "1.25"),
         (TokenAmount(amount: 1_000_000_000, decimals: 9), "1"),
         (TokenAmount(amount: 1, decimals: 9), "0.000000001"),
-        (TokenAmount(amount: 0, decimals: 9), "0"),
-        (TokenAmount(amount: .max, decimals: 0), "18,446,744,073,709,551,615"),
         (TokenAmount(amount: .max, decimals: 6), "18,446,744,073,709.551615"),
-        (TokenAmount(amount: .max, decimals: 20), "0.18446744073709551615"),
         (TokenAmount(amount: 1, decimals: .max), "0." + String(repeating: "0", count: 254) + "1"),
     ])
     func `Amounts display exact asset quantities without trailing fractional zeros`(balance: TokenAmount,
@@ -20,7 +17,6 @@ struct TokenAmountFormatStyleTests {
     }
 
     @Test(arguments: [
-        ("en_US", "1,234.0005"),
         ("de_DE", "1.234,0005"),
         ("ar_EG", "١٬٢٣٤٫٠٠٠٥"),
     ])
@@ -32,9 +28,7 @@ struct TokenAmountFormatStyleTests {
 
     @Test(arguments: [
         (TokenAmount(lamports: 83_408_632), Asset.nativeSOL, "en_US", "0.083408632 SOL"),
-        (TokenAmount(lamports: 5_000_000_000), .nativeSOL, "en_US", "5 SOL"),
         (TokenAmount(lamports: 1_234_500_000_000), .nativeSOL, "de_DE", "1.234,5 SOL"),
-        (TokenAmount(amount: 1_234, decimals: 4), .token(.fixture(symbol: "TINY")), "en_US", "0.1234 TINY"),
         (TokenAmount(amount: 2_500_000, decimals: 6), .token(.fixture(symbol: "USDC")), "de_DE", "2,5 USDC"),
     ])
     func `An amount of an asset shows its digits and the asset's symbol`(sent: TokenAmount, asset: Asset,

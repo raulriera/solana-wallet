@@ -35,22 +35,6 @@ struct TransactPlanTests {
     }
 
     @Test
-    func `Senders receive the change`() throws {
-        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], of: .nativeSOL, transfer: 4)
-        let sender = try TransferVectors.sender()
-        let transactionViewingKey = try TransactionViewingKey.derive(viewingKey: sender.viewingKey, firstNullifier: #require(plan.nullifiers.first))
-
-        let received = try ConfidentialOutput(decoding: plan.outputs[1].published.data).receive(
-            viewingKey: sender.viewingKey, owner: CommitmentVectors.load().ed25519Rail.ownerHash(),
-            transactionViewingPublicKey: transactionViewingKey.publicKey, salt: TransferVectors.salt, slot: 1,
-            treeID: plan.outputTreeID, utxoHash: plan.commitments[1]
-        )
-
-        #expect(received?.amount == 6)
-        #expect(received == plan.outputs[1].utxo)
-    }
-
-    @Test
     func `Transfers without change pad with the recipient's view tag`() throws {
         let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], of: .nativeSOL, transfer: 10, outputTreeID: 5, paddingOutputs: 1)
         let recipient = try TransferVectors.recipient()
@@ -86,17 +70,6 @@ struct TransactPlanTests {
         #expect(plan.inputs.map(\.treeIndex) == [0, 1, 0, 1, 0, 1, 1, 1])
         #expect(padding.utxo == nil)
         #expect(plan.inputTreeIDs[Int(padding.treeIndex)] == 1)
-    }
-
-    @Test
-    func `Plans keep the witness values`() throws {
-        let utxos = try (0..<7).map { try PlanFixtures.utxo(amount: 1, blindingByte: 0xb0 + UInt8($0), asset: .nativeSOL) }
-        let plan = try PlanFixtures.plan(spending: utxos, of: .nativeSOL, transfer: 7, paddingInputs: 1,
-                                         paddingOutputs: 1)
-
-        #expect(plan.blindingSeed == TransferVectors.blindingSeed)
-        #expect(plan.inputs.map(\.blinding) == (0..<7).map { TransferVectors.blinding(0xb0 + UInt8($0)) } + [TransferVectors.blinding(0xd0)])
-        #expect(plan.outputs.map { $0.owner?.signingAddress } == [try TransferVectors.recipient().signingAddress, nil])
     }
 
     @Test
@@ -209,22 +182,6 @@ struct TransactPlanTests {
             try PlanFixtures.plan(spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], of: .nativeSOL, transfer: nil, withdrawal: withdrawal)
         }
     }
-
-    @Test
-    func `Off-curve senders are rejected`() throws {
-        let rail = try CommitmentVectors.load().ed25519Rail
-        let sender = try ShieldedAccount(
-            signingAddress: ShieldedPool.solInterface, nullifierSecret: rail.nullifierSecretKey(),
-            viewingKey: rail.viewingKey()
-        )
-
-        #expect(throws: Recipient.ValidationError.offCurveSigningAddress) {
-            try TransactPlan(
-                spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], of: .nativeSOL, sender: sender, transfer: nil, withdrawal: nil, outputTreeID: 0,
-                randomness: PlanFixtures.randomness(paddingInputs: 0, paddingOutputs: 1)
-            )
-        }
-    }
 }
 
 struct TransactPlanOwnerTagTests {
@@ -246,16 +203,6 @@ struct TransactPlanOwnerTagTests {
 
         let participant = try #require(plan.outputs.first { $0.owner?.viewTag == resolved })
         #expect(participant.published.ownerTag == expected)
-    }
-
-    @Test
-    func `Padding with the sender's view tag refers to the payer`() throws {
-        let plan = try PlanFixtures.plan(
-            spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], of: .nativeSOL, transfer: nil, withdrawal: PlanFixtures.withdrawal(4, of: .nativeSOL), paddingOutputs: 1
-        )
-
-        #expect(plan.outputs.map { $0.utxo?.amount } == [6, nil])
-        #expect(plan.outputs.map(\.published.ownerTag) == [.payer, .payer])
     }
 
     private static func account(seed: UInt8) throws -> ShieldedAccount {

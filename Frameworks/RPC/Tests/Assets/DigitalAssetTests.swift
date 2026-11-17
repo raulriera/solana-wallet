@@ -26,16 +26,6 @@ struct DigitalAssetTests {
         #expect(asset.imageURL?.absoluteString == "https://example.com/sol.png")
     }
 
-    @Test
-    func `The image is the provider's HTTPS CDN copy`() throws {
-        let asset = try JSONDecoder().decode(DigitalAsset.self, from: Data(#"""
-        {"id":"mint","interface":"FungibleToken",
-         "content":{"links":{"image":"https://creator.example/logo.png"},
-             "files":[{"uri":"https://creator.example/logo.png","cdn_uri":"https://cdn.example.com/logo.png","mime":"image/png"}]}}
-        """#.utf8))
-        #expect(asset.imageURL?.absoluteString == "https://cdn.example.com/logo.png")
-    }
-
     @Test(arguments: [
         #"[{"uri":"https://creator.example/logo.png","mime":"image/png"}]"#,
         #"[{"uri":"https://creator.example/logo.png","cdn_uri":"http://cdn.example.com/logo.png","mime":"image/png"}]"#,

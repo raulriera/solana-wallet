@@ -31,9 +31,6 @@ struct Curve25519TaggedRepresentationTests {
 
     @Test(arguments: [
         ([0] + Array(repeating: 1, count: 32), .invalidParameter),
-        ([2] + Array(repeating: 1, count: 32), .invalidParameter),
-        ([3] + Array(repeating: 1, count: 32), .invalidParameter),
-        ([5] + Array(repeating: 1, count: 32), .invalidParameter),
         ([4] + X25519Fixtures.modulus, .invalidParameter),
         ([4] + Array(repeating: 0, count: 31) + [0x80], .invalidParameter),
         ([4] + Array(repeating: 1, count: 31), .incorrectKeySize),

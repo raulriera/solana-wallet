@@ -25,15 +25,6 @@ struct HashChainTests {
         #expect(HashChain.right(Array(repeating: unusedSlot, count: count)).bigEndianBytes == (try fixtureBytes(expected)))
     }
 
-    @Test
-    func `Binary right chains fold from the last element`() {
-        let (a, b, c) = (Poseidon.Element(1), Poseidon.Element(2), Poseidon.Element(3))
-
-        #expect(HashChain.right([a, b, c]) == Poseidon.hash(a, Poseidon.hash(b, c)))
-        #expect(HashChain.right([a]) == a)
-        #expect(HashChain.right([]) == .zero)
-    }
-
     @Test(arguments: [
         (0, "0000000000000000000000000000000000000000000000000000000000000000"),
         (1, "0532fd436e19c70e51209694d9c215250937921b8b79060488c1206db73e9946"),

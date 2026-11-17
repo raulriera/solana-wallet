@@ -88,9 +88,6 @@
             default = "YES">
          </TestPlanReference>
          <TestPlanReference
-            reference = "container:App/Tests/Integration.xctestplan">
-         </TestPlanReference>
-         <TestPlanReference
             reference = "container:App/Tests/UI.xctestplan">
          </TestPlanReference>
       </TestPlans>

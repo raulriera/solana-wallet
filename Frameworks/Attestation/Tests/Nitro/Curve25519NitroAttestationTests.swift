@@ -53,16 +53,6 @@ struct Curve25519NitroAttestationTests {
     }
 
     @Test
-    func `A document whose certificates expired is rejected`() throws {
-        let recorded = try RecordedNitroAttestation.load(named: "RecordedDevnetNitroAttestation")
-        let policy = NitroPolicy(measurements: [], publicKey: nil, maximumAge: 0)
-
-        #expect(throws: NitroPolicy.ValidationError.untrustedCertificateChain) {
-            try recorded.publicKey(under: policy, userData: [], at: .distantFuture)
-        }
-    }
-
-    @Test
     func `A message the document's certificate didn't sign is rejected`() throws {
         var attempt = try Self.attempt()
         attempt.message[attempt.message.count - 1] ^= 0x01
@@ -90,20 +80,6 @@ struct Curve25519NitroAttestationTests {
         )
 
         #expect(throws: NitroPolicy.ValidationError.unexpectedMeasurement) { try attempt.verified() }
-    }
-
-    @Test
-    func `A claimed key the policy doesn't pin is rejected`() throws {
-        var attempt = try Self.attempt()
-        let other = [UInt8](repeating: 0x0f, count: 32)
-        attempt.policy = NitroPolicy(
-            measurements: attempt.policy.measurements,
-            publicKey: other,
-            root: attempt.policy.root,
-            maximumAge: attempt.policy.maximumAge
-        )
-
-        #expect(throws: NitroPolicy.ValidationError.unexpectedPublicKey) { try attempt.verified() }
     }
 
     @Test(

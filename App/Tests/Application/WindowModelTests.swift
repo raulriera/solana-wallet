@@ -25,20 +25,6 @@ struct WindowModelTests {
     }
 
     @Test
-    func `Choosing another account shows it in the window only`() async throws {
-        let first = try Account.fixture(index: 1)
-        let second = try Account.fixture(index: 2)
-        let accounts = AccountStore.inMemory(StoredValue([first, second]))
-        let window = await makeWindow(over: accounts)
-        let otherWindow = await makeWindow(over: accounts)
-
-        window[account: first] = second
-
-        #expect(window.destination == .wallet(second))
-        #expect(otherWindow.destination == .wallet(first))
-    }
-
-    @Test
     func `A renamed account shows at once`() async throws {
         let account = try Account.fixture(index: 1)
         let accounts = AccountStore.inMemory(StoredValue([account]))

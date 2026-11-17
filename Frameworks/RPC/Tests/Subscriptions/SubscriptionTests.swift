@@ -70,24 +70,18 @@ struct SubscriptionTests {
         #expect(try await iterator.next() == 99)
     }
 
-    @Test
-    func `Unrelated subscription IDs terminate the stream`() async throws {
-        let socket = SocketFixture()
-        let stream = try await client(socket: socket).changedSlots(for: ["wallet"])
-        socket.notify(slot: 7, subscription: 999)
-        var iterator = stream.makeAsyncIterator()
-        await #expect(throws: RPCError.invalidResponse(.mismatchedID)) { try await iterator.next() }
-        #expect(socket.requests.count == 1)
-        #expect(socket.isCancelled)
-    }
-
     @Test(arguments: [
-        (#"{"jsonrpc":"2.0","method":"rootNotification","params":{"subscription":1,"result":{"context":{"slot":5},"value":{}}}}"#,
+        (#"{"jsonrpc":"2.0","method":"accountNotification","params":{"subscription":999,"result":{"context":{"slot":7},"value":{}}}}"#,
          RPCError.invalidResponse(.mismatchedID)),
+        (#"{"jsonrpc":"2.0","method":"rootNotification","params":{"subscription":1,"result":{"context":{"slot":5},"value":{}}}}"#,
+         .invalidResponse(.mismatchedID)),
         (#"{"jsonrpc":"2.0","method":"accountNotification","params":{"subscription":1,"result":{"context":{},"value":{}}}}"#,
          .decoding),
     ])
-    func `Notifications with another method or without a slot terminate the stream`(frame: String, error: RPCError) async throws {
+    func `Notifications for another subscription or method, or without a slot, terminate the stream`(
+        frame: String,
+        error: RPCError
+    ) async throws {
         let socket = SocketFixture { data, ordinal in
             [try SocketFixture.acknowledgment(of: data, ordinal: ordinal), Data(frame.utf8)]
         }

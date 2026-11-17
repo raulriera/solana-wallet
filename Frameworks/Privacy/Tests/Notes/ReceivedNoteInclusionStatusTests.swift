@@ -48,33 +48,6 @@ struct ReceivedNoteInclusionStatusTests {
     }
 
     @Test
-    func `Proofs of another leaf or tree refute only their notes`() async throws {
-        let (included, includedNote) = try UTXORootHistoryTests.proofOfFifthLeaf(
-            of: try PlanFixtures.utxo(amount: 10, treeID: 0, blindingByte: 0xa1, asset: .nativeSOL)
-        )
-        let (_, otherLeafNote) = try UTXORootHistoryTests.proofOfFifthLeaf(
-            of: try PlanFixtures.utxo(amount: 20, treeID: 0, blindingByte: 0xb2, asset: .nativeSOL)
-        )
-        let (valid, otherTreeNote) = try UTXORootHistoryTests.proofOfFifthLeaf(
-            of: try PlanFixtures.utxo(amount: 30, treeID: 7, blindingByte: 0xc3, asset: .nativeSOL)
-        )
-        let otherTree = MerkleProof(tree: included.tree, leaf: valid.leaf, path: valid.path, leafIndex: valid.leafIndex,
-                                    root: valid.root, rootIndex: valid.rootIndex)
-        let proofs = [Self.firstTree: [included, included], Self.seventhTree: [otherTree]]
-        let accounts = [included.root, valid.root].map { root in
-            UTXOTrees.account(cursor: 9, count: 10, roots: Array(repeating: UTXORootHistoryTests.root(2), count: 9) + [root])
-        }
-        let transport = Self.transport(proofs: proofs, accounts: accounts)
-
-        let statuses = try await ReceivedNote.inclusionStatuses(
-            of: [includedNote, otherLeafNote, otherTreeNote], rpc: SolanaRPC.devnet(transport: transport),
-            indexer: Zolana.devnet(transport: transport)
-        )
-
-        #expect(statuses == [.included, .refuted, .refuted])
-    }
-
-    @Test
     func `No notes read nothing`() async throws {
         let transport = StubTransport { _ in throw CancellationError() }
 

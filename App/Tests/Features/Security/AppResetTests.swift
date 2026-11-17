@@ -21,8 +21,10 @@ struct AppResetTests {
         #expect(await storage.directoryExisted == existed)
     }
 
-    @Test(arguments: ResetStorage.Step.allCases)
-    func `Retrying after a failed step finishes the reset`(_ step: ResetStorage.Step) async throws {
+    @Test(arguments: [.recovery, .privateBalances, .contacts, .appearance, .accounts] as [ResetStorage.Step])
+    func `A failed step keeps the later steps, including the accounts, until a retry finishes the reset`(
+        _ step: ResetStorage.Step
+    ) async throws {
         let storage = ResetStorage(failingOnce: step)
         let reset = AppReset(storage: storage)
         let order = ResetStorage.Step.allCases
@@ -32,21 +34,6 @@ struct AppResetTests {
 
         try await reset.reset()
         #expect(await Array(storage.deletions.suffix(order.count)) == order)
-    }
-
-    @Test(arguments: ResetStorage.Step.allCases.filter { $0 != .accounts })
-    func `A failed earlier step keeps the accounts`(_ step: ResetStorage.Step) async throws {
-        let storage = ResetStorage(failingOnce: step)
-        let account = try Account.fixture(index: 0)
-        let accounts = AccountStore.inMemory(StoredValue([account]))
-        await accounts.load()
-        let reset = AppReset(recovery: storage, privateBalances: storage.privateBalances,
-                             directories: [storage.directory], appearance: storage.appearance, stores: storage.stores,
-                             accounts: accounts)
-
-        await #expect(throws: CocoaError.self) { try await reset.reset() }
-
-        #expect(accounts.accounts == [account])
     }
 
     @Test

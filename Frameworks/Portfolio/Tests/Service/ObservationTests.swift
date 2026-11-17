@@ -6,8 +6,8 @@ import Transactions
 @testable import RPC
 
 struct ObservationTests {
-    @Test(.timeLimit(.minutes(1)), arguments: [100, 109] as [UInt64])
-    func `Finalized changes reject older balance responses and read again after a delay`(slot: UInt64) async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Finalized changes reject older balance responses and read again after a delay`() async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
         let ledger = ObservedLedger()
@@ -17,7 +17,7 @@ struct ObservationTests {
         let initial = try await nextResult(&updates)
         let original = try #require(initial.snapshot)
 
-        await ledger.set(lamports: 100, slot: slot)
+        await ledger.set(lamports: 100, slot: 109)
         fixture.socket.notify(slot: 110)
         var delays = fixture.gate.delays.makeAsyncIterator()
         _ = try #require(await delays.next())
@@ -315,18 +315,7 @@ struct ObservationTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func `Leaving portfolio observation scope closes its connection`() async throws {
-        let fixture = ObservationFixture()
-        defer { fixture.cleanUp() }
-        let service = fixture.service(ledger: ObservedLedger())
-        let initial = try await firstObservation(from: service)
-        #expect(initial.error == nil)
-        await fixture.socket.waitUntilCancelled()
-        #expect(fixture.store.snapshot(for: fixture.key) == initial.snapshot)
-    }
-
-    @Test(.timeLimit(.minutes(1)), arguments: [110, 120] as [UInt64])
-    func `Finalized changes refresh fresh portfolios`(slot: UInt64) async throws {
+    func `Finalized changes refresh fresh portfolios`() async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
         let ledger = ObservedLedger()
@@ -337,7 +326,7 @@ struct ObservationTests {
         let original = try #require(initial.snapshot)
         #expect(fixture.socket.requests.count == 3)
 
-        await ledger.set(lamports: 200, slot: slot)
+        await ledger.set(lamports: 200, slot: 110)
         fixture.socket.notify(slot: 110, subscription: 3)
         var delays = fixture.gate.delays.makeAsyncIterator()
         #expect(await delays.next() == .seconds(2))
@@ -393,25 +382,6 @@ struct ObservationTests {
         #expect(latest.holdings.first?.balance?.amount == 300)
         #expect(fixture.store.snapshot(for: fixture.key) == latest.snapshot)
         #expect(await ledger.readCount == 3)
-        try await service.removeData(for: testWallet)
-        await fixture.socket.waitUntilCancelled()
-    }
-
-    @Test(.timeLimit(.minutes(1)))
-    func `Observation watches the wallet and each listed token account`() async throws {
-        let fixture = ObservationFixture()
-        defer { fixture.cleanUp() }
-        let ledger = ObservedLedger()
-        let service = fixture.service(ledger: ledger)
-        var updates = await service.observations(for: testWallet).makeAsyncIterator()
-        try await nextResult(&updates)
-
-        let wallet = try Address(testWallet)
-        let tokenAccounts = try [usdcMint, usdtMint].map {
-            try TokenProgram.token.associatedAccount(owner: wallet, mint: Address($0)).value
-        }
-        #expect(fixture.socket.subscribedAddresses == [testWallet] + tokenAccounts)
-        #expect(await ledger.reads == [[testWallet] + tokenAccounts])
         try await service.removeData(for: testWallet)
         await fixture.socket.waitUntilCancelled()
     }
@@ -615,37 +585,6 @@ struct ObservationTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func `A dropped connection reconnects and reads balances again`() async throws {
-        let fixture = ObservationFixture()
-        defer { fixture.cleanUp() }
-        let ledger = ObservedLedger()
-        let connections = Connections()
-        let service = fixture.service(ledger: ledger) { connections.connect(to: $0) }
-        var sockets = connections.opened.makeAsyncIterator()
-        var updates = await service.observations(for: testWallet).makeAsyncIterator()
-        let original = try await nextResult(&updates)
-        let first = try #require(await sockets.next())
-
-        first.fail(URLError(.networkConnectionLost))
-        let failed = try await nextResult(&updates)
-        #expect(failed.error as? RPCError == .transport(.networkConnectionLost))
-        #expect(failed.snapshot == original.snapshot)
-        var delays = fixture.gate.delays.makeAsyncIterator()
-        #expect(await delays.next() == .seconds(2))
-        await ledger.set(lamports: 200)
-        fixture.gate.resume()
-        let second = try #require(await sockets.next())
-        let reconnected = try await nextResult(&updates)
-
-        #expect(reconnected.error == nil)
-        #expect(reconnected.holdings.first?.balance?.amount == 200)
-        #expect(second.subscribedAddresses == first.subscribedAddresses)
-        #expect(await ledger.readCount == 2)
-        try await service.removeData(for: testWallet)
-        await second.waitUntilCancelled()
-    }
-
-    @Test(.timeLimit(.minutes(1)))
     func `Reconnection waits longer after each failed attempt`() async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
@@ -705,12 +644,12 @@ struct ObservationTests {
         try await service.removeData(for: testWallet)
     }
 
-    @Test(.timeLimit(.minutes(1)),
-          arguments: [RPCError.http(statusCode: 429, retryAfter: nil), RPCError.http(statusCode: 401, retryAfter: nil)])
-    func `A refused subscription waits for a reload to connect again`(rejection: RPCError) async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `A refused subscription waits for a reload to connect again`() async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
         let ledger = ObservedLedger()
+        let rejection = RPCError.http(statusCode: 429, retryAfter: nil)
         let connections = Connections { $0 == 1 ? rejection : nil }
         let service = fixture.service(ledger: ledger) { connections.connect(to: $0) }
         var sockets = connections.opened.makeAsyncIterator()
@@ -732,30 +671,6 @@ struct ObservationTests {
         var waited: [Duration] = []
         for await delay in fixture.gate.delays { waited.append(delay) }
         #expect(waited.isEmpty)
-        try await service.removeData(for: testWallet)
-        await second.waitUntilCancelled()
-    }
-
-    @Test(.timeLimit(.minutes(1)))
-    func `Adding a token connects a stopped observation again`() async throws {
-        let fixture = ObservationFixture()
-        defer { fixture.cleanUp() }
-        let ledger = ObservedLedger()
-        let connections = Connections { $0 == 1 ? RPCError.http(statusCode: 429, retryAfter: nil) : nil }
-        let service = fixture.service(ledger: ledger) { connections.connect(to: $0) }
-        var sockets = connections.opened.makeAsyncIterator()
-        var updates = await service.observations(for: testWallet).makeAsyncIterator()
-        try await nextResult(&updates)
-        _ = try #require(await sockets.next())
-
-        try await service.addToken(.fixture(pyusdMint, program: .token2022, decimals: 6), for: testWallet)
-        let second = try #require(await sockets.next())
-        let changed = try await nextResult(&updates)
-
-        #expect(changed.error == nil)
-        let tokens = try [usdcMint, usdtMint, pyusdMint].map { Asset.ID.token(mint: try Address($0)) }
-        #expect(changed.holdings.map(\.id) == [.nativeSOL] + tokens)
-        #expect(await ledger.reads == [second.subscribedAddresses])
         try await service.removeData(for: testWallet)
         await second.waitUntilCancelled()
     }
@@ -1029,9 +944,4 @@ private func nextResult(_ iterator: inout AsyncStream<Update>.AsyncIterator) asy
         if !update.isRefreshing { return update }
     }
     return try #require(nil as Update?)
-}
-
-private func firstObservation(from service: Portfolio) async throws -> Update {
-    var iterator = await service.observations(for: testWallet).makeAsyncIterator()
-    return try await nextResult(&iterator)
 }

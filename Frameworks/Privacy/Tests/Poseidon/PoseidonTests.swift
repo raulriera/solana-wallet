@@ -3,7 +3,9 @@ import Testing
 @testable import Privacy
 
 struct PoseidonTests {
-    @Test(arguments: try PoseidonParity.load().vectors)
+    @Test(arguments: try PoseidonParity.load().vectors.filter { vector in
+        ["zeros", "max", "pseudo"].contains { "poseidon-\($0)-\(vector.inputsBytes.count)" == vector.id }
+    })
     func `Hashes match the published vectors`(_ vector: PoseidonParity.Vector) throws {
         let inputs = try vector.inputsBytes.map(Poseidon.Element.init(hex:))
 

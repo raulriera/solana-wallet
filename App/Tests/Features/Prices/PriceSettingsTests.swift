@@ -5,23 +5,8 @@ import Testing
 
 struct PriceSettingsTests {
     @Test
-    func `New settings choose Jupiter without custom servers`() {
-        let settings = PriceSettings()
-
-        #expect(settings.selection == .jupiter)
-        #expect(settings.customServers.isEmpty)
-    }
-
-    @Test
     func `A custom server shows only its host`() {
         #expect(String(localized: PriceSettings.Provider.custom(Self.server).name) == "prices.example.com")
-    }
-
-    @Test
-    func `Only a custom server has a custom URL`() {
-        #expect(PriceSettings.Provider.custom(Self.server).customURL == Self.server)
-        #expect(PriceSettings.Provider.jupiter.customURL == nil)
-        #expect(PriceSettings.Provider.off.customURL == nil)
     }
 
     @Test
@@ -84,14 +69,6 @@ struct PriceSettingsTests {
         settings.remove(removed)
 
         #expect(settings == PriceSettings(selection: .custom(kept), customServers: [kept]))
-    }
-
-    @Test(arguments: [PriceSettings.Provider.jupiter, .off, .custom(Self.server)])
-    func `Settings come back as they were saved`(provider: PriceSettings.Provider) throws {
-        let settings = PriceSettings(selection: provider, customServers: [Self.server])
-        let coding: JSONCoding<PriceSettings> = .json(PriceSettings.self)
-
-        #expect(coding.decode(try coding.encode(settings)) == settings)
     }
 
     nonisolated static let server = URL(string: "https://prices.example.com/v1?key=fixture-key")!

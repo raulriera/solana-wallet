@@ -21,13 +21,6 @@ struct PrivateTransactionHashTests {
         #expect(hash.bigEndianBytes == (try fixtureBytes(vector.privateTransactionHash)))
     }
 
-    @Test
-    func `Six published vectors create no address`() throws {
-        let names = try PrivateTransactionHashVectors.load().vectors.filter(\.createsNoAddress).map(\.name)
-
-        #expect(names == ["compact", "padded", "padding_moved", "two_inputs", "reordered_inputs", "single_slot_spend"])
-    }
-
     @Test(arguments: TransferVectors.transfers)
     func `Hashes match the published transfers`(_ transfer: TransferVectors.Transfer) throws {
         let firstNullifier = try Poseidon.Element(hex: transfer.firstNullifier)

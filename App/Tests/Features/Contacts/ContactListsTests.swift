@@ -20,14 +20,12 @@ struct ContactListsTests {
         #expect(ContactsFixtures.lists.recents.map(\.address) == [ContactsFixtures.recent])
     }
 
-    @Test func `The recipient context lists every address the person used`() {
-        let known = Set(ContactsFixtures.lists.recipientContext.knownAddresses)
+    @Test func `The recipient context lists every address the person used and the paid ones`() {
+        let context = ContactsFixtures.lists.recipientContext
+        let known = Set(context.knownAddresses)
         #expect(known == [ContactsFixtures.sending, ContactsFixtures.savings, ContactsFixtures.alice,
                           ContactsFixtures.bruno, ContactsFixtures.recent])
-    }
-
-    @Test func `The recipient context lists the paid addresses`() {
-        #expect(ContactsFixtures.lists.recipientContext.paidAddresses == [ContactsFixtures.alice, ContactsFixtures.recent])
+        #expect(context.paidAddresses == [ContactsFixtures.alice, ContactsFixtures.recent])
     }
 
     @Test func `Saved addresses are found`() {

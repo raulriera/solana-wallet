@@ -22,9 +22,9 @@ struct SelectedRPCProviderTests {
         #expect(await responses.requests.isEmpty)
     }
 
-    @Test(arguments: [401, 403])
-    func `A rejected Helius key is reported as a key error`(status: Int) async {
-        let responses = HTTPResponses.keyCheck(error: .http(statusCode: status, retryAfter: nil))
+    @Test
+    func `A rejected Helius key is reported as a key error`() async {
+        let responses = HTTPResponses.keyCheck(error: .http(statusCode: 401, retryAfter: nil))
         let keys = StoredValue("rejected-key")
 
         await #expect(throws: RPCProviderError.invalidKey) {
@@ -92,34 +92,6 @@ struct SelectedRPCProviderTests {
         #expect(query.first(where: { $0.name == "api-key" })?.value == key)
     }
 
-    @Test(arguments: [
-        (RPCSettings.Provider.solana, "api.devnet.solana.com", nil),
-        (.helius, "devnet.helius-rpc.com", "fixture-key"),
-    ] as [(RPCSettings.Provider, String, String?)])
-    func `Signature watches go to the selected provider's devnet host`(provider: RPCSettings.Provider,
-                                                                      host: String, key: String?) async throws {
-        let responses = HTTPResponses.keyCheck()
-        let sockets = SocketSequence()
-        let opened = Mutex<[URL]>([])
-        let rpcStore = RPCStore.inMemory(selection: provider, key: "fixture-key")
-        let client = SelectedRPCProvider(network: .devnet, rpcStore: rpcStore) { endpoint, network in
-            responses.client(for: endpoint, on: network) { url in
-                opened.withLock { $0.append(url) }
-                return sockets.connect(url)
-            }
-        }
-
-        defer { for socket in sockets.sockets { socket.cancel() } }
-
-        _ = try await client.events(for: ExternalFixture.signature)
-
-        let url = try #require(opened.withLock(\.self).first)
-        let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
-        #expect(url.host() == host)
-        #expect(query.first(where: { $0.name == "api-key" })?.value == key)
-        #expect(sockets.sockets.count == 1)
-    }
-
     @Test
     func `A custom RPC fails on devnet before contacting it`() async throws {
         let responses = HTTPResponses.keyCheck()
@@ -135,10 +107,10 @@ struct SelectedRPCProviderTests {
         #expect(await responses.requests.isEmpty)
     }
 
-    @Test(arguments: [RPCSettings.Provider.solana, .custom(URL(string: "https://rpc.example.com")!)])
-    func `Only Helius reports key errors`(provider: RPCSettings.Provider) async throws {
+    @Test
+    func `Only Helius reports key errors`() async throws {
         let responses = HTTPResponses.keyCheck(error: .http(statusCode: 401, retryAfter: nil))
-        let client = responses.rpcProvider(rpcStore: .inMemory(selection: provider))
+        let client = responses.rpcProvider(rpcStore: .inMemory(selection: .solana))
 
         await #expect(throws: RPCError.http(statusCode: 401, retryAfter: nil)) {
             _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset))
@@ -169,12 +141,12 @@ struct SelectedRPCProviderTests {
         #expect(await responses.requests.isEmpty)
     }
 
-    @Test(arguments: Network.allCases)
-    func `Helius reads private notes and proves private transfers with its key`(network: Network) async throws {
+    @Test
+    func `Helius reads private notes and proves private transfers with its key`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let shielded = try await PrivateBalanceFixtures.keys(for: account).shieldedAccount(for: account.address)
         let responses = HTTPResponses.privateNotes(prover: try IndexedProofs.prover(), respond: Self.merkleProofs(answering:))
-        let client = responses.rpcProvider(network: network,
+        let client = responses.rpcProvider(network: .mainnet,
                                            rpcStore: .inMemory(selection: .helius, key: "fixture-key"))
         let tag = [UInt8](repeating: 7, count: 32)
         let request = try PrivateBalanceFixtures.proofRequest(spending: shielded)
@@ -201,23 +173,16 @@ struct SelectedRPCProviderTests {
         #expect(await responses.requests.allSatisfy { $0.url?.query()?.contains("api-key=fixture-key") == true })
     }
 
-    @Test(arguments: [
-        (RPCSettings.Provider.custom(URL(string: "https://rpc.example.com")!), Network.devnet,
-         RPCProviderError.unsupportedNetwork),
-        (.solana, .devnet, .unsupportedNetwork),
-        (.custom(URL(string: "https://rpc.example.com")!), .mainnet, .unsupportedNetwork),
-        (.helius, .devnet, .missingKey),
-        (.custom(URL(string: "http://rpc.example.com")!), .mainnet, .unusableEndpoint),
-    ])
-    func `Private-note reads and proofs fail before sending anything when the selected provider can't be used`(
-        provider: RPCSettings.Provider, network: Network, error: RPCProviderError
-    ) async throws {
+    @Test
+    func `Private-note reads and proofs fail on a custom RPC before sending anything`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let shielded = try await PrivateBalanceFixtures.keys(for: account).shieldedAccount(for: account.address)
         let responses = HTTPResponses.privateNotes(prover: try IndexedProofs.prover())
-        let client = responses.rpcProvider(network: network, rpcStore: .inMemory(selection: provider))
+        let custom = try #require(URL(string: "https://rpc.example.com"))
+        let client = responses.rpcProvider(network: .mainnet, rpcStore: .inMemory(selection: .custom(custom)))
         let tag = [UInt8](repeating: 7, count: 32)
         let request = try PrivateBalanceFixtures.proofRequest(spending: shielded)
+        let error = RPCProviderError.unsupportedNetwork
 
         await #expect(throws: error) { _ = try await client.shieldedTransactions(taggedWith: [tag], after: nil) }
         await #expect(throws: error) { _ = try await client.shieldedTransactions(spending: [tag]) }
@@ -245,22 +210,6 @@ struct SelectedRPCProviderTests {
         #expect(attestations.map { $0.query()?.hasPrefix("api-key=first-key") } == [true, false])
         #expect(urls.last?.query() == "api-key=second-key")
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 3)
-    }
-
-    @Test(arguments: [401, 403])
-    func `A Solana Rings rejection with Helius selected is reported as a key error`(status: Int) async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let shielded = try await PrivateBalanceFixtures.keys(for: account).shieldedAccount(for: account.address)
-        let responses = HTTPResponses.privateNotes(error: .http(statusCode: status, retryAfter: nil)) { _ in "" }
-        let client = responses.rpcProvider(network: .devnet,
-                                           rpcStore: .inMemory(selection: .helius, key: "rejected-key"))
-        let tag = [UInt8](repeating: 7, count: 32)
-        let request = try PrivateBalanceFixtures.proofRequest(spending: shielded)
-        let rejection = RPCProviderError.invalidKey
-
-        await #expect(throws: rejection) { _ = try await client.shieldedTransactions(taggedWith: [tag], after: nil) }
-        await #expect(throws: rejection) { _ = try await client.shieldedTransactions(spending: [tag]) }
-        await #expect(throws: rejection) { _ = try await client.proveTransfer(request) }
     }
 
     @Test

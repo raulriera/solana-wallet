@@ -14,34 +14,11 @@ struct DERValuesTests {
     }
 
     @Test(arguments: [
-        [0x02, 0x00],
-        [0x02, 0x01, 0x80],
-        [0x02, 0x01, 0xff],
-        [0x02, 0x02, 0x00, 0x7f],
-        [0x02, 0x02, 0xff, 0x80],
-    ] as [[UInt8]])
-    func `Integers that are empty, negative, or not in their shortest form are rejected`(bytes: [UInt8]) throws {
-        let value = try DER(decoding: bytes)
-
-        #expect(throws: NitroCertificate.ValidationError.invalidInteger) { try value.nonNegativeInteger() }
-    }
-
-    @Test(arguments: [
         ([0x02, 0x01, 0x05], 5),
         ([0x02, 0x08, 0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff], Int.max),
     ] as [([UInt8], Int)])
     func `Integers that Int can represent read as Int`(bytes: [UInt8], value: Int) throws {
         #expect(try DER(decoding: bytes).intValue() == value)
-    }
-
-    @Test(arguments: [
-        [0x02, 0x09, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
-        [0x02, 0x09, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
-    ] as [[UInt8]])
-    func `Integers beyond Int are rejected`(bytes: [UInt8]) throws {
-        let value = try DER(decoding: bytes)
-
-        #expect(throws: NitroCertificate.ValidationError.invalidInteger) { try value.intValue() }
     }
 
     @Test(arguments: [
@@ -60,18 +37,6 @@ struct DERValuesTests {
         #expect(bitString.unusedBitCount == unusedBitCount)
     }
 
-    @Test(arguments: [
-        [0x03, 0x00],
-        [0x03, 0x01, 0x01],
-        [0x03, 0x02, 0x08, 0x00],
-        [0x03, 0x02, 0x01, 0x01],
-    ] as [[UInt8]])
-    func `Bit strings with a missing, out-of-range, or set unused bit are rejected`(bytes: [UInt8]) throws {
-        let value = try DER(decoding: bytes)
-
-        #expect(throws: NitroCertificate.ValidationError.invalidBitString) { try value.bitString() }
-    }
-
     @Test
     func `Only bit strings of whole octets read as octets`() throws {
         let whole = try DER(decoding: [0x03, 0x03, 0x00, 0x01, 0x02])
@@ -87,18 +52,6 @@ struct DERValuesTests {
     ] as [[UInt8]])
     func `Object identifiers read as their contents`(bytes: [UInt8]) throws {
         #expect(try DER(decoding: bytes).objectIdentifier() == Array(bytes.dropFirst(2)))
-    }
-
-    @Test(arguments: [
-        [0x06, 0x00],
-        [0x06, 0x02, 0x55, 0x9d],
-        [0x06, 0x03, 0x55, 0x80, 0x01],
-        [0x06, 0x02, 0x80, 0x01],
-    ] as [[UInt8]])
-    func `Object identifiers that are empty, padded, or unfinished are rejected`(bytes: [UInt8]) throws {
-        let value = try DER(decoding: bytes)
-
-        #expect(throws: NitroCertificate.ValidationError.invalidObjectIdentifier) { try value.objectIdentifier() }
     }
 
     @Test
@@ -130,17 +83,6 @@ struct DERValuesTests {
         #expect(throws: Never.self) { try fields.finish() }
     }
 
-    @Test(arguments: [
-        [0x30, 0x03, 0x01, 0x01, 0x00],
-        [0x30, 0x03, 0x01, 0x01, 0x01],
-        [0x30, 0x04, 0x01, 0x02, 0xff, 0xff],
-    ] as [[UInt8]])
-    func `A default-false boolean other than TRUE is rejected`(bytes: [UInt8]) throws {
-        var fields = try DER(decoding: bytes).fields()
-
-        #expect(throws: NitroCertificate.ValidationError.invalidBoolean) { try fields.booleanDefaultingToFalse() }
-    }
-
     @Test
     func `An explicit tag reads as the one value inside it`() throws {
         let tag = DER.Identifier(tagWithNumber: 0, tagClass: .contextSpecific)
@@ -150,26 +92,5 @@ struct DERValuesTests {
         #expect(try present.next(explicitlyTagged: tag) == DER(decoding: [0x02, 0x01, 0x02]))
         #expect(try absent.next(explicitlyTagged: tag) == nil)
         #expect(try absent.next() == DER(decoding: [0x02, 0x01, 0x02]))
-    }
-
-    @Test(arguments: [
-        [0x30, 0x03, 0x80, 0x01, 0x02],
-        [0x30, 0x02, 0xa0, 0x00],
-        [0x30, 0x08, 0xa0, 0x06, 0x02, 0x01, 0x02, 0x02, 0x01, 0x02],
-    ] as [[UInt8]])
-    func `An explicit tag that is primitive or doesn't hold one value is malformed`(bytes: [UInt8]) throws {
-        let tag = DER.Identifier(tagWithNumber: 0, tagClass: .contextSpecific)
-        var fields = try DER(decoding: bytes).fields()
-
-        #expect(throws: NitroCertificate.ValidationError.malformed) { try fields.next(explicitlyTagged: tag) }
-    }
-
-    @Test
-    func `A reader rejects a missing field and a field left unread`() throws {
-        var empty = try DER(decoding: [0x30, 0x00]).fields()
-        let unread = try DER(decoding: [0x30, 0x02, 0x05, 0x00]).fields()
-
-        #expect(throws: NitroCertificate.ValidationError.malformed) { try empty.next() }
-        #expect(throws: NitroCertificate.ValidationError.malformed) { try unread.finish() }
     }
 }

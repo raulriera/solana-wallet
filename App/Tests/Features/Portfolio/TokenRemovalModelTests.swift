@@ -62,23 +62,6 @@ struct TokenRemovalModelTests {
     }
 
     @Test
-    func `A cancelled removal still explains a failed save`() async throws {
-        let service = PortfolioResponses()
-        await service.failRemovals(with: CocoaError(.fileWriteUnknown))
-        let portfolios = PortfolioStore.serving(service)
-        let removal = TokenRemovalModel()
-        removal.remove(try Address(Self.bonk))
-        let attempt = removal.attempt
-
-        let account = try Account.fixture(index: 1)
-        let run = Task { await removal.run(attempt, in: portfolios, for: account, on: .devnet) }
-        run.cancel()
-        await run.value
-
-        #expect(removal.error == .saveFailed)
-    }
-
-    @Test
     func `An attempt removes its token once`() async throws {
         let gate = Suspension()
         let service = PortfolioResponses(removalGate: gate)

@@ -23,31 +23,25 @@ struct SigningTests {
         #expect(key.isValidSignature(signature, for: message))
     }
 
-    @Test
-    func `Signing rejects recovery material for another sender`() async throws {
+    @Test(arguments: [
+        (PublicRecovery.addresses[0], "different account"),
+        ("HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3D\u{212A}pqk", ""),
+    ])
+    func `Signing rejects recovery material for another sender or a Unicode lookalike of its address`(
+        address: String,
+        passphrase: String
+    ) async throws {
         let recovery = try PublicRecovery.phrase()
 
         await #expect(throws: SigningError.signerMismatch) {
             try await Wallet().signature(
                 for: Data("public signing fixture".utf8), using: recovery,
-                expectedAddress: PublicRecovery.addresses[0],
-                passphrase: "different account", path: .solana
+                expectedAddress: address, passphrase: passphrase, path: .solana
             )
         }
     }
 
-    @Test
-    func `Signing rejects a Unicode lookalike in the sender address`() async throws {
-        let recovery = try PublicRecovery.phrase()
-        let address = "HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3D\u{212A}pqk"
-
-        await #expect(throws: SigningError.signerMismatch) {
-            try await Wallet().signature(for: Data("public signing fixture".utf8),
-                                         using: recovery, expectedAddress: address, passphrase: "", path: .solana)
-        }
-    }
-
-    @Test(arguments: try PrivateBalanceVectors.load().derivationInputGuard.filter(\.isDerivationInput))
+    @Test(arguments: try PrivateBalanceVectors.guardVectors(named: ["bare_payload", "offchain_wrapped"]))
     func `Signing refuses Solana Rings derivation inputs`(_ vector: PrivateBalanceVectors.GuardVector) async throws {
         let recovery = try PublicRecovery.phrase()
         let message = Data(try fixtureBytes(vector.message))
@@ -60,7 +54,7 @@ struct SigningTests {
         }
     }
 
-    @Test(arguments: try PrivateBalanceVectors.load().derivationInputGuard.filter { !$0.isDerivationInput })
+    @Test(arguments: try PrivateBalanceVectors.guardVectors(named: ["offchain_truncated", "plain_message"]))
     func `Signing accepts messages that only resemble derivation inputs`(_ vector: PrivateBalanceVectors.GuardVector) async throws {
         let message = Data(try fixtureBytes(vector.message))
 

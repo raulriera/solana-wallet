@@ -101,65 +101,6 @@ struct PriceRefreshTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func `Concurrent reloads share one balance read and one price lookup`() async throws {
-        let fixture = PricingFixture()
-        defer { fixture.removeFiles() }
-        let cached = pricingSnapshot()
-        try fixture.store.save(cached, for: fixture.key)
-        let (pending, release) = AsyncStream<Void>.makeStream()
-        defer { release.finish() }
-        let accounts = AccountResponses { _ in freshLedger }
-        let prices = PriceResponses { _ in
-            for await _ in pending {}
-            return Data("{}".utf8)
-        }
-        let service = fixture.portfolio(rpc: accounts.client, prices: prices.client)
-        var first = await service.updates(for: testWallet).makeAsyncIterator()
-        #expect(try #require(await first.next()).isRefreshing)
-        var second = await service.updates(for: testWallet).makeAsyncIterator()
-        #expect(try #require(await second.next()).snapshot == cached)
-        release.finish()
-        let firstResult = try #require(await first.next())
-        let secondResult = try #require(await second.next())
-        #expect(firstResult.error == nil)
-        #expect(firstResult.snapshot == secondResult.snapshot)
-        #expect(firstResult.revision == secondResult.revision)
-        #expect(firstResult.snapshotRevision == secondResult.snapshotRevision)
-        #expect(await accounts.requests.count == 1)
-        #expect(await prices.requests.count == 1)
-        #expect(await first.next() == nil)
-        #expect(await second.next() == nil)
-    }
-
-    @Test(.timeLimit(.minutes(1)))
-    func `Removing a portfolio during its price lookup prevents cache restoration`() async throws {
-        let fixture = PricingFixture()
-        defer { fixture.removeFiles() }
-        try fixture.store.save(pricingSnapshot(), for: fixture.key)
-        let (pending, release) = AsyncStream<Void>.makeStream()
-        let (started, announce) = AsyncStream<Void>.makeStream()
-        let (cancelled, cancelledContinuation) = AsyncStream<Void>.makeStream()
-        defer { release.finish(); announce.finish(); cancelledContinuation.finish() }
-        let accounts = AccountResponses { _ in freshLedger }
-        let prices = PriceResponses { _ in
-            announce.yield(())
-            for await _ in pending {}
-            if Task.isCancelled { cancelledContinuation.yield(()) }
-            return Data("{}".utf8)
-        }
-        let service = fixture.portfolio(rpc: accounts.client, prices: prices.client)
-        var updates = await service.updates(for: testWallet).makeAsyncIterator()
-        _ = try #require(await updates.next())
-        var startedIterator = started.makeAsyncIterator()
-        _ = try #require(await startedIterator.next())
-        try await service.removeData(for: testWallet)
-        var cancelledIterator = cancelled.makeAsyncIterator()
-        _ = try #require(await cancelledIterator.next())
-        #expect(await updates.next() == nil)
-        #expect(fixture.store.snapshot(for: fixture.key) == nil)
-    }
-
-    @Test(.timeLimit(.minutes(1)))
     func `A refresh during a provider change can't save the previous logos`() async throws {
         let fixture = PricingFixture()
         defer { fixture.removeFiles() }

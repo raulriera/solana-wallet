@@ -10,17 +10,6 @@ import Transactions
 @Suite(.timeLimit(.minutes(1)))
 struct PrivateBalanceObservationTests {
     @Test
-    func `An active window reads the private balance`() async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let store = try PrivateBalanceStore.fixture(HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]))
-        let hosted = try HostedWindow(PrivateBalanceObservationRoot(store: store, account: account, scenePhase: .active))
-        defer { hosted.close() }
-        try #require(try await hosted.appears())
-
-        try await PrivateBalanceFixtures.status(of: account, in: store, becomes: .off(isRegistered: false))
-    }
-
-    @Test
     func `An active window polls the private balance`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let record = try await PrivateBalanceFixtures.keys(for: account)

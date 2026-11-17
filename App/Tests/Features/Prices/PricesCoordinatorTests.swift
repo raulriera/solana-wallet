@@ -24,15 +24,6 @@ struct PricesCoordinatorTests {
     }
 
     @Test
-    func `An unreadable choice explains why`() async {
-        let coordinator = PricesCoordinator.inMemory(.inMemory(StoredValue(failsLoading: true)))
-
-        await coordinator.load()
-
-        #expect(coordinator.error == .settingsUnreadable)
-    }
-
-    @Test
     func `A cancelled read that fails shows no error`() async {
         let coordinator = PricesCoordinator.inMemory(.inMemory(StoredValue(failsLoading: true)))
 
@@ -128,19 +119,10 @@ struct PricesCoordinatorTests {
     }
 
     @Test
-    func `Adding a server opens a new check`() {
+    func `Adding a server opens a new check each time`() throws {
         let coordinator = PricesCoordinator.inMemory()
-
         coordinator.addServer()
-
         #expect(coordinator.path == [.serverSetup])
-        #expect(coordinator.setup != nil)
-    }
-
-    @Test
-    func `A screen that opens again starts a new check`() throws {
-        let coordinator = PricesCoordinator.inMemory()
-        coordinator.addServer()
         let first = try #require(coordinator.setup)
         coordinator.path.removeLast()
 
@@ -210,15 +192,5 @@ struct PricesCoordinatorTests {
         #expect(coordinator.setup == nil)
         await coordinator.run(attempt)
         #expect(await storage.value == PriceSettings(selection: .off, customServers: [Self.server]))
-    }
-
-    @Test
-    func `Leaving Prices closes its screens`() {
-        let coordinator = PricesCoordinator.inMemory()
-        coordinator.addServer()
-
-        coordinator.leave()
-
-        #expect(coordinator.path.isEmpty)
     }
 }

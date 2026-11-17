@@ -29,8 +29,7 @@ struct LocalBalanceMove {
         simulation: SimulateTransaction.Value? = nil,
         provider: RPCSettings.Provider = .helius,
         statuses: [GetSignatureStatuses.Response] = [],
-        height: UInt64 = 500,
-        sockets: SocketSequence = SocketSequence()
+        height: UInt64 = 500
     ) async throws -> LocalBalanceMove {
         let account = try await PrivateBalanceFixtures.account()
         let record = try await PrivateBalanceFixtures.keys(for: account)
@@ -66,7 +65,7 @@ struct LocalBalanceMove {
             fixture: fixture,
             statuses: statuses,
             height: height,
-            sockets: sockets
+            sockets: SocketSequence()
         )
     }
 
@@ -75,7 +74,6 @@ struct LocalBalanceMove {
         privateAmount: UInt64 = LocalBalanceMove.privateAmount,
         privacyFee: UInt64 = 0,
         accountDeposit: UInt64 = 0,
-        simulation: SimulateTransaction.Value? = nil,
         statuses: [GetSignatureStatuses.Response] = [],
         sockets: SocketSequence = SocketSequence()
     ) async throws -> LocalBalanceMove {
@@ -115,14 +113,13 @@ struct LocalBalanceMove {
             from: account,
             spendable: privateAmount,
             balances: try balances(),
-            simulation: try simulation
-                ?? success(
-                    of: instructions,
-                    paidBy: account.address,
-                    leaving: kept,
-                    depositing: deposits,
-                    fixture: fixture
-                ),
+            simulation: try success(
+                of: instructions,
+                paidBy: account.address,
+                leaving: kept,
+                depositing: deposits,
+                fixture: fixture
+            ),
             fixture: fixture,
             statuses: statuses,
             sockets: sockets

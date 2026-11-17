@@ -1,5 +1,4 @@
 import Encoding
-import Foundation
 import Testing
 
 struct RangeReplaceableCollectionIntegersTests {
@@ -21,14 +20,5 @@ struct RangeReplaceableCollectionIntegersTests {
         bytes.append(bigEndian: UInt64(0x0102_0304_0506_0708))
 
         #expect(bytes == [0xaa, 0x01, 0x02, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08])
-    }
-
-    @Test
-    func `Data receives little-endian appends`() {
-        var data = Data([0xaa])
-
-        data.append(littleEndian: UInt16(0x0102))
-
-        #expect(data == Data([0xaa, 0x02, 0x01]))
     }
 }

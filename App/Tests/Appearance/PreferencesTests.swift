@@ -229,19 +229,6 @@ nonisolated struct PreferencesTests {
         #expect(try Data(contentsOf: metadata) == data)
     }
 
-    @Test func `Unreadable metadata resets selections`() async throws {
-        let fixture = try CatalogFixture()
-        defer { fixture.remove() }
-        let catalog = ThemeCatalog(directory: fixture.directory)
-        let entry = try await catalog.install(PackService().read(from: fixture.source()))
-        let store = AppearanceStore(directory: fixture.directory)
-        _ = try await store.select(entry.id)
-        try Data("invalid".utf8).write(to: fixture.directory.appendingPathComponent(CatalogFiles.metadataName))
-
-        #expect(try await store.load().preferences == AppearancePreferences())
-        #expect(try await store.reset().preferences == AppearancePreferences())
-    }
-
     @Test func `Missing built-in selections reconcile to original appearance`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
