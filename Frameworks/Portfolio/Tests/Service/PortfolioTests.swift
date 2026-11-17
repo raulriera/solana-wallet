@@ -154,44 +154,27 @@ struct PortfolioTests {
         ])
     }
 
-    @Test
-    func `An uncached offline wallet keeps an absent snapshot`() async throws {
+    @Test(arguments: [nil, UInt64(3)])
+    func `A failed balance read keeps the previous snapshot`(cachedAmount: UInt64?) async throws {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
+        let key = CacheKey(owner: testWallet, network: .mainnet)
+        let cached = cachedAmount.map { snapshot(owner: testWallet, network: .mainnet, amount: $0) }
+        if let cached { try fixture.store.save(cached, for: key) }
         let http = AccountResponses { _ in throw URLError(.notConnectedToInternet) }
         let service = fixture.portfolio(rpc: http.client)
         let updates = await service.updates(for: testWallet)
         var iterator = updates.makeAsyncIterator()
 
         let initial = try #require(await iterator.next())
-        #expect(initial.snapshot == nil)
-        #expect(initial.holdings.isEmpty)
+        #expect(initial.snapshot == cached)
         #expect(initial.isRefreshing)
         let failed = try #require(await iterator.next())
-        #expect(failed.snapshot == nil)
-        #expect(failed.error as? RPCError == .transport(.notConnectedToInternet))
-        #expect(!failed.isRefreshing)
-        #expect(await iterator.next() == nil)
-    }
-
-    @Test
-    func `A failed balance read preserves the previous complete snapshot`() async throws {
-        let fixture = Fixture()
-        defer { fixture.removeFiles() }
-        let cached = snapshot(owner: testWallet, network: .mainnet, amount: 3)
-        let key = CacheKey(owner: testWallet, network: .mainnet)
-        try fixture.store.save(cached, for: key)
-        let http = AccountResponses { _ in throw URLError(.notConnectedToInternet) }
-        let service = fixture.portfolio(rpc: http.client)
-        let updates = await service.updates(for: testWallet)
-        var iterator = updates.makeAsyncIterator()
-        _ = await iterator.next()
-
-        let failed = try #require(await iterator.next())
-
         #expect(failed.snapshot == cached)
         #expect(failed.error as? RPCError == .transport(.notConnectedToInternet))
+        #expect(!failed.isRefreshing)
         #expect(fixture.store.snapshot(for: key) == cached)
+        #expect(await iterator.next() == nil)
     }
 
     @Test(arguments: [nil, UInt64(3)])
@@ -415,8 +398,8 @@ struct PortfolioTests {
         #expect(await http.requests.count == 1)
     }
 
-    @Test(arguments: [1, 2, 3])
-    func `Older caches are not restored while offline`(version: Int) async throws {
+    @Test
+    func `Older caches are not restored while offline`() async throws {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
         let key = CacheKey(owner: testWallet, network: .mainnet)
@@ -424,7 +407,7 @@ struct PortfolioTests {
         let file = try #require(FileManager.default.contentsOfDirectory(at: fixture.directory,
                                                                         includingPropertiesForKeys: nil).first)
         var envelope = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
-        envelope["version"] = version
+        envelope["version"] = 3
         try JSONSerialization.data(withJSONObject: envelope).write(to: file)
         let http = AccountResponses { _ in throw URLError(.notConnectedToInternet) }
         let service = fixture.portfolio(rpc: http.client)

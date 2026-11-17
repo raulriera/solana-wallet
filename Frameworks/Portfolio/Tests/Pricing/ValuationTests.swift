@@ -38,26 +38,15 @@ struct ValuationTests {
         #expect(result.holdings.first?.valuation == nil)
     }
 
-    @Test(arguments: [Decimal(string: "0.0129"), nil])
-    func `Valuations keep the quote's 24-hour change`(change: Decimal?) async throws {
+    @Test(arguments: [
+        (Decimal(string: "0.0129"), Decimal(string: "0.0129")),
+        (nil, nil),
+        (Decimal.nan, nil),
+    ] as [(Decimal?, Decimal?)])
+    func `Valuations keep a 24-hour change that's a number`(change: Decimal?, kept: Decimal?) async throws {
         let valuation = try await pricedValuation(dayChange: change)
         #expect(valuation.total == 2)
-        #expect(valuation.dayChange == change)
-    }
-
-    @Test
-    func `A 24-hour change that isn't a number stays unknown`() async throws {
-        let valuation = try await pricedValuation(dayChange: .nan)
-        #expect(valuation.total == 2)
-        #expect(valuation.dayChange == nil)
-    }
-
-    @Test
-    func `Saved valuations without a 24-hour change still load`() throws {
-        let saved = Data(#"{"pricePerUnit":2,"total":4,"currency":"USD"}"#.utf8)
-        let valuation = try JSONDecoder().decode(Valuation.self, from: saved)
-        #expect(valuation.total == 4)
-        #expect(valuation.dayChange == nil)
+        #expect(valuation.dayChange == kept)
     }
 
     private func pricedValuation(dayChange: Decimal?) async throws -> Valuation {

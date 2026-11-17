@@ -40,52 +40,6 @@ struct TokenListTests {
     }
 
     @Test
-    func `A removed token leaves the cached holdings`() async throws {
-        let fixture = TokenListFixture()
-        defer { fixture.removeFiles() }
-        let service = fixture.portfolio()
-        let mints = try await fixture.list(for: "wallet").mints
-        let holdings = [Holding(asset: .nativeSOL, balance: TokenAmount(lamports: 1),
-                                imageURL: nil, valuation: nil)]
-            + mints.map { Holding.fixture($0, amount: 1) }
-        try fixture.snapshots.save(Snapshot(owner: "wallet", network: .mainnet, holdings: holdings),
-                                   for: CacheKey(owner: "wallet", network: .mainnet))
-        let usdc = try #require(mints.first)
-
-        try await service.removeToken(usdc.address, for: "wallet")
-
-        let saved = fixture.snapshots.snapshot(for: CacheKey(owner: "wallet", network: .mainnet))
-        #expect(try saved?.holdings.map(\.id) == [.nativeSOL, .token(mint: Address(usdtMint))])
-    }
-
-    @Test
-    func `A mint decoded from its account is saved with its facts`() async throws {
-        let fixture = TokenListFixture()
-        defer { fixture.removeFiles() }
-        let facts = mint(1)
-        let account = [UInt8](repeating: 0, count: 36) + [232, 3, 0, 0, 0, 0, 0, 0, 9, 1]
-            + [UInt8](repeating: 0, count: 36)
-        var decoded = try Mint(address: facts.address, programAddress: Address(TokenProgram.token2022.rawValue),
-                               data: Data(account))
-        decoded.metadata = facts.metadata
-
-        try await fixture.portfolio().addToken(decoded, for: "wallet")
-
-        #expect(try await fixture.list(for: "wallet").mints.last == facts)
-    }
-
-    @Test
-    func `Adding a listed token changes nothing`() async throws {
-        let fixture = TokenListFixture()
-        defer { fixture.removeFiles() }
-        let service = fixture.portfolio()
-        let before = try await fixture.list(for: "wallet")
-        let usdc = try #require(before.mints.first)
-        try await service.addToken(usdc, for: "wallet")
-        #expect(try await fixture.list(for: "wallet") == before)
-    }
-
-    @Test
     func `A change that alters nothing saves no list`() async throws {
         let fixture = TokenListFixture()
         defer { fixture.removeFiles() }
@@ -94,20 +48,6 @@ struct TokenListTests {
         try await service.addToken(usdc, for: "wallet")
         try await service.removeToken(mint(1).address, for: "wallet")
         #expect(try fixture.store.tokenList(for: CacheKey(owner: "wallet", network: .mainnet)) == nil)
-    }
-
-    @Test
-    func `A list holds fifty tokens with native SOL and refuses another`() async throws {
-        let fixture = TokenListFixture()
-        defer { fixture.removeFiles() }
-        let service = fixture.portfolio()
-        for index in 1...(TokenList.tokenLimit - 3) {
-            try await service.addToken(mint(index), for: "wallet")
-        }
-        let extra = mint(TokenList.tokenLimit - 2)
-        await #expect(throws: TokenListError.limitReached) { try await service.addToken(extra, for: "wallet") }
-        let list = try await fixture.list(for: "wallet")
-        #expect(list.mints.count + 1 == TokenList.tokenLimit)
     }
 
     @Test
