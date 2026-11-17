@@ -9,7 +9,7 @@ import Transactions
 struct PaymentModelTests {
     nonisolated private static let sol = PaymentToken(
         asset: .nativeSOL,
-        balance: TokenAmount(amount: 1_230_000_000, decimals: 9), price: Decimal(string: "143.87"))
+        balance: TokenAmount(lamports: 1_230_000_000), price: Decimal(string: "143.87"))
     nonisolated private static let usdc = PaymentFixtures.usdcToken
     nonisolated private static let unpriced = PaymentFixtures.token(
         PaymentFixtures.unpriced, decimals: 5, symbol: "NOPRICE", balance: 100_000_000, price: nil)
@@ -36,7 +36,7 @@ struct PaymentModelTests {
     }
 
     @Test(arguments: [
-        (sol, [KeypadKey.digit(1), .digit(2)], TokenAmount(amount: 83_408_632, decimals: 9), Decimal?.some(12)),
+        (sol, [KeypadKey.digit(1), .digit(2)], TokenAmount(lamports: 83_408_632), Decimal?.some(12)),
         (usdc, [.digit(2), .decimalSeparator, .digit(5)], TokenAmount(amount: 2_500_000, decimals: 6),
          Decimal(string: "2.5")),
         (unpriced, [.digit(1), .decimalSeparator, .digit(5)], TokenAmount(amount: 150_000, decimals: 5), nil),
@@ -214,7 +214,7 @@ struct PaymentModelTests {
         let typed = payment.quantity
         let unpricedSOL = PaymentToken(
             asset: .nativeSOL,
-            balance: TokenAmount(amount: 1_230_000_000, decimals: 9), price: nil)
+            balance: TokenAmount(lamports: 1_230_000_000), price: nil)
 
         payment.update([unpricedSOL], currencyCode: "USD")
 
@@ -240,7 +240,7 @@ struct PaymentModelTests {
         Self.type([.digit(1), .digit(2)], into: payment)
         let euroSOL = PaymentToken(
             asset: .nativeSOL,
-            balance: TokenAmount(amount: 1_230_000_000, decimals: 9), price: 120)
+            balance: TokenAmount(lamports: 1_230_000_000), price: 120)
 
         payment.update([euroSOL, Self.usdc], currencyCode: "EUR")
 
@@ -256,7 +256,7 @@ struct PaymentModelTests {
         Self.type([.digit(1)], into: payment)
         let euroSOL = PaymentToken(
             asset: .nativeSOL,
-            balance: TokenAmount(amount: 1_230_000_000, decimals: 9), price: 120)
+            balance: TokenAmount(lamports: 1_230_000_000), price: 120)
 
         payment.update([euroSOL, Self.usdc], currencyCode: "EUR")
 

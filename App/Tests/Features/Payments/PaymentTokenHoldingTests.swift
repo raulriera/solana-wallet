@@ -15,8 +15,8 @@ struct PaymentTokenHoldingTests {
          PaymentToken(
              asset: .token(usdc),
              balance: TokenAmount(amount: 1_234_567, decimals: 6), price: 2)),
-        (Holding(asset: .nativeSOL, balance: TokenAmount(amount: 1, decimals: 9), imageURL: nil, valuation: nil),
-         PaymentToken(asset: .nativeSOL, balance: TokenAmount(amount: 1, decimals: 9), price: nil)),
+        (Holding(asset: .nativeSOL, balance: TokenAmount(lamports: 1), imageURL: nil, valuation: nil),
+         PaymentToken(asset: .nativeSOL, balance: TokenAmount(lamports: 1), price: nil)),
     ])
     func `A holding with a balance becomes a token`(holding: Holding, token: PaymentToken) {
         #expect(PaymentToken(holding: holding, currencyCode: "USD") == token)
@@ -48,7 +48,7 @@ struct PaymentTokenHoldingTests {
     }
 
     @Test func `A price in another currency is left out`() throws {
-        let holding = Holding(asset: .nativeSOL, balance: TokenAmount(amount: 1, decimals: 9),
+        let holding = Holding(asset: .nativeSOL, balance: TokenAmount(lamports: 1),
                               imageURL: nil, valuation: Self.dollars)
 
         let token = try #require(PaymentToken(holding: holding, currencyCode: "EUR"))

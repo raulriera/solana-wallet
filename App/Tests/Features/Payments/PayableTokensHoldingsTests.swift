@@ -6,7 +6,7 @@ import Transactions
 
 @MainActor
 struct PayableTokensHoldingsTests {
-    private static let sol = Holding(asset: .nativeSOL, balance: TokenAmount(amount: 1_500_000_000, decimals: 9),
+    private static let sol = Holding(asset: .nativeSOL, balance: TokenAmount(lamports: 1_500_000_000),
                                      imageURL: nil,
                                      valuation: Valuation(pricePerUnit: 150, total: nil, currency: "USD"))
     private static let empty = Holding(asset: .token(.fixture(PaymentFixtures.usdc.value, decimals: 6)),
@@ -24,7 +24,7 @@ struct PayableTokensHoldingsTests {
         let payable = PayableTokens(holdings: [Self.sol, Self.empty, Self.unpriced], error: nil)
 
         #expect(payable == PayableTokens(tokens: [
-            PaymentToken(asset: .nativeSOL, balance: TokenAmount(amount: 1_500_000_000, decimals: 9), price: 150),
+            PaymentToken(asset: .nativeSOL, balance: TokenAmount(lamports: 1_500_000_000), price: 150),
             PaymentFixtures.token(PaymentFixtures.unpriced, decimals: 1, symbol: "NOPRICE", balance: 25, price: nil),
         ], currencyCode: "USD"))
     }
@@ -32,7 +32,7 @@ struct PayableTokensHoldingsTests {
     @Test func `The keypad types the currency of the prices`() {
         let payable = PayableTokens(holdings: [
             Self.unpriced,
-            Holding(asset: .nativeSOL, balance: TokenAmount(amount: 1_500_000_000, decimals: 9),
+            Holding(asset: .nativeSOL, balance: TokenAmount(lamports: 1_500_000_000),
                     imageURL: nil, valuation: Valuation(pricePerUnit: 120, total: nil, currency: "EUR")),
         ], error: nil)
 

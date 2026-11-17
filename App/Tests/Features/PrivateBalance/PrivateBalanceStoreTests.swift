@@ -141,7 +141,7 @@ struct PrivateBalanceStoreTests {
         ),
         Holding(
             asset: .nativeSOL,
-            balance: TokenAmount(amount: 1, decimals: 9),
+            balance: TokenAmount(lamports: 1),
             otherOwner: try? Address("4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T"),
             imageURL: nil,
             valuation: nil

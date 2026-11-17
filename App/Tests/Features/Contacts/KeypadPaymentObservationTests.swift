@@ -10,9 +10,9 @@ import Transactions
 @Suite(.timeLimit(.minutes(1)))
 struct KeypadPaymentObservationTests {
     private static let network = Network.mainnet
-    private static let sol = Holding(asset: .nativeSOL, balance: TokenAmount(amount: 1_500_000_000, decimals: 9),
+    private static let sol = Holding(asset: .nativeSOL, balance: TokenAmount(lamports: 1_500_000_000),
                                      imageURL: nil, valuation: nil)
-    private static let lessSOL = Holding(asset: .nativeSOL, balance: TokenAmount(amount: 500_000_000, decimals: 9),
+    private static let lessSOL = Holding(asset: .nativeSOL, balance: TokenAmount(lamports: 500_000_000),
                                          imageURL: nil, valuation: nil)
 
     @Test func `The payment starts with the first balances and follows later ones`() async throws {
