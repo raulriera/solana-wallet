@@ -4,32 +4,26 @@ import XCTest
 final class RecoveryPhraseUITests: XCTestCase {
     @objc(testShowRecoveryPhraseAfterImportAndReturnError:)
     func `test Security & Privacy shows the imported words, passphrase, and account path`() throws {
-        let flow = OnboardingApp()
-        defer { flow.app.terminate() }
-        try flow.launch()
-        try flow.openImport()
-        try flow.enterPhrase()
-        try flow.enterPassphrase(" TrEzOr ")
-        try flow.tap(flow.submitImport)
-        try flow.expectRPC()
-        try flow.openWallet()
+        let app = UITestApp()
+        defer { app.terminate() }
+        app.launch()
+        let onboarding = OnboardingPage(driver: app)
+        try onboarding.expectWelcome()
+        try onboarding.openImport()
+        try onboarding.enterPhrase()
+        try onboarding.enterPassphrase(" TrEzOr ")
+        try app.tap(onboarding.importWalletButton)
+        try onboarding.expectRPC()
+        try onboarding.openWallet()
 
-        try flow.openSecurity()
-        try flow.tap(flow.app.buttons["Show Recovery Phrase"])
+        let security = try SettingsPage(driver: app).openSecurity()
+        try security.showRecoveryPhrase()
 
-        try flow.waitFor(flow.app.navigationBars["Recovery Phrase"])
-        for (position, word) in zip(1..., OnboardingApp.phrase.split(separator: " ")) {
-            try flow.waitFor(flow.app.staticTexts["\(position). \(word)"])
+        for (position, word) in zip(1..., OnboardingPage.phrase.split(separator: " ")) {
+            try app.waitFor(security.recoveryWord(word, at: position))
         }
-        let path = element(containing: "m/44'/501'/", in: flow.app)
-        if !path.exists { flow.app.swipeUp() }
-        try flow.waitFor(element(containing: "TrEzOr", in: flow.app))
-        try flow.waitFor(path)
-    }
-
-    private func element(containing text: String, in app: XCUIApplication) -> XCUIElement {
-        app.descendants(matching: .any).matching(
-            NSPredicate(format: "label CONTAINS %@ OR value CONTAINS %@", text, text)
-        ).firstMatch
+        security.scrollToAccountPath()
+        try app.waitFor(security.text(containing: "TrEzOr"))
+        try app.waitFor(security.accountPath)
     }
 }
