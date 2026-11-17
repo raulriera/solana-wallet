@@ -31,24 +31,17 @@ public struct TokenTransfer: Sendable {
                 destination: Token?, amount: UInt64, epoch: UInt64? = nil, memo: String? = nil) throws {
         guard amount > 0 else { throw ValidationError.invalidAmount }
         let target = try destination?.address ?? mint.program.associatedAccount(owner: recipient, mint: mint.address)
-        guard source.program == mint.program, source.mint == mint.address, source.owner == sender,
-              source.address != sender, mint.address != sender, recipient != mint.address, target != sender,
+        guard source.address != sender, mint.address != sender, recipient != mint.address, target != sender,
               source.address != mint.address, target != mint.address else { throw TokenError.accountMismatch }
-        if let destination {
-            guard destination.program == mint.program, destination.mint == mint.address,
-                  destination.owner == recipient else {
-                throw TokenError.accountMismatch
-            }
-        }
+        expectedFee = try mint.transferFee(amount: amount, epoch: epoch, createsDestination: destination == nil)
+        try mint.validate(source, ownedBy: sender)
+        if let destination { try mint.validate(destination, ownedBy: recipient) }
         guard source.amount >= amount else { throw TokenError.insufficientBalance }
         _ = try source.requiresMemo(receiving: false)
         if try destination?.requiresMemo(receiving: true) == true, memo?.isEmpty != false {
             throw TokenError.memoRequired
         }
         if let memo, memo.isEmpty || memo.utf8.count > 4_032 { throw TokenError.invalidMemo }
-        expectedFee = try mint.transferFee(amount: amount, epoch: epoch, createsDestination: destination == nil)
-        try mint.validateExtensions(of: source)
-        if let destination { try mint.validateExtensions(of: destination) }
         self.sender = sender
         self.recipient = recipient
         self.mint = mint

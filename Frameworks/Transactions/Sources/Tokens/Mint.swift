@@ -167,12 +167,17 @@ public struct Mint: Codable, Hashable, Sendable {
         return UInt64(min(roundedUp, UInt128(maximum)))
     }
 
-    /// Checks that an account has the extensions the mint requires.
+    /// Checks that a token account holds the mint's tokens for an owner, with the extensions the mint requires.
     ///
-    /// - Parameter account: A source or destination account for the mint.
-    /// - Throws: ``TokenError/accountMismatch`` if a required extension is missing, or
-    ///   ``TokenError/invalidAccount`` for a mint without account data.
-    func validateExtensions(of account: Token) throws {
+    /// - Parameters:
+    ///   - account: A source or destination account for the mint.
+    ///   - owner: The wallet that must own the account.
+    /// - Throws: ``TokenError/accountMismatch`` if the account's program, mint, or owner differs or a required
+    ///   extension is missing, or ``TokenError/invalidAccount`` for a mint without account data.
+    func validate(_ account: Token, ownedBy owner: Address) throws {
+        guard account.program == program, account.mint == address, account.owner == owner else {
+            throw TokenError.accountMismatch
+        }
         for entry in try requiredAccountExtensions where account.data.extensions[entry.type] == nil {
             throw TokenError.accountMismatch
         }
