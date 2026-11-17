@@ -18,7 +18,7 @@ struct TokenRow: View {
         HStack(spacing: 12) {
             TokenRowIdentity(symbol: symbol, name: name, imageURL: imageURL)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            TokenRowFigures(balance: balance, value: value, change: change, isHeldPrivately: isHeldPrivately)
+            TokenFigures(balance: balance, value: value, change: change, isHeldPrivately: isHeldPrivately)
                 .fixedSize()
         }
         .accessibilityElement(children: .combine)
@@ -33,4 +33,5 @@ struct TokenRow: View {
                  change: nil, imageURL: nil)
     }
     .listStyle(.sidebar)
+    .environment(\.cardStyle.layout, .rows)
 }

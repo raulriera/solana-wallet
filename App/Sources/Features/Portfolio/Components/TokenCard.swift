@@ -25,8 +25,8 @@ struct TokenCard: View {
         HStack(spacing: 12) {
             TokenCardIdentity(symbol: symbol, name: name, imageURL: imageURL, secondary: secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            TokenCardFigures(balance: balance, value: value, change: change, isHeldPrivately: isHeldPrivately,
-                             secondary: secondary)
+            TokenFigures(balance: balance, value: value, change: change, isHeldPrivately: isHeldPrivately)
+                .foregroundStyle(tint.text, secondary)
                 .fixedSize()
         }
         .fontDesign(style.fontDesign)
