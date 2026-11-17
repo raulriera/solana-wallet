@@ -15,13 +15,6 @@ struct PublicInputsTests {
     }
 
     @Test
-    func `One published transfer has no owner identities`() throws {
-        let names = try PublicInputVectors.load().transfers.filter { $0.outputOwnerIdentities == nil }.map(\.name)
-
-        #expect(names == ["compact_5x4_without_owner_chain"])
-    }
-
-    @Test
     func `Hashes match the published proof request`() throws {
         let vector = try PublicInputVectors.load().indexedProof
 

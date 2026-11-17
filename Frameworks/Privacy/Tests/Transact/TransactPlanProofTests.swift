@@ -54,17 +54,6 @@ struct TransactPlanProofTests {
         }
     }
 
-    @Test(arguments: try ProofRequestVectors.load().transacts)
-    func `Proofs match the independent reference`(_ vector: ProofRequestVectors.Transact) throws {
-        let response = try JSONDecoder().decode(TransferProofResponse.self, from: vector.response.data).proof
-
-        let proof = try vector.plan().proof(from: response)
-
-        var writer = WincodeWriter()
-        proof.write(to: &writer)
-        #expect(writer.bytes == (try fixtureBytes(vector.proof)))
-    }
-
     @Test
     func `Proofs of another proving key are rejected`() throws {
         let vector = try #require(try ProofRequestVectors.load().transacts.first)

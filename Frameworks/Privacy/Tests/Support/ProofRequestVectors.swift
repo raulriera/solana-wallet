@@ -19,7 +19,6 @@ struct ProofRequestVectors: Decodable, Sendable {
         let merkleProofs: [[JSONValue]]
         let request: JSONValue
         let response: JSONValue
-        let proof: String
         let treeContexts: [[UInt16]]
         let instructionData: String
 
