@@ -56,7 +56,7 @@ struct TokenCard: View {
 
 #Preview {
     VStack(spacing: 0) {
-        TokenCard(symbol: "SOL", name: "Solana", balance: TokenAmount(amount: 12_500_000_000, decimals: 9),
+        TokenCard(symbol: "SOL", name: "Solana", balance: TokenAmount(lamports: 12_500_000_000),
                   value: (total: 2_075, currency: "USD"), change: Decimal(string: "0.0129"), imageURL: nil)
         TokenCard(symbol: "MYST", name: "Mystery Token", balance: TokenAmount(amount: 42, decimals: 0), value: nil,
                   change: nil, imageURL: nil)

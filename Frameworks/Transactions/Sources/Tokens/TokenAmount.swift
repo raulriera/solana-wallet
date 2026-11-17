@@ -13,4 +13,11 @@ public struct TokenAmount: Codable, Hashable, Sendable {
         self.amount = amount
         self.decimals = decimals
     }
+
+    /// Creates a SOL amount from lamports.
+    ///
+    /// - Parameter lamports: The amount in lamports, SOL's smallest unit.
+    public init(lamports: UInt64) {
+        self.init(amount: lamports, decimals: 9)
+    }
 }

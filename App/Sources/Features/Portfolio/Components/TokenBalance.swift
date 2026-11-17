@@ -24,5 +24,5 @@ struct TokenBalance: View {
 }
 
 #Preview {
-    TokenBalance(balance: TokenAmount(amount: 12_500_000_000, decimals: 9), asset: .nativeSOL)
+    TokenBalance(balance: TokenAmount(lamports: 12_500_000_000), asset: .nativeSOL)
 }

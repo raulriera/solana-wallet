@@ -130,7 +130,7 @@ struct TokenDetailScreen: View {
     if let address = try? Address("6d8tEyrqPqVbEr6Jpuc7BEyYekeMUTyzHEwdmcAYEmtK") {
         NavigationStack {
             TokenDetailScreen(holding: Holding(asset: .nativeSOL,
-                                               balance: TokenAmount(amount: 12_500_000_000, decimals: 9),
+                                               balance: TokenAmount(lamports: 12_500_000_000),
                                                imageURL: nil,
                                                valuation: Valuation(pricePerUnit: 166, total: 2_075, currency: "USD",
                                                                     dayChange: Decimal(string: "0.0129"))),
