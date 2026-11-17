@@ -8,11 +8,8 @@ final class TokenAdditionUITests: XCTestCase {
     func `test Adding a token by its mint address lists it until it is removed`() throws {
         let app = UITestApp()
         defer { app.terminate() }
-        app.launch()
-        let onboarding = OnboardingPage(driver: app)
-        try onboarding.expectWelcome()
-        try onboarding.createWallet()
-        let portfolio = try onboarding.openWallet()
+        app.launch(with: .newWallet)
+        let portfolio = PortfolioPage(driver: app)
 
         try portfolio.addToken(Self.bonk, previewing: "Bonk · Solana")
 
@@ -23,7 +20,6 @@ final class TokenAdditionUITests: XCTestCase {
         try app.waitForAbsence(token)
 
         app.relaunch()
-        try onboarding.expectWallet()
         try portfolio.open()
         try app.waitFor(portfolio.holding("SOL"))
         XCTAssertFalse(token.exists, "The removed token came back after a relaunch.")
