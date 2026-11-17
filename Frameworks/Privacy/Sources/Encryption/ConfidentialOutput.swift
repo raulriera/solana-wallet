@@ -23,7 +23,7 @@ struct ConfidentialOutput: Sendable {
     private static let bodyLength = 1 + Curve25519.KeyAgreement.PublicKey.taggedRepresentationLength
         + ConfidentialPlaintext.length
 
-    /// The length of a SOL output's payload, in bytes.
+    /// The length of a confidential output's payload, in bytes.
     static let payloadLength = headerLength + bodyLength
 
     let recipientViewingPublicKey: Curve25519.KeyAgreement.PublicKey
