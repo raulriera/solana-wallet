@@ -19,6 +19,10 @@ struct PaymentProposalTests {
 
     @Test(arguments: [
         (TransactionError(name: "InsufficientFundsForFee", details: nil), SendError.notEnoughSOL),
+        (TransactionError(name: "InsufficientFundsForRent", details: .object(["account_index": .integer(0)])),
+         .notEnoughSOL),
+        (TransactionError(name: "InsufficientFundsForRent", details: .object(["account_index": .integer(1)])),
+         .amountTooSmall),
         (TransactionError(name: "InstructionError", details: .array([.integer(0), .object(["Custom": .integer(6001)])])),
          .preparationFailed),
     ])

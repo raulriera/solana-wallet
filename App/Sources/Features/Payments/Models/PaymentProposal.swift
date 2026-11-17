@@ -26,7 +26,9 @@ struct PaymentProposal: TransactionProposal {
                                                          to: recipient.address)
         let execution = simulation.diagnostics.value
         guard execution.error == nil else {
-            throw execution.lacksFunds ? SendError.notEnoughSOL : SendError.preparationFailed
+            if execution.lacksFunds { throw SendError.notEnoughSOL }
+            if execution.opensAccountBelowRent { throw SendError.amountTooSmall }
+            throw SendError.preparationFailed
         }
         guard let networkFee = simulation.networkFee else { throw SendError.preparationFailed }
         let accountDeposit = simulation.destinationAccountRent.flatMap { $0 > 0 ? $0 : nil }

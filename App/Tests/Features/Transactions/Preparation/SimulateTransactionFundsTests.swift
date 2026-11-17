@@ -9,8 +9,8 @@ struct SimulateTransactionFundsTests {
     @Test(arguments: [
         (SimulateTransactionFundsTests.value(error: nil, logs: ["Transfer: insufficient lamports 0, need 1000"]), false),
         (SimulateTransactionFundsTests.value(error: TransactionError(name: "InsufficientFundsForFee", details: nil)), true),
-        (SimulateTransactionFundsTests.value(error: TransactionError(name: "InsufficientFundsForRent",
-                                                                     details: .object(["account_index": .integer(1)]))), true),
+        (SimulateTransactionFundsTests.value(error: SimulateTransactionFundsTests.rentError(at: 0)), true),
+        (SimulateTransactionFundsTests.value(error: SimulateTransactionFundsTests.rentError(at: 1)), false),
         (SimulateTransactionFundsTests.value(error: SimulateTransactionFundsTests.transferError,
                                              logs: ["Program 11111111111111111111111111111111 invoke [1]",
                                                     "Transfer: insufficient lamports 0, need 1000"]), true),
@@ -21,6 +21,21 @@ struct SimulateTransactionFundsTests {
     ])
     func `Only executions that run out of SOL lack funds`(value: SimulateTransaction.Value, lacksFunds: Bool) {
         #expect(value.lacksFunds == lacksFunds)
+    }
+
+    @Test(arguments: [
+        (SimulateTransactionFundsTests.value(error: nil), false),
+        (SimulateTransactionFundsTests.value(error: TransactionError(name: "InsufficientFundsForFee", details: nil)), false),
+        (SimulateTransactionFundsTests.value(error: SimulateTransactionFundsTests.rentError(at: 0)), false),
+        (SimulateTransactionFundsTests.value(error: SimulateTransactionFundsTests.rentError(at: 1)), true),
+    ])
+    func `Only rent errors on another account open an account below rent`(value: SimulateTransaction.Value,
+                                                                          opensAccountBelowRent: Bool) {
+        #expect(value.opensAccountBelowRent == opensAccountBelowRent)
+    }
+
+    private static func rentError(at index: UInt64) -> TransactionError {
+        TransactionError(name: "InsufficientFundsForRent", details: .object(["account_index": .integer(index)]))
     }
 
     private static func value(error: TransactionError?, logs: [String]? = []) -> SimulateTransaction.Value {

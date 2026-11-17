@@ -5,10 +5,11 @@ import Testing
 struct SendErrorTests {
     @Test(arguments: [
         (SendError.notEnoughSOL, false),
+        (.amountTooSmall, false),
         (.preparationFailed, true),
         (.notSent, true),
     ])
-    func `Only running out of SOL can't be tried again`(error: SendError, canRetry: Bool) {
+    func `Only errors that need a different payment can't be tried again`(error: SendError, canRetry: Bool) {
         #expect(error.canRetry == canRetry)
     }
 
