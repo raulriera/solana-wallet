@@ -16,7 +16,7 @@ Stop and ask the user before you break one of these.
 - Treat `main` as sacred: change it only when the user asks, and never rewrite its history.
 - Never create merge commits anywhere: update a branch by rebasing it onto `origin/main`, and land work on `main` by rebase or squash, including PR merges.
 - Never drop saved wallets during launch, app updates, or validation. Preserve stored metadata and recovery; treat loading errors as failures, not an empty wallet.
-- Verify live integrations with real RPC clients: mainnet for read-only behavior, devnet for tests that fund wallets, submit transactions, or incur fees. Keep mainnet-only delivery tests explicitly opt-in with approved spending limits. Do not add fake RPC implementations for tests.
+- Never reimplement a server's logic in a test RPC. Use a mock RPC when the code under test only needs one injected.
 
 ## Process
 

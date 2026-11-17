@@ -17,15 +17,7 @@
 Pass the existing regular iPhone simulator to every command, such as `-destination 'platform=iOS Simulator,id=<UUID>'`.
 
 - `Unit`, the `widgets` scheme's default plan, runs the app and framework test bundles offline. Run it for every change: `xcodebuild test -scheme widgets`. Add every new test bundle to it.
-- `Integration` runs only `.network` tests: `xcodebuild test -scheme widgets -testPlan Integration -parallel-testing-enabled NO`. Run it when a change touches the RPC framework, Transactions, Portfolio, or the app's RPC, price, discovery, portfolio, or transaction workflows.
 - `UI` runs `widgetsUITests`. Only the user runs it, on request.
-- Tag every test that reaches a real provider with `.network`. Framework bundles stay offline; their live checks go in `App/Tests/Integration/<Framework>`.
-
-## Live integrations
-
-- A read-only check may use devnet for behavior only devnet has yet, such as Alpenglow.
-- Funded devnet tests send from account 0 to account 1 of the ignored local seed and leave the funds there. A missing seed or an unfunded sender stops setup.
-- Read-only checks use public addresses or published fixtures. Compare live values from one response, isolate storage per test, and await cancellation before cleanup.
 
 ## UI automation
 
