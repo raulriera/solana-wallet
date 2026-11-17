@@ -12,7 +12,7 @@ final class TokenAdditionUITests: XCTestCase {
         let onboarding = OnboardingPage(driver: app)
         try onboarding.expectWelcome()
         try onboarding.createWallet()
-        let portfolio = try onboarding.connectProvider()
+        let portfolio = try onboarding.openWallet()
 
         try portfolio.addToken(Self.bonk, previewing: "Bonk · Solana")
 

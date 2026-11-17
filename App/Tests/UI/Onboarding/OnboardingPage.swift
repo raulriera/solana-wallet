@@ -9,7 +9,7 @@ struct OnboardingPage {
     private static let setupErrorTitles = ["Wallet Setup Unavailable", "Too Many Requests", "Couldn't Connect",
                                            "Couldn't Save API Key", "Couldn't Load Provider", "Couldn't Change Provider"]
 
-    private enum Error: Swift.Error { case missingConfiguration, missingRecoveryWords }
+    private enum Error: Swift.Error { case missingRecoveryWords }
 
     let driver: UITestApp
 
@@ -17,7 +17,7 @@ struct OnboardingPage {
     var importWalletButton: XCUIElement { driver.app.buttons["Import Wallet"] }
     var continueButton: XCUIElement { driver.app.buttons["Continue"] }
     var backButton: XCUIElement { driver.app.buttons["BackButton"] }
-    var backupConfirmation: XCUIElement { driver.app.alerts["Have you saved your recovery words?"] }
+    var backupConfirmation: XCUIElement { driver.app.sheets["Have you saved your recovery words?"] }
     var recoveryWords: XCUIElement { driver.app.secureTextFields["Recovery words"] }
     var revealedRecoveryWords: XCUIElement {
         driver.app.textFields.matching(NSPredicate(format: "value == %@", Self.phrase)).firstMatch
@@ -76,7 +76,13 @@ struct OnboardingPage {
     }
 
     func answerBackupConfirmation(saved: Bool) throws {
-        try driver.tap(backupConfirmation.buttons[saved ? "Yes" : "No"])
+        guard !saved else {
+            try driver.tap(backupConfirmation.buttons["Yes"])
+            return
+        }
+        let outside = driver.app.otherElements["dismiss popup"]
+        try driver.waitFor(outside)
+        outside.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25)).tap()
     }
 
     func createWallet() throws {
@@ -120,18 +126,6 @@ struct OnboardingPage {
     @discardableResult
     func openWallet(file: StaticString = #filePath, line: UInt = #line) throws -> PortfolioPage {
         try driver.tap(continueButton, file: file, line: line)
-        return try showPortfolio(file: file, line: line)
-    }
-
-    @discardableResult
-    func connectProvider(file: StaticString = #filePath, line: UInt = #line) throws -> PortfolioPage {
-        guard let key = ProcessInfo.processInfo.environment["HELIUS_API_KEY"],
-              !key.isEmpty, !key.hasPrefix("$(") else {
-            XCTFail("HELIUS_API_KEY must be configured for UI tests", file: file, line: line)
-            throw Error.missingConfiguration
-        }
-        try chooseHelius(file: file, line: line)
-        try submitProviderKey(key, file: file, line: line)
         return try showPortfolio(file: file, line: line)
     }
 

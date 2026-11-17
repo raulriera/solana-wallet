@@ -1,6 +1,7 @@
 import Foundation
 import UIKit
 import XCTest
+import notify
 
 @MainActor
 struct UITestApp {
@@ -77,6 +78,13 @@ struct UITestApp {
         app.descendants(matching: .any).matching(
             NSPredicate(format: "label CONTAINS %@ OR value CONTAINS %@", text, text)
         ).firstMatch
+    }
+
+    func matchFaceID(file: StaticString = #filePath, line: UInt = #line) throws {
+        let prompt = XCUIApplication(bundleIdentifier: "com.apple.springboard").staticTexts["Face ID"]
+        try waitFor(prompt, file: file, line: line)
+        notify_post("com.apple.BiometricKit_Sim.pearl.match")
+        try waitForAbsence(prompt, file: file, line: line)
     }
 
     func reveal(

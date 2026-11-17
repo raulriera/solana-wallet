@@ -37,7 +37,7 @@ struct PortfolioPage {
         try driver.tap(token, file: file, line: line)
         try driver.tap(driver.app.buttons["More"], file: file, line: line)
         try driver.tap(driver.app.buttons["Remove Token"], file: file, line: line)
-        let confirmation = driver.app.alerts["Remove \(name)?"]
+        let confirmation = driver.app.sheets["Remove \(name)?"]
         try driver.waitFor(confirmation, file: file, line: line)
         try driver.tap(confirmation.buttons["Remove"], file: file, line: line)
     }
