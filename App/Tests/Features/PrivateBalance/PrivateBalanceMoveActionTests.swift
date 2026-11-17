@@ -7,13 +7,6 @@ import Transactions
 
 @MainActor
 struct PrivateBalanceMoveActionTests {
-    private static let sol = Holding(
-        asset: .nativeSOL,
-        balance: TokenAmount(amount: 2_000_000_000, decimals: 9),
-        imageURL: nil,
-        valuation: nil
-    )
-
     private static func moveBalance() async throws
         -> (model: PrivateBalanceModel, moveBalance: PrivateBalanceMoveAction) {
         let account = try await PrivateBalanceFixtures.account()
@@ -27,7 +20,7 @@ struct PrivateBalanceMoveActionTests {
                 privateBalances: store,
                 account: account,
                 network: .devnet,
-                holding: Self.sol
+                holding: PrivateBalanceFixtures.solHolding
             )
         )
     }

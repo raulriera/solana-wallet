@@ -7,13 +7,6 @@ import Transactions
 
 @MainActor
 struct BalanceMoveReviewActionTests {
-    private static let sol = Holding(
-        asset: .nativeSOL,
-        balance: TokenAmount(amount: 2_000_000_000, decimals: 9),
-        imageURL: nil,
-        valuation: nil
-    )
-
     @MainActor
     private final class Presented {
         var presented: TransactionReviewModel<BalanceMoveProposal>?
@@ -80,7 +73,7 @@ struct BalanceMoveReviewActionTests {
         )
         let model = PrivateBalanceModel()
         await store.refresh(account, on: .devnet)
-        model.open(.toPrivate, of: Self.sol, in: store, for: account, on: .devnet)
+        model.open(.toPrivate, of: PrivateBalanceFixtures.solHolding, in: store, for: account, on: .devnet)
         return try #require(model.move)
     }
 

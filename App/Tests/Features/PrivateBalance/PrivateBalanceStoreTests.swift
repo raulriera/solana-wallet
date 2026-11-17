@@ -9,13 +9,6 @@ import Transactions
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct PrivateBalanceStoreTests {
-    nonisolated private static let sol = Holding(
-        asset: .nativeSOL,
-        balance: TokenAmount(amount: 2_000_000_000, decimals: 9),
-        imageURL: nil,
-        valuation: nil
-    )
-
     nonisolated private static let devnetUSDC = Holding(
         asset: .token(.fixture("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU", decimals: 6,
                                  name: "USD Coin", symbol: "USDC")),
@@ -112,7 +105,8 @@ struct PrivateBalanceStoreTests {
     }
 
     @Test(arguments: [
-        (PrivateBalanceFixtures.Balance.available, Self.sol, Decimal(2), Decimal(string: "0.001")!),
+        (PrivateBalanceFixtures.Balance.available, PrivateBalanceFixtures.solHolding, Decimal(2),
+         Decimal(string: "0.001")!),
         (.availableToken, Self.devnetUSDC, 5, 1),
         (.availableToken, Self.twoDecimalToken, 50_000, 10_000),
     ])
@@ -171,18 +165,18 @@ struct PrivateBalanceStoreTests {
         let store = try await PrivateBalanceFixtures.store(holding: holding, of: account)
         await store.refresh(account, on: .devnet)
 
-        #expect(store.move(.toPublic, of: Self.sol, for: account, on: .devnet) == nil)
-        #expect(store.move(.toPrivate, of: Self.sol, for: account, on: .devnet) != nil)
+        #expect(store.move(.toPublic, of: PrivateBalanceFixtures.solHolding, for: account, on: .devnet) == nil)
+        #expect(store.move(.toPrivate, of: PrivateBalanceFixtures.solHolding, for: account, on: .devnet) != nil)
     }
 
     @Test
     func `No move opens while private balances are off or unread`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let store = try PrivateBalanceStore.fixture(HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]))
-        let unread = store.move(.toPrivate, of: Self.sol, for: account, on: .devnet)
+        let unread = store.move(.toPrivate, of: PrivateBalanceFixtures.solHolding, for: account, on: .devnet)
         await store.refresh(account, on: .devnet)
 
-        let off = store.move(.toPrivate, of: Self.sol, for: account, on: .devnet)
+        let off = store.move(.toPrivate, of: PrivateBalanceFixtures.solHolding, for: account, on: .devnet)
 
         #expect(unread == nil)
         #expect(off == nil)

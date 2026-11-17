@@ -3,6 +3,7 @@ import Encoding
 import Foundation
 import ModularArithmetic
 import Observation
+import Portfolio
 import Testing
 import Transactions
 import Vault
@@ -15,6 +16,9 @@ enum PrivateBalanceFixtures {
     static let recoveryID = UUID(uuidString: "2C4B8E7A-3F61-4D0B-9E25-6A7D1C3B5F80")!
 
     static let unregistered = AccountReplies.accounts([nil])
+
+    nonisolated static let solHolding = Holding(asset: .nativeSOL, balance: TokenAmount(lamports: 2_000_000_000),
+                                                imageURL: nil, valuation: nil)
 
     static func recovery() throws -> Recovery {
         try PublicWallet.recovery()
