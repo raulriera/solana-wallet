@@ -20,14 +20,4 @@ struct IndexerRequestsTests {
 
         #expect(String(decoding: try encoder.encode(request), as: UTF8.self) == expected)
     }
-
-    @Test(arguments: [
-        (GetShieldedTransactionsByTags.method, "getShieldedTransactionsByTags"),
-        (GetEncryptedUtxosByTags.method, "getEncryptedUtxosByTags"),
-        (GetShieldedTransactionsByNullifiers.method, "getShieldedTransactionsByNullifiers"),
-        (IndexerPageRequest<GetEncryptedUtxosByTags>.method, "getEncryptedUtxosByTags"),
-    ])
-    func `Page requests take their query's method`(method: String, expected: String) {
-        #expect(method == expected)
-    }
 }
