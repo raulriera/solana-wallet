@@ -24,7 +24,10 @@ struct PrivateBalanceLiveTests {
         let failures = try deposits.flatMap(\.outputs).flatMap { output in
             let payload = try ProoflessOutput(decoding: output.payload)
             let blinding = ShieldedPool.depositBlinding(tree: try ShieldedPool.tree(id: output.treeID), leafIndex: output.leafIndex)
-            let utxo = UTXO(owner: recipient.owner, mint: payload.mint, amount: payload.amount, blinding: blinding, treeID: output.treeID)
+            let utxo = UTXO(
+                owner: recipient.owner, asset: try #require(PrivateAsset(mintBytes: payload.mint)),
+                amount: payload.amount, blinding: blinding, treeID: output.treeID
+            )
             let checks = [
                 "owner": payload.owner == recipient.owner,
                 "blinding": payload.blinding == blinding,

@@ -1,3 +1,4 @@
+import ModularArithmetic
 public import Transactions
 
 /// An asset that private balances hold.
@@ -21,6 +22,11 @@ public enum PrivateAsset: Hashable, Sendable, CaseIterable {
         case .nativeSOL: [UInt8](repeating: 0, count: 32)
         case .token(let token): token.mint.bytes
         }
+    }
+
+    /// The asset's commitment in a UTXO's hash and a proof's public inputs.
+    var commitment: Poseidon.Element {
+        PackedBytes.hash32(mintBytes)
     }
 
     /// Creates the asset of a pool ID, or `nil` for an ID that private balances don't hold.

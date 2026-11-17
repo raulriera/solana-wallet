@@ -10,7 +10,7 @@ enum PlanFixtures {
         amount: UInt64, treeID: UInt16 = 0, blindingByte: UInt8 = 0xa1, asset: PrivateAsset
     ) throws -> UTXO {
         UTXO(
-            owner: try CommitmentVectors.load().ed25519Rail.ownerHash(), mint: asset.mintBytes, amount: amount,
+            owner: try CommitmentVectors.load().ed25519Rail.ownerHash(), asset: asset, amount: amount,
             blinding: TransferVectors.blinding(blindingByte), treeID: treeID
         )
     }

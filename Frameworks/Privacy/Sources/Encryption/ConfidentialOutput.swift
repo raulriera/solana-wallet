@@ -157,7 +157,9 @@ struct ConfidentialOutput: Sendable {
             return nil
         }
         guard let plaintext = opened else { return nil }
-        let utxo = UTXO(owner: owner, mint: plaintext.asset.mintBytes, amount: plaintext.amount, blinding: plaintext.blinding, treeID: treeID)
+        let utxo = UTXO(
+            owner: owner, asset: plaintext.asset, amount: plaintext.amount, blinding: plaintext.blinding, treeID: treeID
+        )
         return utxo.hash == utxoHash ? utxo : nil
     }
 }

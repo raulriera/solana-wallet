@@ -16,8 +16,6 @@ enum PrivateBalanceFixtures {
 
     static let unregistered = AccountReplies.accounts([nil])
 
-    private static let solMint = [UInt8](repeating: 0, count: 32)
-
     static func recovery() throws -> Recovery {
         try PublicWallet.recovery()
     }
@@ -142,7 +140,7 @@ enum PrivateBalanceFixtures {
     static func deposit(_ amount: UInt64, to account: ShieldedAccount, leafIndex: UInt64,
                         of asset: PrivateAsset) throws -> String {
         let utxo = try utxo(amount, of: account, leafIndex: leafIndex, asset: asset)
-        var body = [0] + utxo.owner.bigEndianBytes + utxo.blinding.bigEndianBytes + utxo.mint
+        var body = [0] + utxo.owner.bigEndianBytes + utxo.blinding.bigEndianBytes + utxo.asset.mintBytes
         body.append(littleEndian: amount)
         body += [UInt8](repeating: 0, count: 5) + [0]
         var payload: [UInt8] = [0]
@@ -164,7 +162,7 @@ enum PrivateBalanceFixtures {
 
     static func proofRequest(spending account: ShieldedAccount) throws -> IndexedTransferProofRequest {
         var generator = SystemRandomNumberGenerator()
-        let utxo = UTXO(owner: try account.recipient.owner, mint: solMint, amount: 10,
+        let utxo = UTXO(owner: try account.recipient.owner, asset: .nativeSOL, amount: 10,
                         blinding: Poseidon.Element(UInt64(7)), treeID: 1)
         let plan = try TransactPlan(spending: [utxo], of: .nativeSOL, sender: account, transfer: nil,
                                     withdrawal: ExternalData.Withdrawal(recipient: account.signingAddress, amount: 10, asset: .nativeSOL),
@@ -175,7 +173,7 @@ enum PrivateBalanceFixtures {
     private static func utxo(_ amount: UInt64, of account: ShieldedAccount, leafIndex: UInt64,
                              asset: PrivateAsset) throws -> UTXO {
         let blinding = ShieldedPool.depositBlinding(tree: try ShieldedPool.tree(id: 1), leafIndex: leafIndex)
-        return UTXO(owner: try account.recipient.owner, mint: asset.mintBytes, amount: amount,
+        return UTXO(owner: try account.recipient.owner, asset: asset, amount: amount,
                     blinding: blinding, treeID: 1)
     }
 }

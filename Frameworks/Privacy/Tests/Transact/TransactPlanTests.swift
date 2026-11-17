@@ -180,7 +180,7 @@ struct TransactPlanTests {
     @Test
     func `Inputs of other owners are rejected`() throws {
         let foreign = UTXO(
-            owner: try TransferVectors.recipient().owner, mint: Array(repeating: 0, count: 32), amount: 10,
+            owner: try TransferVectors.recipient().owner, asset: .nativeSOL, amount: 10,
             blinding: TransferVectors.blinding(0xa1), treeID: 0
         )
 
@@ -192,7 +192,7 @@ struct TransactPlanTests {
     @Test
     func `Inputs of other assets are rejected`() throws {
         let token = UTXO(
-            owner: try CommitmentVectors.load().ed25519Rail.ownerHash(), mint: Array(repeating: 1, count: 32), amount: 10,
+            owner: try CommitmentVectors.load().ed25519Rail.ownerHash(), asset: .token(.usdc), amount: 10,
             blinding: TransferVectors.blinding(0xa1), treeID: 0
         )
 
@@ -235,7 +235,7 @@ struct TransactPlanOwnerTagTests {
         let vectors = try DummyOwnerTagVectors.load()
         let sender = try Self.account(seed: vectors.senderSeed)
         let recipient = try Self.account(seed: vectors.recipientSeed).recipient
-        let utxo = UTXO(owner: try sender.recipient.owner, mint: Array(repeating: 0, count: 32), amount: vectors.inputAmount,
+        let utxo = UTXO(owner: try sender.recipient.owner, asset: .nativeSOL, amount: vectors.inputAmount,
                         blinding: TransferVectors.blinding(0xa1), treeID: 0)
         let resolved = try fixtureBytes(vector.resolved)
         let expected: TransactOutput.OwnerTag = vector.ownerTagKind == "account" ? .payer : .inline(resolved)

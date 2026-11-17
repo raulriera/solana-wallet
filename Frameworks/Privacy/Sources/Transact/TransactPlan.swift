@@ -145,11 +145,10 @@ struct TransactPlan: Sendable, Redacted {
             guard !utxos.isEmpty else { throw ValidationError.noInputs }
             guard utxos.count <= TransactPlan.maximumInputs else { throw ValidationError.tooManyInputs }
             let senderOwner = try sender.recipient
-            let mint = asset.mintBytes
             var inputTreeIDs: [UInt16] = []
             for utxo in utxos {
                 guard utxo.owner == senderOwner.owner else { throw ValidationError.foreignInput }
-                guard utxo.mint == mint else { throw ValidationError.unsupportedAsset }
+                guard utxo.asset == asset else { throw ValidationError.unsupportedAsset }
                 if !inputTreeIDs.contains(utxo.treeID) { inputTreeIDs.append(utxo.treeID) }
             }
             guard inputTreeIDs.count <= TransactPlan.maximumInputTrees else { throw ValidationError.tooManyInputTrees }
@@ -358,7 +357,7 @@ struct TransactPlan: Sendable, Redacted {
             }
             let (owner, amount) = layout.outputs[slot]
             let utxo = UTXO(
-                owner: owner.owner, mint: layout.asset.mintBytes, amount: amount, blinding: blinding, treeID: outputTreeID
+                owner: owner.owner, asset: layout.asset, amount: amount, blinding: blinding, treeID: outputTreeID
             )
             let note = try ConfidentialOutput.seal(
                 ConfidentialPlaintext(asset: layout.asset, amount: amount, blinding: blinding), for: owner.viewingPublicKey,

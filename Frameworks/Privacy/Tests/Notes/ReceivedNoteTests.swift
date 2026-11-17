@@ -13,7 +13,7 @@ struct ReceivedNoteTests {
 
         let notes = try ReceivedNote.notes(in: transaction, of: TransferVectors.sender())
 
-        #expect(notes.allSatisfy { $0.utxo.mint == PrivateAsset.nativeSOL.mintBytes })
+        #expect(notes.allSatisfy { $0.utxo.asset == .nativeSOL })
         #expect(notes.map(\.utxo.hash.bigEndianBytes) == (vector.ownedBySender ? [try fixtureBytes(vector.utxoHash)] : []))
         #expect(notes.map(\.nullifier.bigEndianBytes) == (try vector.nullifier.map { [try fixtureBytes($0)] } ?? []))
         #expect(notes.map(\.utxo.amount) == (vector.ownedBySender ? [try #require(UInt64(vector.lamports))] : []))
@@ -28,7 +28,7 @@ struct ReceivedNoteTests {
 
         let notes = try ReceivedNote.notes(in: vector.transaction(mint: asset.mintBytes), of: TransferVectors.sender())
 
-        #expect(notes.map(\.utxo.mint) == [asset.mintBytes])
+        #expect(notes.map(\.utxo.asset) == [asset])
         #expect(notes.map(\.amount) == [try #require(UInt64(vector.lamports))])
     }
 

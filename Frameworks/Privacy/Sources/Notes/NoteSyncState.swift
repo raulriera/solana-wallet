@@ -77,8 +77,7 @@ public struct NoteSyncState: Sendable, Equatable, Codable, Redacted {
     /// - Parameter asset: The asset.
     /// - Returns: The asset's notes, in slot, signature, leaf, and tree order.
     func notes(of asset: PrivateAsset) -> [ReceivedNote] {
-        let mint = asset.mintBytes
-        return notes.filter { $0.utxo.mint == mint && !claimedSpends.contains($0.nullifier.bigEndianBytes) }
+        notes.filter { $0.utxo.asset == asset && !claimedSpends.contains($0.nullifier.bigEndianBytes) }
     }
 
     /// Whether the state holds received notes whose roots their trees' accounts didn't hold yet, which no amount
@@ -124,7 +123,7 @@ public struct NoteSyncState: Sendable, Equatable, Codable, Redacted {
         rejectedSpends: Set<String>,
         missingSpendReads: [String: Int]
     ) throws {
-        let amounts = notes.map { ($0.utxo.mint, $0.amount) } + pending.map { ($0.asset.mintBytes, $0.amount) }
+        let amounts = notes.map { ($0.utxo.asset, $0.amount) } + pending.map { ($0.asset, $0.amount) }
         _ = try Dictionary(amounts) { total, amount in
             let (sum, overflow) = total.addingReportingOverflow(amount)
             guard !overflow else { throw ValidationError.amountOverflow }
