@@ -28,21 +28,15 @@ struct BalanceMoveReviewScreen: TransactionReviewContent {
                     case .toPublic: Text("Public Balance")
                     }
                 }
-                NetworkFeeRow(fee: costs?.networkFee)
+                CostRow(title: "Network Fee", lamports: costs?.networkFee)
                 if let registrationFee = costs?.registrationFee {
-                    LabeledContent("Registration") {
-                        TokenBalance(balance: TokenAmount(lamports: registrationFee), asset: .nativeSOL)
-                    }
+                    CostRow(title: "Registration", lamports: registrationFee)
                 }
                 if let privacyFee = costs?.privacyFee {
-                    LabeledContent("Privacy Fee") {
-                        TokenBalance(balance: TokenAmount(lamports: privacyFee), asset: .nativeSOL)
-                    }
+                    CostRow(title: "Privacy Fee", lamports: privacyFee)
                 }
                 if let accountDeposit = costs?.accountDeposit {
-                    LabeledContent("Account Deposit") {
-                        TokenBalance(balance: TokenAmount(lamports: accountDeposit), asset: .nativeSOL)
-                    }
+                    CostRow(title: "Account Deposit", lamports: accountDeposit)
                 }
             } footer: {
                 if costs?.registrationFee != nil {

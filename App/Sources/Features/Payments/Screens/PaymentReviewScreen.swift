@@ -39,11 +39,9 @@ struct PaymentReviewScreen: TransactionReviewContent {
                         TokenBalance(balance: transferFee, asset: payment.asset)
                     }
                 }
-                NetworkFeeRow(fee: costs?.networkFee)
+                CostRow(title: "Network Fee", lamports: costs?.networkFee)
                 if let accountDeposit = costs?.accountDeposit {
-                    LabeledContent("Account Deposit") {
-                        TokenBalance(balance: TokenAmount(lamports: accountDeposit), asset: .nativeSOL)
-                    }
+                    CostRow(title: "Account Deposit", lamports: accountDeposit)
                 }
             } footer: {
                 if costs?.accountDeposit != nil {
