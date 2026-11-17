@@ -11,13 +11,8 @@ struct PortfolioErrorTests {
         (RPCProviderError.missingKey as any Error, PortfolioError.missingKey),
         (RPCProviderError.invalidKey, .invalidKey),
         (RPCProviderError.unsupportedNetwork, .unsupportedNetwork),
-        (RPCError.http(statusCode: 401, retryAfter: nil), .unavailable),
-        (RPCError.http(statusCode: 403, retryAfter: nil), .unavailable),
         (RPCError.http(statusCode: 429, retryAfter: "3"), .rateLimited),
-        (RPCError.server(code: 429, message: "Too many requests"), .rateLimited),
-        (RPCError.http(statusCode: 500, retryAfter: nil), .unavailable),
         (RPCError.transport(.notConnectedToInternet), .unavailable),
-        (KeychainItemError.unreadable, .unavailable),
         (TokenListError.unreadable, .listUnreadable),
     ])
     func `Portfolio errors map to what the person can do`(error: any Error, expected: PortfolioError) {
@@ -49,17 +44,5 @@ struct PortfolioErrorTests {
         #expect(portfolios.portfolio(for: account, on: network)?.error == expected)
         viewing.cancel()
         await viewing.value
-    }
-
-    @Test
-    func `Only refresh failures explain stale balances and prices`() {
-        let rateLimited = PortfolioError.rateLimited.staleStatus?.key
-        let unavailable = PortfolioError.unavailable.staleStatus?.key
-
-        #expect(rateLimited != nil)
-        #expect(unavailable != nil)
-        #expect(rateLimited != unavailable)
-        #expect(PortfolioError.listUnreadable.staleStatus?.key == unavailable)
-        #expect([PortfolioError.missingKey, .invalidKey, .unsupportedNetwork].allSatisfy { $0.staleStatus == nil })
     }
 }

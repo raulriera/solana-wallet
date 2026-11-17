@@ -23,16 +23,23 @@ struct PortfolioObservationTests {
         #expect(observation.owner == shown.account.address.value)
     }
 
-    @Test
-    func `Another network observes the wallet there instead`() async throws {
-        let account = try Account.fixture(index: 1)
-        try await expectReplacedObservation(of: account) { $0.network = .mainnet }
-    }
+    @Test(arguments: Change.allCases)
+    func `Another network or account replaces the observation`(_ change: Change) async throws {
+        let shown = ShownWallet(try Account.fixture(index: 1))
+        let window = try await Window(showing: shown)
+        defer { window.hosted.close() }
+        var requests = window.service.requests.makeAsyncIterator()
+        let first = try #require(await requests.next())
 
-    @Test
-    func `Another account observes its own wallet instead`() async throws {
-        let other = try Account.fixture(index: 2)
-        try await expectReplacedObservation(of: other) { $0.account = other }
+        switch change {
+        case .network: shown.network = .mainnet
+        case .account: shown.account = try Account.fixture(index: 2)
+        }
+
+        for await _ in first.termination {}
+        let replacement = try #require(await requests.next())
+        #expect(replacement.kind == .observation)
+        #expect(replacement.owner == shown.account.address.value)
     }
 
     @Test
@@ -52,20 +59,9 @@ struct PortfolioObservationTests {
         #expect(reload.owner == account.address.value)
     }
 
-    private func expectReplacedObservation(of account: widgets.Account,
-                                           after change: (ShownWallet) -> Void) async throws {
-        let shown = ShownWallet(try Account.fixture(index: 1))
-        let window = try await Window(showing: shown)
-        defer { window.hosted.close() }
-        var requests = window.service.requests.makeAsyncIterator()
-        let first = try #require(await requests.next())
-
-        change(shown)
-
-        for await _ in first.termination {}
-        let replacement = try #require(await requests.next())
-        #expect(replacement.kind == .observation)
-        #expect(replacement.owner == account.address.value)
+    enum Change: CaseIterable {
+        case network
+        case account
     }
 
     @MainActor

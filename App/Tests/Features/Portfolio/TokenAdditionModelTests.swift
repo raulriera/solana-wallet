@@ -17,7 +17,7 @@ struct TokenAdditionModelTests {
                                                  logo: nil)
 
     @Test
-    func `Pasted text that isn't an address asks for one without a lookup`() {
+    func `Pasted text that isn't an address asks for one each time without a lookup`() {
         let addition = TokenAdditionModel()
 
         addition.paste("not an address")
@@ -25,19 +25,12 @@ struct TokenAdditionModelTests {
         #expect(addition.rejectionCount == 1)
         #expect(addition.lookup == nil)
 
-        addition.paste("")
-        #expect(addition.rejection == nil)
-    }
-
-    @Test
-    func `Each rejection signals again`() {
-        let addition = TokenAdditionModel()
-
-        addition.paste("not an address")
         addition.paste("still not an address")
-
         #expect(addition.rejection == .notAddress)
         #expect(addition.rejectionCount == 2)
+
+        addition.paste("")
+        #expect(addition.rejection == nil)
     }
 
     @Test
