@@ -9,21 +9,19 @@ struct LogoReader: Sendable {
     /// Returns the listed tokens' logos, looking up only the tokens that don't have one yet.
     ///
     /// - Parameters:
-    ///   - holdings: The holdings to find logos for.
+    ///   - assets: The assets to find logos for.
     ///   - cached: The previous snapshot, whose logos are kept, or `nil`.
-    /// - Returns: The available logos, keyed by mint.
+    /// - Returns: The available logos, keyed by asset.
     @concurrent
-    func logos(for holdings: [Asset.ID], keeping cached: Snapshot?) async -> [String: URL] {
-        var logos: [String: URL] = [:]
-        for holding in cached?.holdings ?? [] {
-            if case .token(let mint) = holding.id, let logo = holding.imageURL { logos[mint.value] = logo }
+    func logos(for assets: [Asset.ID], keeping cached: Snapshot?) async -> [Asset.ID: URL] {
+        var logos: [Asset.ID: URL] = [:]
+        for holding in cached?.holdings ?? [] { logos[holding.id] = holding.imageURL }
+        let missing = assets.compactMap { asset -> Address? in
+            guard case .token(let mint) = asset, logos[asset] == nil else { return nil }
+            return mint
         }
-        let missing = holdings.compactMap { holding -> String? in
-            guard case .token(let mint) = holding, logos[mint.value] == nil else { return nil }
-            return mint.value
-        }
-        if !missing.isEmpty, let found = try? await provider.logos(for: missing) {
-            logos.merge(found) { kept, _ in kept }
+        if !missing.isEmpty, let found = try? await provider.logos(for: missing.map(\.value)) {
+            for mint in missing { logos[.token(mint: mint)] = found[mint.value] }
         }
         return logos
     }
@@ -32,13 +30,12 @@ struct LogoReader: Sendable {
 extension Snapshot {
     /// Returns a copy of the snapshot with each listed token's logo replaced.
     ///
-    /// - Parameter logos: Logo URLs keyed by mint, where a missing mint means no logo.
+    /// - Parameter logos: Logo URLs keyed by asset, where a missing asset means no logo.
     /// - Returns: The snapshot with the new logos.
-    func replacingLogos(with logos: [String: URL]) -> Snapshot {
+    func replacingLogos(with logos: [Asset.ID: URL]) -> Snapshot {
         var snapshot = self
         for index in snapshot.holdings.indices {
-            guard case .token(let mint) = snapshot.holdings[index].id else { continue }
-            snapshot.holdings[index].imageURL = logos[mint.value]
+            snapshot.holdings[index].imageURL = logos[snapshot.holdings[index].id]
         }
         return snapshot
     }

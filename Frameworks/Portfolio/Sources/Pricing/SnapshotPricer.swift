@@ -2,19 +2,19 @@ import Foundation
 import RPC
 import Transactions
 
-/// A service that looks up quotes for holdings and values them.
+/// A service that looks up quotes for assets and values a snapshot's holdings with them.
 struct SnapshotPricer: Sendable {
     let provider: any PriceProviding
 
-    /// Looks up quotes for holdings.
+    /// Looks up quotes for assets.
     ///
-    /// - Parameter holdings: The holdings to price.
+    /// - Parameter assets: The assets to price.
     /// - Returns: Quotes keyed by mint.
     /// - Throws: A provider or cancellation error.
     @concurrent
-    func quotes(for holdings: [Asset.ID]) async throws -> [String: Quote] {
+    func quotes(for assets: [Asset.ID]) async throws -> [String: Quote] {
         try Task.checkCancellation()
-        return try await provider.prices(for: holdings.map { mint(for: $0) })
+        return try await provider.prices(for: assets.map { mint(for: $0) })
     }
 
     /// Returns the quotes that valued a snapshot's holdings.
@@ -55,12 +55,12 @@ struct SnapshotPricer: Sendable {
         return priced
     }
 
-    /// Returns the mint whose quote prices a holding.
+    /// Returns the mint whose quote prices an asset.
     ///
-    /// - Parameter identity: The holding's identity.
-    /// - Returns: The holding's mint, or Wrapped SOL's mint for native SOL.
-    private func mint(for identity: Asset.ID) -> String {
-        switch identity {
+    /// - Parameter asset: The asset.
+    /// - Returns: The asset's mint, or Wrapped SOL's mint for native SOL.
+    private func mint(for asset: Asset.ID) -> String {
+        switch asset {
         case .nativeSOL: "So11111111111111111111111111111111111111112"
         case .token(let mint): mint.value
         }
