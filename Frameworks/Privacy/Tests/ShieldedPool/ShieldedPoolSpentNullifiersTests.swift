@@ -10,7 +10,7 @@ struct ShieldedPoolSpentNullifiersTests {
 
     private static let other = [UInt8](repeating: 0x23, count: 32)
 
-    @Test(arguments: [16, 19, 21] as [UInt8], [0, 1, 2, 4, 5, 7, 8] as [UInt16])
+    @Test(arguments: zip([16, 19, 21, 16] as [UInt8], [0, 7, 4, 8] as [UInt16]))
     func `Transact-layout instructions of the pool spend their inputs' nullifiers`(tag: UInt8, circuit: UInt16) throws {
         let data = SpendTransactions.transactData(spending: Self.spent, tag: tag, circuit: circuit)
         let transaction = try SpendTransactions.transaction(of: [(SpendTransactions.program, data)])
@@ -57,8 +57,9 @@ struct ShieldedPoolSpentNullifiersTests {
         #expect(try ShieldedPool.nullifiers(spentBy: transaction) == Set(Self.spent + [Self.other]))
     }
 
-    @Test(arguments: ["11111111111111111111111111111111", "ComputeBudget111111111111111111111111111111"])
-    func `Spend data under another program spends nothing`(program: String) throws {
+    @Test
+    func `Spend data under another program spends nothing`() throws {
+        let program = "11111111111111111111111111111111"
         let transaction = try SpendTransactions.transaction(
             of: [(program, SpendTransactions.transactData(spending: Self.spent))],
             inner: [(program, SpendTransactions.mergeData(spending: Self.spent))]

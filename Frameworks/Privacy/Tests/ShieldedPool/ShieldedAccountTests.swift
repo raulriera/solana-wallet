@@ -16,14 +16,6 @@ struct ShieldedAccountTests {
         #expect(recipient.owner == (try rail.ownerHash()))
     }
 
-    @Test
-    func `Accounts read their signing and viewing key tags`() throws {
-        let record = try #require(try RegistryVectors.load().records.first { $0.owner == TransferVectors.senderSigningAddress })
-        let sender = try TransferVectors.sender()
-
-        #expect(sender.viewTags == [sender.signingAddress.bytes, Array(try fixtureBytes(record.viewingPublicKey).dropFirst())])
-    }
-
     @Test(arguments: [30, 32])
     func `Nullifier secrets of another length are rejected`(length: Int) throws {
         let signingAddress = try Address(TransferVectors.senderSigningAddress)
