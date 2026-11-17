@@ -6,8 +6,7 @@ struct OnboardingPage {
     static let phrase = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
     static let invalidPhrase = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon"
     private static let recoveryGuidance = "Write down these words in order and keep them somewhere safe. Anyone with them can control your wallet."
-    private static let setupErrorTitles = ["Wallet Setup Unavailable", "Too Many Requests", "Couldn't Connect",
-                                           "Couldn't Save API Key", "Couldn't Load Provider", "Couldn't Change Provider"]
+    private static let setupErrorTitles = ["Wallet Setup Unavailable"] + RPCPage.errorTitles
 
     private enum Error: Swift.Error { case missingRecoveryWords }
 
@@ -34,7 +33,6 @@ struct OnboardingPage {
     var solanaProvider: XCUIElement { driver.app.buttons["Solana"] }
     var recoveryWordsAreEmpty: Bool { recoveryWords.value as? String == "Recovery words" }
     var passphraseIsEmpty: Bool { (passphrase.value as? String ?? "Optional") == "Optional" }
-    private var keySheet: XCUIElement { driver.app.navigationBars["Connect to Helius"] }
 
     func expectWelcome() throws {
         try driver.waitFor(createWalletButton)
@@ -61,11 +59,6 @@ struct OnboardingPage {
             XCTFail("Recovery must expose twelve numbered word labels")
             throw Error.missingRecoveryWords
         }
-    }
-
-    func expectKeyRejected(file: StaticString = #filePath, line: UInt = #line) throws {
-        let message = "Your provider didn't accept this API key. Check it and try again."
-        try expectSetupOutcome(driver.app.staticTexts[message], label: message, file: file, line: line)
     }
 
     func reachBackupConfirmation() throws {
@@ -106,21 +99,6 @@ struct OnboardingPage {
         let field = self.passphrase
         driver.reveal(field, swiping: .up)
         try driver.type(passphrase + "\n", into: field)
-    }
-
-    func chooseHelius(file: StaticString = #filePath, line: UInt = #line) throws {
-        try driver.tap(driver.app.buttons["Helius"], file: file, line: line)
-        try expectSetupOutcome(keySheet, label: "Connect to Helius", file: file, line: line)
-    }
-
-    func hittableContinueButton(file: StaticString = #filePath, line: UInt = #line) throws -> XCUIElement {
-        try driver.frontButton("Continue", file: file, line: line)
-    }
-
-    func submitProviderKey(_ key: String, file: StaticString = #filePath, line: UInt = #line) throws {
-        let field = driver.app.secureTextFields["RPC API key"]
-        try driver.type(key, into: field, file: file, line: line)
-        try driver.tap(try hittableContinueButton(file: file, line: line), file: file, line: line)
     }
 
     @discardableResult

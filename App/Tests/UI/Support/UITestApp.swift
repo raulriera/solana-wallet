@@ -17,6 +17,8 @@ struct UITestApp {
             case .importedWallet(let phrase): phrase
             }
         }
+
+        static var devWallet: Self { .importedWallet(ProcessInfo.processInfo.environment["DEVNET_TEST_SEED"]!) }
     }
 
     private enum Error: Swift.Error { case missingElement, unexpectedElement, unavailableControl, reportedError, unexpectedState }
@@ -128,10 +130,11 @@ struct UITestApp {
     }
 
     func expectOutcome(_ destination: XCUIElement, matching outcome: NSPredicate, unless alerts: [String],
-                       file: StaticString = #filePath, line: UInt = #line) throws {
+                       within timeout: TimeInterval = 10, file: StaticString = #filePath, line: UInt = #line) throws {
         let reports = alerts.map { NSPredicate(format: "label == %@", $0) }
         let either = NSCompoundPredicate(orPredicateWithSubpredicates: [outcome] + reports)
-        try waitFor(app.descendants(matching: .any).matching(either).firstMatch, file: file, line: line)
+        let result = app.descendants(matching: .any).matching(either).firstMatch
+        try waitFor(result, within: timeout, file: file, line: line)
         if let alert = alerts.first(where: { app.alerts[$0].exists }) {
             XCTFail("The app reported \(alert) instead of the expected result.", file: file, line: line)
             throw Error.reportedError
@@ -139,8 +142,9 @@ struct UITestApp {
         try waitFor(destination, file: file, line: line)
     }
 
-    func waitFor(_ element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) throws {
-        guard element.waitForExistence(timeout: 10) else {
+    func waitFor(_ element: XCUIElement, within timeout: TimeInterval = 10, file: StaticString = #filePath,
+                 line: UInt = #line) throws {
+        guard element.waitForExistence(timeout: timeout) else {
             XCTFail("Expected UI did not appear", file: file, line: line)
             throw Error.missingElement
         }
@@ -158,10 +162,11 @@ struct UITestApp {
         field.typeText(text)
     }
 
-    func tap(_ element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) throws {
-        let predicate = NSPredicate(format: "exists == true AND isHittable == true AND isEnabled == true")
+    func tap(_ element: XCUIElement, within timeout: TimeInterval = 10, file: StaticString = #filePath,
+             line: UInt = #line) throws {
+        let predicate = NSPredicate(format: "exists == true AND isEnabled == true AND isHittable == true")
         let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
-        guard XCTWaiter.wait(for: [expectation], timeout: 10) == .completed else {
+        guard XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed else {
             XCTFail("Expected control did not become ready", file: file, line: line)
             throw Error.unavailableControl
         }

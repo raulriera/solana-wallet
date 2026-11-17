@@ -6,6 +6,7 @@ Run the `UI` test plan of the `widgets` scheme on an iOS Simulator.
 
 1. Copy `Configuration/Local.example.xcconfig` to `Configuration/Local.xcconfig`.
 2. Set `HELIUS_API_KEY` to your Helius API key.
+3. Set `DEVNET_TEST_SEED` to the recovery phrase of a wallet with devnet SOL.
 
 The tests need a network connection: they read Solana mainnet and devnet through public RPC and Helius.
 

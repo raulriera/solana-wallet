@@ -25,12 +25,13 @@ final class ProviderSetupUITests: XCTestCase {
         let onboarding = OnboardingPage(driver: app)
         try onboarding.expectWelcome()
         try onboarding.createWallet()
-        try onboarding.chooseHelius()
-        XCTAssertFalse(try onboarding.hittableContinueButton().isEnabled)
+        let rpc = RPCPage(driver: app)
+        try rpc.chooseHelius()
+        XCTAssertFalse(try rpc.hittableContinueButton().isEnabled)
 
-        try onboarding.submitProviderKey("00000000-0000-0000-0000-000000000000")
+        try rpc.submitKey("00000000-0000-0000-0000-000000000000")
 
-        try onboarding.expectKeyRejected()
-        XCTAssertTrue(try onboarding.hittableContinueButton().isEnabled)
+        try rpc.expectKeyRejected()
+        XCTAssertTrue(try rpc.hittableContinueButton().isEnabled)
     }
 }

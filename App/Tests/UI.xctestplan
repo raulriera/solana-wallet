@@ -13,6 +13,10 @@
       {
         "key" : "HELIUS_API_KEY",
         "value" : "$(HELIUS_API_KEY)"
+      },
+      {
+        "key" : "DEVNET_TEST_SEED",
+        "value" : "$(DEVNET_TEST_SEED)"
       }
     ],
     "targetForVariableExpansion" : {
