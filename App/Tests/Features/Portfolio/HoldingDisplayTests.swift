@@ -31,8 +31,7 @@ struct HoldingDisplayTests {
         (nil, false),
     ])
     func `Values need a total and a currency`(valuation: Valuation?, isKnown: Bool) {
-        let holding = Holding(asset: .token(.fixture(Self.mint, decimals: 0)), balance: nil, imageURL: nil,
-                              valuation: valuation)
+        let holding = Holding.fixture(.fixture(Self.mint, decimals: 0), amount: nil, valuation: valuation)
         #expect((holding.knownValue != nil) == isKnown)
     }
 
@@ -50,10 +49,8 @@ struct HoldingDisplayTests {
 
     @Test
     func `Other tokens show the provider's copy when it has one`() {
-        let listed = Holding(asset: .token(.fixture(Self.mint, decimals: 0)), balance: nil,
-                             imageURL: Self.providerLogo, valuation: nil)
-        let unknown = Holding(asset: .token(.fixture(Self.mint, decimals: 0)), balance: nil, imageURL: nil,
-                              valuation: nil)
+        let listed = Holding.fixture(.fixture(Self.mint, decimals: 0), amount: nil, imageURL: Self.providerLogo)
+        let unknown = Holding.fixture(.fixture(Self.mint, decimals: 0), amount: nil)
         #expect(listed.logoURL == Self.providerLogo)
         #expect(unknown.logoURL == nil)
     }
@@ -65,8 +62,7 @@ struct HoldingDisplayTests {
         (nil, false),
     ])
     func `Prices need a unit price and a currency`(valuation: Valuation?, isKnown: Bool) {
-        let holding = Holding(asset: .token(.fixture(Self.mint, decimals: 0)), balance: nil, imageURL: nil,
-                              valuation: valuation)
+        let holding = Holding.fixture(.fixture(Self.mint, decimals: 0), amount: nil, valuation: valuation)
         #expect((holding.knownPrice != nil) == isKnown)
     }
 

@@ -80,7 +80,7 @@ struct TokenAdditionModelTests {
         let viewing = Task { await portfolios.observe(account, on: .devnet) }
         defer { viewing.cancel() }
         let observation = try #require(await requests.next())
-        let bonk = Holding(asset: .token(.fixture(Self.bonk, decimals: 5)), balance: nil, imageURL: nil, valuation: nil)
+        let bonk = Holding.fixture(.fixture(Self.bonk, decimals: 5), amount: nil)
         observation.continuation.yield(Update(snapshot: Snapshot(owner: account.address.value, network: .devnet,
                                                                  holdings: [bonk]),
                                               phase: .ready, revision: 1))

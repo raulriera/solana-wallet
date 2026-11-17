@@ -10,8 +10,7 @@ struct PaymentTokenHoldingTests {
                                                metadata: TokenMetadata(name: "USD Coin", symbol: "USDC"))
 
     @Test(arguments: [
-        (Holding(asset: .token(usdc), balance: TokenAmount(amount: 1_234_567, decimals: 6), imageURL: nil,
-                 valuation: dollars),
+        (Holding.fixture(usdc, amount: 1_234_567, valuation: dollars),
          PaymentToken(
              asset: .token(usdc),
              balance: TokenAmount(amount: 1_234_567, decimals: 6), price: 2)),
@@ -23,10 +22,9 @@ struct PaymentTokenHoldingTests {
     }
 
     @Test(arguments: [
-        Holding(asset: .token(usdc), balance: TokenAmount(amount: 0, decimals: 6), imageURL: nil, valuation: nil),
-        Holding(asset: .token(usdc), balance: nil, imageURL: nil, valuation: nil),
-        Holding(asset: .token(usdc), balance: TokenAmount(amount: 5, decimals: 6),
-                otherOwner: PaymentFixtures.lookAlike, imageURL: nil, valuation: nil),
+        Holding.fixture(usdc, amount: 0),
+        Holding.fixture(usdc, amount: nil),
+        Holding.fixture(usdc, amount: 5, otherOwner: PaymentFixtures.lookAlike),
     ])
     func `A holding with nothing to spend is left out`(holding: Holding) {
         #expect(PaymentToken(holding: holding, currencyCode: "USD") == nil)

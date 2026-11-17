@@ -137,8 +137,8 @@ struct WalletPortfolioTests {
 
     private func pricedSnapshot(_ values: KeyValuePairs<String, Decimal>) -> Snapshot {
         let tokens = values.map { symbol, total in
-            Holding(asset: .token(.fixture(symbol: symbol)), balance: TokenAmount(amount: 1, decimals: 0),
-                    imageURL: nil, valuation: Valuation(pricePerUnit: total, total: total, currency: "USD"))
+            Holding.fixture(.fixture(symbol: symbol), amount: 1,
+                            valuation: Valuation(pricePerUnit: total, total: total, currency: "USD"))
         }
         let solana = Holding(asset: .nativeSOL, balance: TokenAmount(lamports: 0),
                              imageURL: nil, valuation: nil)

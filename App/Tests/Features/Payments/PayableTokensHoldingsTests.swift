@@ -9,12 +9,9 @@ struct PayableTokensHoldingsTests {
     private static let sol = Holding(asset: .nativeSOL, balance: TokenAmount(lamports: 1_500_000_000),
                                      imageURL: nil,
                                      valuation: Valuation(pricePerUnit: 150, total: nil, currency: "USD"))
-    private static let empty = Holding(asset: .token(.fixture(PaymentFixtures.usdc.value, decimals: 6)),
-                                       balance: TokenAmount(amount: 0, decimals: 6), imageURL: nil, valuation: nil)
-    private static let unpriced = Holding(
-        asset: .token(.fixture(PaymentFixtures.unpriced.value, decimals: 1,
-                               symbol: "NOPRICE")),
-        balance: TokenAmount(amount: 25, decimals: 1), imageURL: nil, valuation: nil)
+    private static let empty = Holding.fixture(.fixture(PaymentFixtures.usdc.value, decimals: 6), amount: 0)
+    private static let unpriced = Holding.fixture(
+        .fixture(PaymentFixtures.unpriced.value, decimals: 1, symbol: "NOPRICE"), amount: 25)
 
     @Test func `A portfolio that hasn't loaded has no tokens yet`() {
         #expect(PayableTokens(holdings: [], error: nil) == nil)

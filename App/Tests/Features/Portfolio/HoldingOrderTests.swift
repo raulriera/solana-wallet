@@ -36,7 +36,7 @@ struct HoldingOrderTests {
     }
 
     private func token(_ symbol: String, value: Decimal? = nil, currency: String = "USD") -> Holding {
-        Holding(asset: .token(.fixture(symbol: symbol)), balance: TokenAmount(amount: 1, decimals: 0), imageURL: nil,
-                valuation: value.map { Valuation(pricePerUnit: $0, total: $0, currency: currency) })
+        Holding.fixture(.fixture(symbol: symbol), amount: 1,
+                        valuation: value.map { Valuation(pricePerUnit: $0, total: $0, currency: currency) })
     }
 }
