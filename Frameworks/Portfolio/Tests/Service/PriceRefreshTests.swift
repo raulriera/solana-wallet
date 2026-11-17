@@ -11,8 +11,7 @@ struct PriceRefreshTests {
         defer { fixture.removeFiles() }
         let stalePrice = Valuation(pricePerUnit: 20, total: 20, currency: "USD")
         try fixture.store.save(Snapshot(owner: testWallet, network: .mainnet, holdings: [
-            Holding(asset: .token(.fixture(usdtMint, decimals: 6)), balance: TokenAmount(amount: 1, decimals: 6),
-                    imageURL: nil, valuation: stalePrice),
+            .fixture(.fixture(usdtMint, decimals: 6), amount: 1, valuation: stalePrice),
         ]), for: fixture.key)
         let accounts = AccountResponses { _ in
             Ledger(lamports: 1_000_000_000, tokens: [usdcMint: 3_000_000, nativeMint: 2_000_000_000])
@@ -82,8 +81,7 @@ struct PriceRefreshTests {
         defer { fixture.removeFiles() }
         if let cachedPrice {
             try fixture.store.save(Snapshot(owner: testWallet, network: .mainnet, holdings: [
-                Holding(asset: .token(.fixture(usdcMint, decimals: 6)),
-                        balance: TokenAmount(amount: 1_000_000, decimals: 6), imageURL: nil, valuation: cachedPrice),
+                .fixture(.fixture(usdcMint, decimals: 6), amount: 1_000_000, valuation: cachedPrice),
             ]), for: fixture.key)
         }
         let accounts = AccountResponses { _ in freshLedger }
@@ -214,12 +212,11 @@ private func pricingSnapshot() -> Snapshot {
     let holdings = [
         Holding(asset: .nativeSOL, balance: TokenAmount(lamports: 1_000_000_000),
                 imageURL: nil, valuation: nil),
-        Holding(asset: .token(.fixture(nativeMint, decimals: 9)),
-                balance: TokenAmount(amount: 2_000_000_000, decimals: 9), imageURL: nil, valuation: nil),
-        Holding(asset: .token(.fixture(pyusdMint, decimals: 6)), balance: TokenAmount(amount: 1_250_000, decimals: 6),
-                imageURL: URL(string: "https://example.com/token.png"), valuation: nil),
-        Holding(asset: .token(.fixture(usdtMint, decimals: 0)), balance: TokenAmount(amount: 1, decimals: 0),
-                imageURL: nil, valuation: Valuation(pricePerUnit: 20, total: 20, currency: "USDC")),
+        .fixture(.fixture(nativeMint, decimals: 9), amount: 2_000_000_000),
+        .fixture(.fixture(pyusdMint, decimals: 6), amount: 1_250_000,
+                 imageURL: URL(string: "https://example.com/token.png")),
+        .fixture(.fixture(usdtMint, decimals: 0), amount: 1,
+                 valuation: Valuation(pricePerUnit: 20, total: 20, currency: "USDC")),
     ]
     return Snapshot(owner: testWallet, network: .mainnet, holdings: holdings)
 }

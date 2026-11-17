@@ -30,7 +30,7 @@ struct TokenListTests {
         let fixture = TokenListFixture()
         defer { fixture.removeFiles() }
         let service = fixture.portfolio()
-        let added = try mint(1)
+        let added = mint(1)
         try await service.addToken(added, for: "wallet")
         let usdc = try #require(try await fixture.list(for: "wallet").mints.first)
         try await service.removeToken(usdc.address, for: "wallet")
@@ -47,8 +47,7 @@ struct TokenListTests {
         let mints = try await fixture.list(for: "wallet").mints
         let holdings = [Holding(asset: .nativeSOL, balance: TokenAmount(lamports: 1),
                                 imageURL: nil, valuation: nil)]
-            + mints.map { Holding(asset: .token($0), balance: TokenAmount(amount: 1, decimals: $0.decimals),
-                                   imageURL: nil, valuation: nil) }
+            + mints.map { Holding.fixture($0, amount: 1) }
         try fixture.snapshots.save(Snapshot(owner: "wallet", network: .mainnet, holdings: holdings),
                                    for: CacheKey(owner: "wallet", network: .mainnet))
         let usdc = try #require(mints.first)
@@ -63,7 +62,7 @@ struct TokenListTests {
     func `A mint decoded from its account is saved with its facts`() async throws {
         let fixture = TokenListFixture()
         defer { fixture.removeFiles() }
-        let facts = try mint(1)
+        let facts = mint(1)
         let account = [UInt8](repeating: 0, count: 36) + [232, 3, 0, 0, 0, 0, 0, 0, 9, 1]
             + [UInt8](repeating: 0, count: 36)
         var decoded = try Mint(address: facts.address, programAddress: Address(TokenProgram.token2022.rawValue),
@@ -93,7 +92,7 @@ struct TokenListTests {
         let service = fixture.portfolio()
         let usdc = try #require(try await fixture.list(for: "wallet").mints.first)
         try await service.addToken(usdc, for: "wallet")
-        try await service.removeToken(try mint(1).address, for: "wallet")
+        try await service.removeToken(mint(1).address, for: "wallet")
         #expect(try fixture.store.tokenList(for: CacheKey(owner: "wallet", network: .mainnet)) == nil)
     }
 
@@ -105,7 +104,7 @@ struct TokenListTests {
         for index in 1...(TokenList.tokenLimit - 3) {
             try await service.addToken(mint(index), for: "wallet")
         }
-        let extra = try mint(TokenList.tokenLimit - 2)
+        let extra = mint(TokenList.tokenLimit - 2)
         await #expect(throws: TokenListError.limitReached) { try await service.addToken(extra, for: "wallet") }
         let list = try await fixture.list(for: "wallet")
         #expect(list.mints.count + 1 == TokenList.tokenLimit)
@@ -141,7 +140,7 @@ struct TokenListTests {
         }
         let saved = try files.read(for: key)
         let service = fixture.portfolio()
-        let added = try mint(1)
+        let added = mint(1)
         await #expect(throws: TokenListError.unreadable) { try await service.addToken(added, for: "wallet") }
         await #expect(throws: TokenListError.unreadable) { try await service.removeToken(added.address, for: "wallet") }
         #expect(try files.read(for: key) == saved)
@@ -163,7 +162,7 @@ struct TokenListTests {
         let fixture = TokenListFixture()
         defer { fixture.removeFiles() }
         let service = fixture.portfolio()
-        let mints = try (1...20).map(mint)
+        let mints = (1...20).map(mint)
         try await withThrowingTaskGroup(of: Void.self) { group in
             for added in mints {
                 group.addTask { try await service.addToken(added, for: "wallet") }
@@ -193,9 +192,8 @@ private struct TokenListFixture {
     func removeFiles() { try? FileManager.default.removeItem(at: directory) }
 }
 
-private func mint(_ index: Int) throws -> Mint {
+private func mint(_ index: Int) -> Mint {
     let digits = Array("23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
-    let address = try Address(String(repeating: "1", count: 31) + String(digits[index - 1]))
-    return Mint(address: address, program: .token2022, decimals: 9,
-                metadata: TokenMetadata(name: "Token \(index)", symbol: "T\(index)"))
+    return Mint.fixture(String(repeating: "1", count: 31) + String(digits[index - 1]), program: .token2022,
+                        decimals: 9, name: "Token \(index)", symbol: "T\(index)")
 }

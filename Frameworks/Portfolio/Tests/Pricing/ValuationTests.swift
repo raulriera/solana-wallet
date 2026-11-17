@@ -16,7 +16,7 @@ struct ValuationTests {
     func `Valuation preserves decimal precision and never invents unrepresentable totals`(balance: TokenAmount, price: Decimal, total: Decimal?) async throws {
         let quote = Quote(pricePerUnit: price, currency: "CAD", dayChange: nil)
         let snapshot = Snapshot(owner: "wallet", network: .devnet, holdings: [
-            Holding(asset: .token(.fixture(usdcMint, decimals: 0)), balance: balance, imageURL: nil, valuation: nil),
+            .fixture(.fixture(usdcMint, decimals: balance.decimals), amount: balance.amount),
         ])
         let result = try await valued(snapshot, with: FixedPrices(quote: quote))
         let valuation = try #require(result.holdings.first?.valuation)
@@ -29,8 +29,8 @@ struct ValuationTests {
     func `A holding without a balance has no valuation`() async throws {
         let quote = Quote(pricePerUnit: 1, currency: "USD", dayChange: Decimal(string: "0.01"))
         let snapshot = Snapshot(owner: "wallet", network: .devnet, holdings: [
-            Holding(asset: .token(.fixture(usdcMint, decimals: 0)), balance: nil, otherOwner: try Address(otherWallet),
-                    imageURL: nil, valuation: Valuation(pricePerUnit: 1, total: nil, currency: "USD")),
+            .fixture(.fixture(usdcMint, decimals: 0), amount: nil, otherOwner: try Address(otherWallet),
+                     valuation: Valuation(pricePerUnit: 1, total: nil, currency: "USD")),
         ])
 
         let result = try await valued(snapshot, with: FixedPrices(quote: quote))
@@ -63,8 +63,7 @@ struct ValuationTests {
     private func pricedValuation(dayChange: Decimal?) async throws -> Valuation {
         let quote = Quote(pricePerUnit: 2, currency: "USD", dayChange: dayChange)
         let snapshot = Snapshot(owner: "wallet", network: .devnet, holdings: [
-            Holding(asset: .token(.fixture(usdcMint, decimals: 0)), balance: TokenAmount(amount: 1, decimals: 0),
-                    imageURL: nil, valuation: nil),
+            .fixture(.fixture(usdcMint, decimals: 0), amount: 1),
         ])
         let result = try await valued(snapshot, with: FixedPrices(quote: quote))
         return try #require(result.holdings.first?.valuation)

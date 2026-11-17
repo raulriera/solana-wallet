@@ -507,9 +507,7 @@ struct PortfolioTests {
         defer { fixture.removeFiles() }
         let logo = try #require(URL(string: "https://cdn.example.com/usdc.png"))
         let cached = Snapshot(owner: testWallet, network: .mainnet,
-                              holdings: [Holding(asset: .token(.fixture(usdcMint, decimals: 6)),
-                                                 balance: TokenAmount(amount: 1, decimals: 6), imageURL: logo,
-                                                 valuation: nil)])
+                              holdings: [.fixture(.fixture(usdcMint, decimals: 6), amount: 1, imageURL: logo)])
         try fixture.store.save(cached, for: CacheKey(owner: testWallet, network: .mainnet))
         let http = AccountResponses { _ in Ledger() }
 
@@ -533,9 +531,7 @@ struct PortfolioTests {
         let otherKey = CacheKey(owner: otherWallet, network: .mainnet)
         let logo = try #require(URL(string: "https://old.example.com/usdc.png"))
         let other = Snapshot(owner: otherWallet, network: .mainnet,
-                             holdings: [Holding(asset: .token(.fixture(usdcMint, decimals: 6)),
-                                                 balance: TokenAmount(amount: 1, decimals: 6), imageURL: logo,
-                                                 valuation: nil)])
+                             holdings: [.fixture(.fixture(usdcMint, decimals: 6), amount: 1, imageURL: logo)])
         try fixture.store.save(other, for: otherKey)
 
         try await service.providerDidChange()
@@ -627,6 +623,5 @@ private func reload(_ service: Portfolio) async throws -> Update {
 
 private func snapshot(owner: String, network: Network, amount: UInt64, imageURL: URL? = nil) -> Snapshot {
     Snapshot(owner: owner, network: network,
-             holdings: [Holding(asset: .token(.fixture(usdcMint, decimals: 6)),
-                                balance: TokenAmount(amount: amount, decimals: 6), imageURL: imageURL, valuation: nil)])
+             holdings: [.fixture(.fixture(usdcMint, decimals: 6), amount: amount, imageURL: imageURL)])
 }
