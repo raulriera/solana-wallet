@@ -1,7 +1,7 @@
 import Foundation
 import Transactions
 
-/// Formats exact token quantities.
+/// Formats token quantities exactly or shortened from 10,000 up, with or without a symbol.
 nonisolated struct TokenAmountFormatStyle: FormatStyle {
     var locale: Locale = .autoupdatingCurrent
     /// Whether quantities from 10,000 up are shortened.

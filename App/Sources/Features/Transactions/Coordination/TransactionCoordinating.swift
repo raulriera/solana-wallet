@@ -59,7 +59,7 @@ extension TransactionCoordinating {
     ///   - wallet: The account that signs and pays the fees.
     ///   - recipient: The receiving wallet, or a token account for a token.
     /// - Returns: The simulation to review.
-    /// - Throws: A resolution, preparation, or cancellation error.
+    /// - Throws: An error as ``transfer(_:of:using:to:source:memo:)`` describes.
     func transfer(_ amount: UInt64, of asset: Asset, using wallet: Account,
                   to recipient: Address) async throws -> Simulation {
         try await transfer(amount, of: asset, using: wallet, to: recipient, source: nil, memo: nil)

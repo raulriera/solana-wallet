@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 import Transactions
 
-/// Shows a token quantity, exactly or shortened from 10,000 up, with or without the asset's symbol.
+/// Shows a token quantity: exactly with the asset's symbol, or alone and, when asked, shortened from 10,000 up.
 struct TokenBalance: View {
     let balance: TokenAmount
     /// The asset whose symbol follows the quantity, or `nil` for the quantity alone.
