@@ -70,7 +70,12 @@ struct BalanceMoveTests {
             recovery: try PrivateBalanceFixtures.recoveryStore(),
             responses: HTTPResponses([:])
         )
-        let token = PaymentToken(asset: asset, balance: TokenAmount(amount: 1_500_000_000, decimals: 9), price: nil)
+        let balance =
+            switch asset {
+            case .nativeSOL: TokenAmount(lamports: 1_500_000_000)
+            case .token(let mint): TokenAmount(amount: 1_500_000, decimals: mint.decimals)
+            }
+        let token = PaymentToken(asset: asset, balance: balance, price: nil)
         return BalanceMove(
             direction: direction,
             token: token,
