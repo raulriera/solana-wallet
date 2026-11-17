@@ -104,7 +104,7 @@ struct SubmissionLiveTests {
         }
         let held = sourceBalance + wrapped
 
-        let reviewed = Mint(address: mintAddress, program: program, decimals: 9, metadata: nil)
+        let reviewed = Mint.fixture(mint, program: program, decimals: 9)
         let review = try await coordinator.transfer(amount, of: .token(reviewed), using: sender, to: recipient.address)
         let transfer = try #require(review.tokenTransfer)
         #expect(transfer.mint.program == program)

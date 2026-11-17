@@ -18,7 +18,7 @@ struct TokenPreparationLiveTests {
         let rpc = try LiveClients.client()
         let wallets = try await DevnetWallets.configured()
         let account = wallets.sender
-        let mint = Mint(address: try Address(mintAddress), program: program, decimals: 9, metadata: nil)
+        let mint = Mint.fixture(mintAddress, program: program, decimals: 9)
         let coordinator = try TransactionCoordinator(rpc: rpc, store: UnavailableRecoveryStore())
         let source = try #require(try await Wallet().accounts(for: wallets.recovery.phrase,
                                                               passphrase: "missing-token-source", paths: [.solana]).first)
