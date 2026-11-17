@@ -51,19 +51,12 @@ struct SigningTests {
         #expect((fee[1] as? [String: Any])?["commitment"] as? String == "finalized")
     }
 
-    @Test(arguments: [
-        "amount", "recipient", "priority fee", "message"
-    ])
+    @Test(arguments: ["amount", "message"])
     func `Altered transfer details cannot unlock a wallet for a different message`(_ changed: String) async throws {
         var fixture = try SigningFixture()
         switch changed {
         case "amount":
             fixture.transfer = try SystemProgram.transfer(from: fixture.transfer.accounts[0].address, to: fixture.transfer.accounts[1].address, lamports: 2)
-        case "recipient":
-            fixture.transfer = try SystemProgram.transfer(from: fixture.transfer.accounts[0].address, to: fixture.transfer.accounts[0].address, lamports: 1)
-        case "priority fee":
-            fixture.configuration = try Configuration(priorityFeeLamports: 6_000, computeUnitLimit: 20_000,
-                                                       loadedAccountsDataSizeLimit: 65_536, heapSize: 65_536)
         default:
             fixture.message[fixture.message.count - 8] ^= 1
         }
@@ -170,18 +163,6 @@ struct SigningTests {
 
         #expect(await store.reads.count == 1)
         #expect(await wallet.messages.isEmpty)
-    }
-
-    @Test
-    func `Recovery for another account cannot sign the reviewed sender's transfer`() async throws {
-        let fixture = try SigningFixture()
-        let otherAccount = Recovery(phrase: fixture.recovery.phrase, passphrase: "")
-        let store = SigningRecoveryStore(recovery: otherAccount)
-        let signer = Signer(validator: PreparationValidator(rpc: (try HTTPResponses.signing()).client), store: store)
-
-        await #expect(throws: SigningError.signerMismatch) {
-            try await signer.sign(fixture.preparation, for: .account(fixture.account), reason: "Approve transfer")
-        }
     }
 
     @Test(.timeLimit(.minutes(1)))

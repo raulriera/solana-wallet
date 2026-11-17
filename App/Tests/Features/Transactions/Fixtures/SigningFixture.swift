@@ -11,7 +11,7 @@ struct SigningFixture {
     let account: widgets.Account
     let oneTime: OneTimeAccount
     var transfer: Instruction
-    var configuration: Configuration
+    let configuration: Configuration
     let network: Network
     let inspection: Transaction
     var message: Data

@@ -7,19 +7,18 @@ import Wallet
 @testable import widgets
 
 struct StrategyTests {
-    @Test
-    func `None submits through the provider`() throws {
-        #expect(try TransactionCoordinator.Strategy.none.service(on: .mainnet) == nil)
-    }
-
     @Test(arguments: [
-        (TransactionCoordinator.Strategy.standard, SenderSubmissionProvider.Tier.standard),
+        (TransactionCoordinator.Strategy.none, SenderSubmissionProvider.Tier?.none),
+        (.standard, .standard),
         (.premium, .premium),
     ])
-    func `Sender strategies replace the provider with one selected tier`(strategy: TransactionCoordinator.Strategy, tier: SenderSubmissionProvider.Tier) throws {
-        let sender = try #require(strategy.service(on: .mainnet) as? SenderSubmissionProvider)
+    func `Each strategy submits through the provider or through Sender at its tier`(
+        strategy: TransactionCoordinator.Strategy, tier: SenderSubmissionProvider.Tier?
+    ) throws {
+        let service = try strategy.service(on: .mainnet)
 
-        #expect(sender.tier == tier)
+        #expect((service as? SenderSubmissionProvider)?.tier == tier)
+        #expect((service == nil) == (tier == nil))
     }
 
     @Test(arguments: [
