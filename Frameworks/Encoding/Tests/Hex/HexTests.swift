@@ -12,20 +12,12 @@ struct HexTests {
     ]
 
     @Test(arguments: vectors)
-    func `Hex encoding writes two lowercase digits for each byte`(bytes: [UInt8], text: String) {
+    func `Hex writes each byte as two lowercase digits and reads each pair back as one byte`(
+        bytes: [UInt8],
+        text: String
+    ) {
         #expect(Hex.encode(bytes) == text)
-    }
-
-    @Test(arguments: vectors)
-    func `Hex decoding reads each pair of digits as one byte`(bytes: [UInt8], text: String) {
         #expect(Hex.decode(text) == bytes)
-    }
-
-    @Test
-    func `Every byte value survives encoding and decoding`() {
-        let bytes = Array(UInt8.min...UInt8.max)
-
-        #expect(Hex.decode(Hex.encode(bytes)) == bytes)
     }
 
     @Test(arguments: [

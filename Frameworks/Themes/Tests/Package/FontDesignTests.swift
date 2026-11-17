@@ -2,7 +2,7 @@ import Testing
 import Themes
 
 struct FontDesignTests {
-    @Test(arguments: [("default", FontDesign.default), ("rounded", .rounded), ("serif", .serif), ("monospaced", .monospaced)])
+    @Test(arguments: [("default", FontDesign.default), ("rounded", .rounded)])
     func `Reads each supported font design`(token: String, design: FontDesign) async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }

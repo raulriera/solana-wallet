@@ -3,30 +3,30 @@ import Testing
 @testable import Themes
 
 struct ExportTests {
-    @Test func `Installed copy preserves overrides instead of freezing defaults`() async throws {
+    @Test func `Saved copy preserves overrides, shared assets, and identity without freezing defaults`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
-        try fixture.asset(Fixture.image())
-        try fixture.manifest(##""tokens":{"colors":{"light":{"primary":{"srgb":"#12AB34"}}},"fontDesign":"monospaced"},"assets":{"image":"Assets/image.png"}"##)
+        try fixture.asset(Fixture.image(), path: "Assets/nested/texture.png")
+        try fixture.asset(Fixture.image(type: "public.jpeg"), path: "Assets/background.jpg")
+        try fixture.manifest(##""tokens":{"colors":{"light":{"primary":{"srgb":"#12aB34"}}},"fontDesign":"monospaced"},"assets":{"texture":"Assets/nested/texture.png","background":"Assets/background.jpg","shared":"Assets/nested/texture.png"}"##)
         let service: any PackServicing = PackService()
         let original = try await service.read(from: fixture.source)
         try FileManager.default.removeItem(at: fixture.source)
-        let destination = fixture.directory.appendingPathComponent("Installed.xtheme")
+        let destination = fixture.directory.appendingPathComponent("Renamed")
         try await service.save(original, to: destination)
-        let installed = try await service.read(from: destination)
-        #expect(installed.id == original.id)
-        #expect(installed.assets == original.assets)
+        let saved = try await service.read(from: destination)
+        #expect(saved.id == Fixture.id)
+        #expect(saved.name == original.name)
+        #expect(saved.assets == original.assets)
         let palette = Fixture.palette(.system(.systemRed))
         let different = Tokens(colors: Colors(light: palette, dark: palette), fontDesign: .rounded)
-        let resolved = different.applying(installed)
+        let resolved = different.applying(saved)
         #expect(resolved == different.applying(original))
         #expect(resolved.colors.light[.background] == .system(.systemRed))
         #expect(resolved.fontDesign == .monospaced)
-        let json = try Fixture.exportedJSON(at: destination)
-        let tokens = try #require(json["tokens"] as? [String: Any])
+        let tokens = try #require(Fixture.exportedJSON(at: destination)["tokens"] as? [String: Any])
         let colors = try #require(tokens["colors"] as? [String: [String: [String: String]]])
-        #expect(Set(colors.keys) == ["light"])
-        #expect(Set(try #require(colors["light"]).keys) == ["primary"])
+        #expect(colors == ["light": ["primary": ["srgb": "#12AB34"]]])
         #expect(tokens["fontDesign"] as? String == "monospaced")
     }
 
@@ -69,31 +69,6 @@ struct ExportTests {
         try await service.save(service.read(from: fixture.source), to: destination)
         let tokens = try #require(Fixture.exportedJSON(at: destination)["tokens"] as? [String: Any])
         #expect(tokens["fontDesign"] == nil)
-    }
-
-    @Test func `Saved copy preserves shared assets and identity`() async throws {
-        let fixture = try Fixture()
-        defer { fixture.remove() }
-        let png = try Fixture.image()
-        let jpeg = try Fixture.image(type: "public.jpeg")
-        try fixture.asset(png, path: "Assets/nested/texture.png")
-        try fixture.asset(jpeg, path: "Assets/background.jpg")
-        try fixture.manifest(##""tokens":{"colors":{"light":{"primary":{"srgb":"#12aB34"}}}},"assets":{"texture":"Assets/nested/texture.png","background":"Assets/background.jpg","shared":"Assets/nested/texture.png"}"##)
-        let service = PackService()
-        let original = try await service.read(from: fixture.source)
-        let expected = Fixture.defaults.applying(original)
-        try FileManager.default.removeItem(at: fixture.source)
-        let destination = fixture.directory.appendingPathComponent("Renamed")
-        try await service.save(original, to: destination)
-        let saved = try await service.read(from: destination)
-        #expect(saved.id == Fixture.id)
-        #expect(saved.name == original.name)
-        #expect(saved.assets == original.assets)
-        #expect(Fixture.defaults.applying(saved) == expected)
-        let manifest = try Fixture.exportedJSON(at: destination)
-        let tokens = try #require(manifest["tokens"] as? [String: Any])
-        let colors = try #require(tokens["colors"] as? [String: [String: [String: String]]])
-        #expect(colors["light"]?["primary"] == ["srgb": "#12AB34"])
     }
 
     @Test func `Replacement writes one complete package`() async throws {
