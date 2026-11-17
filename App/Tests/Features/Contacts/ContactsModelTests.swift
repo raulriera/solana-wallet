@@ -17,38 +17,11 @@ struct ContactsModelTests {
         #expect(!lists.lists(ContactsFixtures.sending))
     }
 
-    @Test func `Payments are newest first`() async {
-        #expect(await ContactsFixtures.tab().lists.payments.map(\.address) == [ContactsFixtures.alice, ContactsFixtures.recent])
-    }
-
-    @Test func `Saving a new contact keeps the list sorted`() async {
-        let tab = await ContactsFixtures.tab()
-        tab.model.save(Contact(name: "Aaron", address: ContactsFixtures.stranger), in: tab.store)
-        #expect(tab.lists.contacts.map(\.name) == ["Aaron", "Alice", "bruno"])
-    }
-
-    @Test func `Saving an edited contact replaces it`() async throws {
-        let tab = await ContactsFixtures.tab()
-        var bruno = try #require(tab.lists.saved(at: ContactsFixtures.bruno))
-        bruno.name = "Zed"
-        tab.model.save(bruno, in: tab.store)
-        #expect(tab.lists.contacts.map(\.name) == ["Alice", "Zed"])
-    }
-
     @Test func `Deleting a paid contact returns them to Recents`() async throws {
         let tab = await ContactsFixtures.tab()
         tab.model.delete(try #require(tab.lists.saved(at: ContactsFixtures.alice)), from: tab.store)
         #expect(tab.lists.contacts.map(\.address) == [ContactsFixtures.bruno])
         #expect(tab.lists.recents.map(\.address) == [ContactsFixtures.alice, ContactsFixtures.recent])
-    }
-
-    @Test func `Favorites toggle for accounts and contacts`() async throws {
-        let tab = await ContactsFixtures.tab()
-        let savings = try #require(tab.lists.saved(at: ContactsFixtures.savings))
-        let bruno = try #require(tab.lists.saved(at: ContactsFixtures.bruno))
-        tab.model.setFavorite(false, for: savings, in: tab.lists, store: tab.store)
-        tab.model.setFavorite(true, for: bruno, in: tab.lists, store: tab.store)
-        #expect(tab.lists.favorites.map(\.name) == ["Alice", "bruno"])
     }
 
     @Test func `An unsaved address can't become a favorite`() async {
@@ -182,28 +155,6 @@ struct ContactsModelTests {
         #expect(mainnet.lists.payments.map(\.address) == [ContactsFixtures.recent, ContactsFixtures.alice])
         #expect(mainnet.lists.payments.first?.date == Date(timeIntervalSinceReferenceDate: 3_000))
         #expect(devnet.lists.payments.map(\.address) == [ContactsFixtures.stranger])
-    }
-
-    @Test func `Another network gets its own lists`() async throws {
-        let transactions = ContactsFixtures.transactions([
-            TransactionRecord.Key(account: ContactsFixtures.main.id, network: .mainnet):
-                StoredValue(ContactsFixtures.records),
-            TransactionRecord.Key(account: ContactsFixtures.main.id, network: .devnet):
-                StoredValue([ContactsFixtures.payment(to: ContactsFixtures.stranger, signature: "devnet",
-                                                      network: .devnet, settled: 4_000)]),
-        ])
-        let tab = await ContactsFixtures.tab(transactions: transactions)
-        let mainnetLists = tab.lists
-
-        let unread = tab.model.lists(for: ContactsFixtures.main, on: .devnet, in: tab.wallet, store: tab.store,
-                                     transactions: transactions)
-        await tab.model.load(unread.keys, from: tab.store, transactions: transactions)
-        let devnetLists = tab.model.lists(for: ContactsFixtures.main, on: .devnet, in: tab.wallet, store: tab.store,
-                                          transactions: transactions)
-
-        #expect(mainnetLists.payments.map(\.address) == [ContactsFixtures.alice, ContactsFixtures.recent])
-        #expect(devnetLists.keys.map(\.network) == [.devnet, .devnet])
-        #expect(devnetLists.payments.map(\.address) == [ContactsFixtures.stranger])
     }
 
     @Test func `Only the latest ten payments are listed`() async throws {

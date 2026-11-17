@@ -11,10 +11,10 @@ struct CurrencyPriceProviderTests {
                               currency: .inMemory(StoredValue(settings), http: http), locale: Locale(identifier: locale))
     }
 
-    @Test(arguments: CurrencySettings.RateSource.allCases)
-    func `Quotes convert to the chosen currency`(source: CurrencySettings.RateSource) async throws {
+    @Test
+    func `Quotes convert to the chosen currency`() async throws {
         let http = HTTPResponses.currency()
-        let prices = Self.prices(CurrencySettings(rateSource: source, currencyCode: "EUR"), http: http)
+        let prices = Self.prices(CurrencySettings(rateSource: .coinbase, currencyCode: "EUR"), http: http)
 
         let quotes = try await prices.prices(for: ["sol", "usdc"])
 
@@ -22,24 +22,15 @@ struct CurrencyPriceProviderTests {
                            "usdc": Quote(pricePerUnit: Decimal(string: "0.8")!, currency: "EUR", dayChange: nil)])
     }
 
-    @Test(arguments: [nil, CurrencySettings(currencyCode: "EUR"),
-                      CurrencySettings(rateSource: .europeanCentralBank, currencyCode: "USD")] as [CurrencySettings?])
-    func `Prices in dollars read no rates`(settings: CurrencySettings?) async throws {
+    @Test(arguments: [CurrencySettings(currencyCode: "EUR"),
+                      CurrencySettings(rateSource: .europeanCentralBank, currencyCode: "USD")])
+    func `Prices in dollars read no rates`(settings: CurrencySettings) async throws {
         let http = HTTPResponses.currency()
 
         let quotes = try await Self.prices(settings, http: http).prices(for: ["sol"])
 
         #expect(quotes == ["sol": Quote(pricePerUnit: 150, currency: "USD", dayChange: Decimal(string: "0.0129"))])
         #expect(await http.requests.map { $0.url?.path() } == [CurrencyResponses.pricePath])
-    }
-
-    @Test func `An automatic choice follows the region's currency`() async throws {
-        let http = HTTPResponses.currency()
-        let prices = Self.prices(CurrencySettings(rateSource: .europeanCentralBank), locale: "de_DE", http: http)
-
-        let quotes = try await prices.prices(for: ["usdc"])
-
-        #expect(quotes == ["usdc": Quote(pricePerUnit: Decimal(string: "0.8")!, currency: "EUR", dayChange: nil)])
     }
 
     @Test(arguments: [

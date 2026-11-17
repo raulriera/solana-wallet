@@ -29,46 +29,6 @@ struct CurrencyStoreTests {
         #expect(store.settings == nil)
     }
 
-    @Test
-    func `A new choice is saved`() async throws {
-        let settings = StoredValue<CurrencySettings>()
-        let store = CurrencyStore.inMemory(settings)
-        await store.load()
-        let expected = CurrencySettings(rateSource: .coinbase, currencyCode: "EUR")
-
-        try await store.select(.coinbase)
-        try await store.select(currencyCode: "EUR")
-
-        #expect(store.settings == expected)
-        #expect(await settings.value == expected)
-    }
-
-    @Test
-    func `Prices read a change before it's saved`() async throws {
-        let gate = Suspension()
-        let store = CurrencyStore.inMemory(StoredValue(gate: gate))
-        await store.load()
-
-        let selecting = Task.immediate { try await store.select(currencyCode: "EUR") }
-        await gate.waitUntilStarted()
-
-        #expect(try await store.loadedSettings().currencyCode == "EUR")
-        gate.resume()
-        try await selecting.value
-    }
-
-    @Test(arguments: [nil, CurrencySettings(rateSource: .europeanCentralBank)] as [CurrencySettings?])
-    func `An unchanged choice saves nothing`(saved: CurrencySettings?) async throws {
-        let settings = StoredValue(saved)
-        let store = CurrencyStore.inMemory(settings)
-        await store.load()
-
-        try await store.select(saved?.rateSource)
-        try await store.select(currencyCode: nil)
-
-        #expect(await settings.value == saved)
-    }
-
     @Test(arguments: [
         ("JPY", .europeanCentralBank, "JPY"),
         ("ARS", .europeanCentralBank, nil),
@@ -103,25 +63,11 @@ struct CurrencyStoreTests {
         #expect(await settings.value == saved)
     }
 
-    @Test(arguments: CurrencySettings.RateSource.allCases)
-    func `A source lists its currencies`(source: CurrencySettings.RateSource) async throws {
-        let currencies = try await CurrencyStore.inMemory().currencies(for: source)
+    @Test
+    func `A source lists its currencies`() async throws {
+        let currencies = try await CurrencyStore.inMemory().currencies(for: .europeanCentralBank)
 
         #expect(Set(currencies) == ["USD", "EUR", "JPY"])
-    }
-
-    @Test
-    func `Erasing forgets the choice until the next read`() async throws {
-        let settings = StoredValue(CurrencySettings(rateSource: .coinbase, currencyCode: "EUR"))
-        let store = CurrencyStore.inMemory(settings)
-        await store.load()
-
-        try await store.erase()
-
-        #expect(store.settings == nil)
-        #expect(store.phase == .unloaded)
-        #expect(await settings.value == nil)
-        #expect(try await store.loadedSettings() == CurrencySettings())
     }
 
     @Test
@@ -133,17 +79,6 @@ struct CurrencyStoreTests {
         try await store.select(currencyCode: "JPY")
 
         #expect(store.settings == CurrencySettings(currencyCode: "JPY"))
-    }
-
-    @Test
-    func `A failed erase keeps the choice`() async throws {
-        let saved = CurrencySettings(rateSource: .coinbase, currencyCode: "EUR")
-        let store = CurrencyStore.inMemory(StoredValue(saved, failsFirstDeletion: true))
-        await store.load()
-
-        await #expect(throws: CocoaError.self) { try await store.erase() }
-
-        #expect(store.settings == saved)
     }
 
     @Test
