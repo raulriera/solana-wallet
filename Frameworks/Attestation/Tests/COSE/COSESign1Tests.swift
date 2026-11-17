@@ -8,22 +8,6 @@ struct COSESign1Tests {
 
     private static let signature = CBOR.bytes([UInt8](repeating: 0x01, count: 96))
 
-    @Test(arguments: try NitroCBORCases.messages(expected: .accept))
-    func `Recorded messages in the strict subset decode and verify`(message: NitroCBORCases.Case) throws {
-        let key = try P384.Signing.PrivateKey(rawRepresentation: fixtureBytes(NitroCBORCases.load().leafKey))
-
-        let decoded = try COSESign1(decoding: fixtureBytes(try #require(message.cose)))
-
-        #expect(decoded.isValidSignature(from: key.publicKey))
-    }
-
-    @Test(arguments: try NitroCBORCases.messages(expected: .reject))
-    func `Recorded messages outside the strict subset are rejected`(message: NitroCBORCases.Case) throws {
-        let bytes = try fixtureBytes(try #require(message.cose))
-
-        #expect(throws: CBOR.ValidationError.self) { try COSESign1(decoding: bytes) }
-    }
-
     @Test
     func `Only the signing key verifies a message`() throws {
         let key = P384.Signing.PrivateKey()

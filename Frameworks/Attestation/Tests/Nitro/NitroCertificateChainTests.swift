@@ -99,16 +99,11 @@ struct NitroCertificateChainTests {
         #expect(Array(try chain.validated().signingKey.x963Representation) == key)
     }
 
-    @Test(arguments: ["root-not-authority", "root-without-basic-constraints"])
-    func `An issuer that isn't a certificate authority is rejected`(issuer: String) throws {
+    @Test(arguments: ["root-not-authority", "root-without-basic-constraints", "root-without-certificate-signing"])
+    func `An issuer that isn't a certificate authority or may not sign certificates is rejected`(
+        issuer: String
+    ) throws {
         let chain = try Self.generated("leaf", issuedThrough: [issuer])
-
-        #expect(throws: NitroCertificateChain.ValidationError.unauthorizedIssuer) { try chain.validated() }
-    }
-
-    @Test
-    func `An issuer that may not sign certificates is rejected`() throws {
-        let chain = try Self.generated("leaf", issuedThrough: ["root-without-certificate-signing"])
 
         #expect(throws: NitroCertificateChain.ValidationError.unauthorizedIssuer) { try chain.validated() }
     }
@@ -143,19 +138,15 @@ struct NitroCertificateChainTests {
         ("leaf-sha256", "root"),
         ("leaf-tbs-sha256", "root"),
         ("leaf-rsa-signed", "rsa-root"),
+        ("leaf-p256", "root"),
+        ("leaf-rsa", "root"),
+        ("leaf-ed25519", "root"),
     ])
-    func `A certificate signed with an algorithm other than ECDSA with SHA-384 is rejected`(
+    func `A certificate with a key or signature other than P-384 ECDSA with SHA-384 is rejected`(
         signer: String,
         issuer: String
     ) throws {
         let chain = try Self.generated(signer, issuedThrough: [issuer])
-
-        #expect(throws: NitroCertificateChain.ValidationError.unsupportedAlgorithm) { try chain.validated() }
-    }
-
-    @Test(arguments: ["leaf-p256", "leaf-rsa", "leaf-ed25519"])
-    func `A key other than P-384 is rejected`(signer: String) throws {
-        let chain = try Self.generated(signer, issuedThrough: ["root"])
 
         #expect(throws: NitroCertificateChain.ValidationError.unsupportedAlgorithm) { try chain.validated() }
     }
