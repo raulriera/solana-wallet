@@ -39,11 +39,7 @@ final class ContactsUITests: XCTestCase {
 
     private func openContacts() throws -> (UITestApp, ContactsPage) {
         let app = UITestApp()
-        app.launch()
-        let onboarding = OnboardingPage(driver: app)
-        try onboarding.expectWelcome()
-        try onboarding.createWallet()
-        try onboarding.openWallet()
+        app.launch(with: .newWallet)
         let contacts = ContactsPage(driver: app)
         try contacts.open()
         try app.waitFor(contacts.noContacts)

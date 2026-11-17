@@ -66,17 +66,12 @@ final class AccountsUITests: XCTestCase {
 
     private func openAccounts() throws -> (UITestApp, AccountsPage) {
         let app = UITestApp()
-        app.launch()
-        let onboarding = OnboardingPage(driver: app)
-        try onboarding.expectWelcome()
-        try onboarding.createWallet()
-        try onboarding.openWallet()
+        app.launch(with: .newWallet)
         return (app, try showAccounts(in: app))
     }
 
     @discardableResult
     private func showAccounts(in app: UITestApp) throws -> AccountsPage {
-        try OnboardingPage(driver: app).expectWallet()
-        return try SettingsPage(driver: app).openAccounts()
+        try SettingsPage(driver: app).openAccounts()
     }
 }

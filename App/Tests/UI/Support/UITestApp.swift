@@ -7,6 +7,18 @@ import notify
 struct UITestApp {
     enum Swipe { case up, down }
 
+    enum PreparedWallet {
+        case newWallet
+        case importedWallet(String)
+
+        var environmentValue: String {
+            switch self {
+            case .newWallet: "new"
+            case .importedWallet(let phrase): phrase
+            }
+        }
+    }
+
     private enum Error: Swift.Error { case missingElement, unexpectedElement, unavailableControl, reportedError, unexpectedState }
 
     let app = XCUIApplication()
@@ -29,10 +41,12 @@ struct UITestApp {
         app.launchEnvironment["UI_TEST_DISABLE_ANIMATIONS"] = "1"
     }
 
-    func launch() {
+    func launch(with wallet: PreparedWallet? = nil) {
         app.launchEnvironment["UI_TEST_RESET"] = "1"
+        app.launchEnvironment["UI_TEST_WALLET"] = wallet?.environmentValue
         app.launch()
         app.launchEnvironment.removeValue(forKey: "UI_TEST_RESET")
+        app.launchEnvironment.removeValue(forKey: "UI_TEST_WALLET")
     }
 
     func relaunch() {

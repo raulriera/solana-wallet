@@ -6,11 +6,8 @@ final class NetworkSwitchUITests: XCTestCase {
     func `test Switching the network returns the portfolio to its token list`() throws {
         let app = UITestApp()
         defer { app.terminate() }
-        app.launch()
-        let onboarding = OnboardingPage(driver: app)
-        try onboarding.expectWelcome()
-        try onboarding.createWallet()
-        let portfolio = try onboarding.openWallet()
+        app.launch(with: .newWallet)
+        let portfolio = PortfolioPage(driver: app)
 
         try app.tap(portfolio.holding("SOL"))
         let details = portfolio.tokenDetails("Solana")
