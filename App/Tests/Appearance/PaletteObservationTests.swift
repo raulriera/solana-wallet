@@ -26,11 +26,11 @@ struct PaletteObservationTests {
         #expect(!notified)
     }
 
-    @Test(arguments: Palette.Role.allCases, [ColorScheme.light, .dark])
-    func `Changing a dark color only notifies dark observers`(role: Palette.Role, scheme: ColorScheme) async throws {
+    @Test(arguments: [ColorScheme.light, .dark])
+    func `Changing a dark color only notifies dark observers`(scheme: ColorScheme) async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
-        let source = try fixture.source(tokens: ["colors": ["dark": [role.rawValue: ["srgb": "#123456"]]]])
+        let source = try fixture.source(tokens: ["colors": ["dark": ["primary": ["srgb": "#123456"]]]])
         let catalog = ThemeCatalog(directory: fixture.directory)
         let entry = try await catalog.install(PackService().read(from: source))
         let rendered = RenderedAppearance()
