@@ -108,10 +108,10 @@ struct WalletPrivateBalanceTests {
                                                                                                         of: account))
 
         #expect(funded.status == .balance(available: 1_000_000, pending: 0, of: .nativeSOL))
-        #expect(funded.privateHoldings == [.nativeSOL])
+        #expect(funded.privateAssets == [.nativeSOL])
         #expect(funded.available(of: .nativeSOL) == 1_000_000)
         #expect(unfunded.status == .unregistered)
-        #expect(unfunded.privateHoldings.isEmpty)
+        #expect(unfunded.privateAssets.isEmpty)
         #expect(unfunded.available(of: .nativeSOL) == nil)
     }
 
@@ -123,7 +123,7 @@ struct WalletPrivateBalanceTests {
 
         #expect(balance.available(of: .token(.devnetUSDC)) == 1_000_000)
         #expect(balance.available(of: .nativeSOL) == nil)
-        #expect(try balance.privateHoldings == [.token(mint: Address("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"))])
+        #expect(try balance.privateAssets == [.token(mint: Address("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"))])
     }
 
     @Test(arguments: [TransactionRecord.Kind.privateDeposit,

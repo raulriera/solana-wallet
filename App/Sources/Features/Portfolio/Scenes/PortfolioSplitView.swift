@@ -24,7 +24,7 @@ struct PortfolioSplitView: View {
     var body: some View {
         let portfolio = portfolios.portfolio(for: account, on: network)
         let presentation = portfolio?.presentation ?? .blank
-        let privateHoldings = privateBalances.balance(for: account, on: network)?.privateHoldings ?? []
+        let privateAssets = privateBalances.balance(for: account, on: network)?.privateAssets ?? []
 
         ZStack {
             switch presentation {
@@ -45,10 +45,10 @@ struct PortfolioSplitView: View {
                         switch cardStyle.layout {
                         case .cards:
                             TokenCardStack(selection: $selection, preferredColumn: $preferredColumn,
-                                           holdings: holdings, privateHoldings: privateHoldings)
+                                           holdings: holdings, privateAssets: privateAssets)
                         case .rows:
                             TokenList(selection: $selection, holdings: holdings,
-                                      privateHoldings: privateHoldings)
+                                      privateAssets: privateAssets)
                         }
                     }
                     .animation(.default, value: portfolio?.snapshotRevision)

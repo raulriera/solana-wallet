@@ -13,11 +13,11 @@ final class WalletPrivateBalance {
     /// The last read balance, or `nil` before the first read.
     private(set) var status: PrivateBalanceStatus? {
         didSet {
-            privateHoldings = if case .balance(let balances)? = status { Set(balances.assets.map(\.asset)) } else { [] }
+            privateAssets = if case .balance(let balances)? = status { Set(balances.assets.map(\.asset)) } else { [] }
         }
     }
     /// The assets that the account holds an available or pending private amount of.
-    private(set) var privateHoldings: Set<Asset.ID> = []
+    private(set) var privateAssets: Set<Asset.ID> = []
     /// Whether the last read failed.
     private(set) var isStale = false
     /// Whether polls wait for a refresh after a failure that reading again can't fix.
