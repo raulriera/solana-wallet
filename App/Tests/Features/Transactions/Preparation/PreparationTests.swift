@@ -5,6 +5,9 @@ import Transactions
 @testable import widgets
 
 struct PreparationTests {
+    private static let latestBlockhash =
+        #"{"context":{"slot":400},"value":{"blockhash":"11111111111111111111111111111111","lastValidBlockHeight":550}}"#
+
     @Test(arguments: [
         #""loadedAccountsDataSize":256"#, #""unitsConsumed":150"#,
         #""unitsConsumed":1400001,"loadedAccountsDataSize":256"#,
@@ -12,7 +15,7 @@ struct PreparationTests {
     func `Resource estimates without valid compute and account usage cannot produce a review`(_ usage: String) async throws {
         let fixture = try SigningFixture()
         let http = HTTPResponses([
-            "getLatestBlockhash": [#"{"context":{"slot":400},"value":{"blockhash":"11111111111111111111111111111111","lastValidBlockHeight":550}}"#],
+            "getLatestBlockhash": [Self.latestBlockhash],
             "simulateTransaction": [#"{"context":{"slot":401},"value":{"err":null,\#(usage)}}"#],
         ])
         let store = SigningRecoveryStore(recovery: fixture.recovery)
@@ -37,7 +40,7 @@ struct PreparationTests {
         let payer = fixture.transfer.accounts[0].address
         let usage = #""unitsConsumed":150,"loadedAccountsDataSize":\#(measured)"#
         let http = HTTPResponses([
-            "getLatestBlockhash": [#"{"context":{"slot":400},"value":{"blockhash":"11111111111111111111111111111111","lastValidBlockHeight":550}}"#],
+            "getLatestBlockhash": [Self.latestBlockhash],
             "simulateTransaction": [#"{"context":{"slot":401},"value":{"err":null,\#(usage)}}"#],
             "getFeeForMessage": [#"{"context":{"slot":401},"value":5000}"#],
         ])
@@ -57,7 +60,7 @@ struct PreparationTests {
     ) async throws {
         let fixture = try SigningFixture()
         let http = HTTPResponses([
-            "getLatestBlockhash": [#"{"context":{"slot":400},"value":{"blockhash":"11111111111111111111111111111111","lastValidBlockHeight":550}}"#],
+            "getLatestBlockhash": [Self.latestBlockhash],
             "simulateTransaction": [response],
         ])
         await #expect(throws: RPCError.invalidResponse(reason)) {

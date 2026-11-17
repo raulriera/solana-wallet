@@ -338,7 +338,7 @@ struct NoteSyncStateSpendTests {
         guard case .withdrawal = spend.destination, case .token(let token) = spend.asset else { return [] }
         let owner = try Address(TransferVectors.transfers[1].payer)
         return [(
-            try TokenProgram.token.associatedAccount(owner: owner, mint: token.mint),
+            try withdrawalAccount(of: spend.destination, holding: spend.asset),
             try AssociatedTokenProgram.createIdempotent(owner: owner, mint: token.mint, program: .token,
                                                         payer: sender.signingAddress)
         )]

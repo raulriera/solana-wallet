@@ -25,10 +25,7 @@ struct TokenLookupTests {
 
         let preview = try await lookupPortfolio(http.client).token(at: mint)
 
-        #expect(preview.mint.address == mint)
-        #expect(preview.mint.program == .token)
-        #expect(preview.mint.decimals == 6)
-        #expect(preview.mint.metadata == TokenMetadata(name: "USD Coin", symbol: "USDC"))
+        #expect(preview.mint == Mint.fixture(usdcMint, decimals: 6, name: "USD Coin", symbol: "USDC"))
         #expect(preview.logo == nil)
         #expect(await http.requests == [[usdcMint, metadataAccount.value]])
     }
@@ -40,10 +37,7 @@ struct TokenLookupTests {
 
         let preview = try await lookupPortfolio(http.client).token(at: mint)
 
-        #expect(preview.mint.address == mint)
-        #expect(preview.mint.program == .token)
-        #expect(preview.mint.decimals == 6)
-        #expect(preview.mint.metadata == nil)
+        #expect(preview.mint == Mint.fixture(usdcMint, decimals: 6))
     }
 
     @Test(arguments: Refusal.allCases, [false, true])

@@ -4,11 +4,13 @@ import Transactions
 @testable import Privacy
 
 struct PrivateAssetTests {
-    @Test(arguments: [
-        (PrivateAsset.token(.usdc), "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"),
+    static let tokens: [(PrivateAsset, String)] = [
+        (.token(.usdc), "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"),
         (.token(.usdt), "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"),
         (.token(.devnetUSDC), "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"),
-    ])
+    ]
+
+    @Test(arguments: tokens)
     func `Token assets carry their mints`(asset: PrivateAsset, mint: String) throws {
         let bytes = try Address(mint).bytes
 
@@ -21,12 +23,8 @@ struct PrivateAssetTests {
         #expect(PrivateAsset(mintBytes: [UInt8](repeating: 7, count: 32)) == nil)
     }
 
-    @Test(arguments: [
-        ("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", PrivateAsset?.some(.token(.usdc))),
-        ("Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB", .token(.usdt)),
-        ("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU", .token(.devnetUSDC)),
-        ("So11111111111111111111111111111111111111112", nil),
-    ])
+    @Test(arguments: tokens.map { ($0.1, PrivateAsset?.some($0.0)) }
+        + [("So11111111111111111111111111111111111111112", nil)])
     func `Tokens map to the private asset that holds them`(mint: String, privateAsset: PrivateAsset?) throws {
         #expect(PrivateAsset(.token(mint: try Address(mint))) == privateAsset)
     }
