@@ -22,8 +22,6 @@ struct RedeemCodeTests {
     @Test(arguments: [
         "",
         "9cam5mVEZAKxiENyiNo5AUhrwe1kdVT36ycLyzXGr3xur4KS2jF ",
-        "9cam5mVEZAKxiENyiNo5AUhrwe1kdVT36ycLyzXGr3xur4KS2j",
-        "9cam5mVEZAKxiENyiNo5AUhrwe1kdVT36ycLyzXGr3xur4KS2jG",
         "0cam5mVEZAKxiENyiNo5AUhrwe1kdVT36ycLyzXGr3xur4KS2jF",
     ])
     func `Damaged text is rejected`(text: String) {

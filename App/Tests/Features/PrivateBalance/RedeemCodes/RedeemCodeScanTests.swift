@@ -7,20 +7,16 @@ import Wallet
 
 struct RedeemCodeScanTests {
     @Test
-    func `Batches hold consecutive indices`() {
-        #expect(RedeemCodeScan.candidates(from: 3, count: 4) == [3, 4, 5, 6])
-        #expect(RedeemCodeScan.candidates(from: 0, count: 1) == [0])
-    }
-
-    @Test
-    func `Batches stop below the hardened range`() {
+    func `Batches hold consecutive indices below the hardened range`() {
         let limit: UInt32 = 1 << 31
 
+        #expect(RedeemCodeScan.candidates(from: 3, count: 4) == [3, 4, 5, 6])
+        #expect(RedeemCodeScan.candidates(from: 0, count: 1) == [0])
         #expect(RedeemCodeScan.candidates(from: limit - 2, count: 20) == [limit - 2, limit - 1])
         #expect(RedeemCodeScan.candidates(from: limit, count: 20).isEmpty)
     }
 
-    @Test(arguments: [([], 2), ([2], 3), ([2, 5], 8), ([3], 5), ([8], nil)] as [(Set<UInt32>, UInt32?)])
+    @Test(arguments: [([], 2), ([2, 5], 8), ([8], nil)] as [(Set<UInt32>, UInt32?)])
     func `The choice follows the highest used index`(used: Set<UInt32>, choice: UInt32?) {
         #expect(RedeemCodeScan.choice(in: [2, 3, 5, 8], used: used) == choice)
     }

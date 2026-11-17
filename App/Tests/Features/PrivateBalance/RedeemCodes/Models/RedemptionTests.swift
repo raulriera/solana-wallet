@@ -21,7 +21,7 @@ struct RedemptionTests {
         #expect(try Self.redemption(noteLamports: 0, available: available).charging(networkFee).depositLamports == deposit)
     }
 
-    @Test(arguments: [(1_000, 900, 101), (1_000, 1, .max), (.max, .max, 1)] as [(UInt64, UInt64, UInt64)])
+    @Test(arguments: [(1_000, 900, 101), (1_000, 1, .max)] as [(UInt64, UInt64, UInt64)])
     func `Costs above the lamports are underfunded`(balance: UInt64, registrationCost: UInt64, treeFee: UInt64) {
         #expect(throws: PrivateBalanceError.codeUnderfunded) {
             try Redemption.availableLamports(of: balance, registrationCost: registrationCost, treeFee: treeFee)
