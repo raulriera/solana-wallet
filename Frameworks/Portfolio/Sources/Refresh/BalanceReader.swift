@@ -46,7 +46,7 @@ struct BalanceReader {
         let decoded: Token?
         do {
             decoded = try tokenAccount.flatMap {
-                try Token(associatedAt: address, programOwner: Address($0.owner), data: $0.data)
+                try Token(associatedAt: address, programAddress: Address($0.owner), data: $0.data)
             }
         } catch {
             return (nil, nil)

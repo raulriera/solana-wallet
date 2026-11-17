@@ -17,7 +17,7 @@ struct TokenLookup: Sendable {
         async let logoLookup = logos?.logos(for: [mint.value])
         let accounts = try await rpc.accounts(at: [mint.value, TokenMetadata.metaplexAccount(for: mint).value]).value
         guard let account = accounts[0], let owner = try? Address(account.owner),
-              var decoded = try? Mint(address: mint, owner: owner, data: account.data) else {
+              var decoded = try? Mint(address: mint, programAddress: owner, data: account.data) else {
             throw TokenLookupError.notToken
         }
         guard try !decoded.isNonFungible else { throw TokenLookupError.nonFungible }

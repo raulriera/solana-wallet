@@ -81,17 +81,16 @@ public struct Mint: Codable, Hashable, Sendable {
     ///
     /// - Parameters:
     ///   - address: The mint address.
-    ///   - owner: The account's owner program.
+    ///   - programAddress: The account's owner program.
     ///   - data: The account's raw data.
     /// - Throws: A ``TokenError`` for an unsupported owner or malformed data.
-    public init(address: Address, owner: Address, data: Data) throws {
-        guard let program = TokenProgram(rawValue: owner.value) else { throw TokenError.unsupportedProgram }
-        let decoded = try TokenData(data, program: program, isMint: true)
+    public init(address: Address, programAddress: Address, data: Data) throws {
+        let decoded = try TokenData(data, programAddress: programAddress, isMint: true)
         try decoded.validateOption(at: 0)
         try decoded.validateOption(at: 46)
         guard decoded.bytes[45] == 1 else { throw TokenError.invalidAccount }
         self.address = address
-        self.program = program
+        program = decoded.program
         decimals = decoded.bytes[44]
         metadata = decoded.extensions[19].flatMap { try? TokenMetadata(metadataExtension: $0, mint: address) }
         self.data = decoded

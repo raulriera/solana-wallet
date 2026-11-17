@@ -1,19 +1,23 @@
 import Encoding
 import Foundation
 
-/// The validated bytes and extensions of a token account or mint.
+/// The validated program, bytes, and extensions of a token account or mint.
 struct TokenData: Sendable {
+    let program: TokenProgram
     let bytes: [UInt8]
     let extensions: [UInt16: [UInt8]]
 
-    /// Creates token data by validating an account's layout and extensions.
+    /// Creates token data by reading the account's program and validating its layout and extensions.
     ///
     /// - Parameters:
     ///   - data: The account's raw bytes.
-    ///   - program: The account's owner program.
+    ///   - programAddress: The account's owner program.
     ///   - isMint: Whether the account is a mint rather than a token account.
-    /// - Throws: ``TokenError/invalidAccount`` for malformed framing.
-    init(_ data: Data, program: TokenProgram, isMint: Bool) throws {
+    /// - Throws: ``TokenError/unsupportedProgram`` for an owner that isn't a token program, or
+    ///   ``TokenError/invalidAccount`` for malformed framing.
+    init(_ data: Data, programAddress: Address, isMint: Bool) throws {
+        guard let program = TokenProgram(rawValue: programAddress.value) else { throw TokenError.unsupportedProgram }
+        self.program = program
         bytes = Array(data)
         let baseSize = isMint ? 82 : 165
         guard bytes.count >= baseSize, bytes.count != 355 else { throw TokenError.invalidAccount }

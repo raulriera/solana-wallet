@@ -14,17 +14,17 @@ struct TokenFixture: Sendable {
     let wire: String
 
     func mint(_ encoded: String? = nil) throws -> Mint {
-        try Mint(address: Address(TokenFixtures.mint), owner: Address(program),
+        try Mint(address: Address(TokenFixtures.mint), programAddress: Address(program),
                       data: #require(Data(base64Encoded: encoded ?? mintData)))
     }
 
     func source(_ data: Data? = nil) throws -> Token {
-        try Token(address: Address(TokenFixtures.source), programOwner: Address(program),
+        try Token(address: Address(TokenFixtures.source), programAddress: Address(program),
                          data: data ?? #require(Data(base64Encoded: sourceData)))
     }
 
     func target(_ encoded: String? = nil) throws -> Token {
-        try Token(address: Address(destination), programOwner: Address(program),
+        try Token(address: Address(destination), programAddress: Address(program),
                          data: #require(Data(base64Encoded: encoded ?? destinationData)))
     }
 }

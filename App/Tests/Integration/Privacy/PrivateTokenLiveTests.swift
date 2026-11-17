@@ -66,7 +66,7 @@ struct PrivateTokenLiveTests {
         let accounts = try await rpc.accounts(at: [tokenAccount.value, mint.value])
         try #require(accounts.value[0] == nil, "The second test account must have no devnet USDC account.")
         let mintAccount = try #require(accounts.value[1])
-        let decoded = try Mint(address: mint, owner: Address(mintAccount.owner), data: mintAccount.data)
+        let decoded = try Mint(address: mint, programAddress: Address(mintAccount.owner), data: mintAccount.data)
         let recovery = SigningRecoveryStore(recovery: wallets.recovery)
         let coordinator = try TransactionCoordinator(rpc: rpc, store: recovery, strategy: .none)
         let balances = PrivateBalances(recovery: recovery, wallet: Wallet(), keys: StoredValue(), notes: StoredValue(),
@@ -130,6 +130,6 @@ struct PrivateTokenLiveTests {
     ) async throws -> UInt64 {
         let response = try await rpc.accounts(at: [tokenAccount.value], minContextSlot: minContextSlot)
         let account = try #require(response.value.first ?? nil)
-        return try Token(address: tokenAccount, programOwner: Address(account.owner), data: account.data).amount
+        return try Token(address: tokenAccount, programAddress: Address(account.owner), data: account.data).amount
     }
 }

@@ -66,7 +66,7 @@ struct TokenListTests {
         let facts = try mint(1)
         let account = [UInt8](repeating: 0, count: 36) + [232, 3, 0, 0, 0, 0, 0, 0, 9, 1]
             + [UInt8](repeating: 0, count: 36)
-        var decoded = try Mint(address: facts.address, owner: Address(TokenProgram.token2022.rawValue),
+        var decoded = try Mint(address: facts.address, programAddress: Address(TokenProgram.token2022.rawValue),
                                data: Data(account))
         decoded.metadata = facts.metadata
 

@@ -146,7 +146,7 @@ struct TokenTransferTests {
     @Test
     func `Token transfers reject a destination controlled by another wallet`() throws {
         let fixture = TokenFixtures.transfers[0]
-        let wrongOwner = try Token(address: Address(fixture.destination), programOwner: Address(fixture.program),
+        let wrongOwner = try Token(address: Address(fixture.destination), programAddress: Address(fixture.program),
                                           data: #require(Data(base64Encoded: fixture.sourceData)))
         #expect(throws: TokenError.accountMismatch) {
             try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
@@ -157,7 +157,7 @@ struct TokenTransferTests {
     @Test(arguments: TokenFixtures.transfers.filter { !$0.createsDestination })
     func `Token transfers send directly to another token account the recipient owns`(_ fixture: TokenFixture) throws {
         let account = try Token(address: Address("7HYrVp9r32ggmv4UHmNh8EKJjg91Cqf8CF2WfT684eXb"),
-                                       programOwner: Address(fixture.program),
+                                       programAddress: Address(fixture.program),
                                        data: #require(Data(base64Encoded: fixture.destinationData)))
         let transfer = try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
                                          mint: fixture.mint(), source: fixture.source(), destination: account, amount: 1)
@@ -212,7 +212,7 @@ struct TokenTransferTests {
         let bytes = try #require(Data(base64Encoded: TokenFixtures.feeMint))
         let data = duplicatesExtension ? bytes + bytes.dropFirst(166) : Data(bytes.dropLast())
         #expect(throws: TokenError.invalidAccount) {
-            try Mint(address: Address(TokenFixtures.mint), owner: Address(fixture.program), data: data)
+            try Mint(address: Address(TokenFixtures.mint), programAddress: Address(fixture.program), data: data)
         }
     }
 

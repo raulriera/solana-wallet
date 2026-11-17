@@ -140,7 +140,7 @@ struct SubmissionLiveTests {
     private func tokenAmounts(at addresses: [Address], in response: GetMultipleAccounts.Response) throws -> [UInt64] {
         try zip(addresses, response.value).map { address, account in
             guard let account else { return 0 }
-            return try Token(address: address, programOwner: Address(account.owner), data: account.data).amount
+            return try Token(address: address, programAddress: Address(account.owner), data: account.data).amount
         }
     }
 

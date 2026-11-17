@@ -34,27 +34,27 @@ nonisolated struct TokenTransfers {
         let snapshot = try await accounts(at: addresses)
         let observed = Dictionary(zip(addresses, snapshot.value)) { first, _ in first }
         guard let mintAccount = observed[mint] ?? nil else { throw TokenTransfersError.missingAccount(mint) }
-        let decoded = try Mint(address: mint, owner: Address(mintAccount.owner), data: mintAccount.data)
+        let decoded = try Mint(address: mint, programAddress: Address(mintAccount.owner), data: mintAccount.data)
         guard decoded.program == reviewed.program, decoded.decimals == reviewed.decimals else {
             throw TokenError.accountMismatch
         }
         guard let sourceAccount = observed[sourceAddress] ?? nil else {
             throw TokenTransfersError.missingAccount(sourceAddress)
         }
-        let sourceToken = try Token(address: sourceAddress, programOwner: Address(sourceAccount.owner),
+        let sourceToken = try Token(address: sourceAddress, programAddress: Address(sourceAccount.owner),
                                     data: sourceAccount.data)
         let destinationAccount = observed[destinationAddress] ?? nil
         let owner: Address
         let destination: Token?
         if let recipientAccount = observed[recipient] ?? nil, TokenProgram(rawValue: recipientAccount.owner) != nil {
-            let recipientToken = try Token(address: recipient, programOwner: Address(recipientAccount.owner),
+            let recipientToken = try Token(address: recipient, programAddress: Address(recipientAccount.owner),
                                            data: recipientAccount.data)
             owner = recipientToken.owner
             destination = recipientToken
         } else {
             owner = recipient
             destination = try destinationAccount.flatMap {
-                try Token(associatedAt: destinationAddress, programOwner: Address($0.owner), data: $0.data)
+                try Token(associatedAt: destinationAddress, programAddress: Address($0.owner), data: $0.data)
             }
         }
         async let epochRead = decoded.program == .token2022
