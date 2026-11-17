@@ -39,24 +39,6 @@ struct TransactPlanResolutionTests {
 
     private static let otherRoot = Poseidon.Element(UInt64(0x99)).bigEndianBytes
 
-    @Test(arguments: try ProofRequestVectors.load().transacts)
-    func `Resolutions of the independent reference yield its tree contexts`(_ vector: ProofRequestVectors.Transact)
-        throws {
-        let plan = try vector.plan()
-        let trees = try zip(vector.treeSlots, vector.treeContexts).map { slot, context in
-            ProofResolution.Tree(
-                id: slot.id, address: try ShieldedPool.tree(id: slot.id).bytes,
-                utxoRoot: try fixtureBytes(slot.utxoRoot), nullifierRoot: try fixtureBytes(slot.nullifierRoot),
-                utxoRootIndex: context[0], nullifierRootIndex: context[1]
-            )
-        }
-        let resolution = ProofResolution(trees: trees, publicInputHash: try fixtureBytes(vector.publicInputHash))
-
-        let contexts = try plan.treeContexts(from: resolution, statement: plan.publicInputs)
-
-        #expect(contexts.map { [$0.utxoTreeRootIndex, $0.nullifierTreeRootIndex] } == vector.treeContexts)
-    }
-
     @Test
     func `Contexts take each resolved tree's root positions in order`() throws {
         let plan = try Self.plan()

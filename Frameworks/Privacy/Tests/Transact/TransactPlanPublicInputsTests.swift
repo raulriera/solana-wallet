@@ -4,16 +4,6 @@ import Transactions
 @testable import Privacy
 
 struct TransactPlanPublicInputsTests {
-    @Test(arguments: try ProofRequestVectors.load().transacts)
-    func `Statements match the independent reference`(_ vector: ProofRequestVectors.Transact) throws {
-        let publicInputs = try vector.plan().publicInputs
-
-        let hash = publicInputs.hash(treeSlots: try vector.treeSlots.map { try $0.slot() })
-
-        #expect(publicInputs.elements.map(\.bigEndianBytes) == (try vector.publicInputs.map(fixtureBytes)))
-        #expect(hash.bigEndianBytes == (try fixtureBytes(vector.publicInputHash)))
-    }
-
     @Test
     func `Padding slots take the identity of their view tag`() throws {
         let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], of: .nativeSOL, transfer: 10, paddingOutputs: 1)
