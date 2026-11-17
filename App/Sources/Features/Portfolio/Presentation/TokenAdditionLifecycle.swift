@@ -34,8 +34,9 @@ private struct TokenAdditionLifecycle: ViewModifier {
     /// - Parameter preview: The token the lookup found.
     /// - Returns: The token's name or symbol, or a plain confirmation when it has neither.
     private static func announcement(for preview: TokenPreview) -> LocalizedStringResource {
-        let metadata = preview.mint.metadata
-        guard metadata?.name?.isEmpty == false || metadata?.symbol?.isEmpty == false else { return "Found a token." }
+        guard let metadata = preview.mint.metadata, metadata.name != nil || metadata.symbol != nil else {
+            return "Found a token."
+        }
         return LocalizedStringResource("Found a token named \(Asset.token(preview.mint).displayName).",
                                        comment: "VoiceOver announcement after a pasted address is found. The variable is the token's name or symbol.")
     }

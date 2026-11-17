@@ -69,6 +69,20 @@ struct TokenMetadataTests {
         #expect(try nft.isNonFungible)
         #expect(try !usdc.isNonFungible)
     }
+
+    @Test(arguments: [
+        ("USD Coin", "USDC", "USD Coin", "USDC"),
+        (" USD Coin\0", "\nUSDC ", "USD Coin", "USDC"),
+        ("", " \0", nil, nil),
+    ] as [(String, String, String?, String?)])
+    func `Names and symbols keep only their text`(
+        name: String, symbol: String, keptName: String?, keptSymbol: String?
+    ) {
+        let metadata = TokenMetadata(name: name, symbol: symbol)
+
+        #expect(metadata.name == keptName)
+        #expect(metadata.symbol == keptSymbol)
+    }
 }
 
 private let metaplexProgram = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"

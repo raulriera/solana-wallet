@@ -6,7 +6,7 @@ extension Asset {
         switch self {
         case .nativeSOL: return "SOL"
         case .token(let mint):
-            if let symbol = mint.metadata?.symbol, !symbol.isEmpty { return symbol }
+            if let symbol = mint.metadata?.symbol { return symbol }
             return mint.address.formatted(.shortAddress)
         }
     }
@@ -16,7 +16,7 @@ extension Asset {
         switch self {
         case .nativeSOL: return "Solana"
         case .token(let mint):
-            if let name = mint.metadata?.name, !name.isEmpty { return name }
+            if let name = mint.metadata?.name { return name }
             return displaySymbol
         }
     }
