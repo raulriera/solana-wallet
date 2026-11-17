@@ -93,15 +93,13 @@ struct OnboardingPage {
     }
 
     func enterPhrase(_ phrase: String = Self.phrase) throws {
-        try driver.tap(recoveryWords)
-        recoveryWords.typeText(phrase + "\n")
+        try driver.type(phrase + "\n", into: recoveryWords)
     }
 
     func enterPassphrase(_ passphrase: String) throws {
         let field = self.passphrase
         driver.reveal(field, swiping: .up)
-        try driver.tap(field)
-        field.typeText(passphrase + "\n")
+        try driver.type(passphrase + "\n", into: field)
     }
 
     func chooseHelius(file: StaticString = #filePath, line: UInt = #line) throws {
@@ -115,8 +113,7 @@ struct OnboardingPage {
 
     func submitProviderKey(_ key: String, file: StaticString = #filePath, line: UInt = #line) throws {
         let field = driver.app.secureTextFields["RPC API key"]
-        try driver.tap(field, file: file, line: line)
-        field.typeText(key)
+        try driver.type(key, into: field, file: file, line: line)
         try driver.tap(try hittableContinueButton(file: file, line: line), file: file, line: line)
     }
 

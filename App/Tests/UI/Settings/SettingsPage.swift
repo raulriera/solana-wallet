@@ -17,6 +17,15 @@ struct SettingsPage {
     }
 
     @discardableResult
+    func openAccounts(file: StaticString = #filePath, line: UInt = #line) throws -> AccountsPage {
+        try open(file: file, line: line)
+        try driver.tap(driver.app.buttons["Accounts"], file: file, line: line)
+        let accounts = AccountsPage(driver: driver)
+        try accounts.expectShown(file: file, line: line)
+        return accounts
+    }
+
+    @discardableResult
     func openSecurity(file: StaticString = #filePath, line: UInt = #line) throws -> SecurityPage {
         try open(file: file, line: line)
         try driver.tap(driver.app.buttons["Security & Privacy"], file: file, line: line)

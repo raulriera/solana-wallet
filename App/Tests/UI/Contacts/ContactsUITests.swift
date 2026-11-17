@@ -7,76 +7,46 @@ final class ContactsUITests: XCTestCase {
 
     @objc(testANewWalletsContactsStayEmptyUntilARecipientIsNamedAndReturnError:)
     func `test A new wallet's contacts stay empty until a recipient is named`() throws {
-        let flow = try openContacts()
-        defer { flow.app.terminate() }
-        let newPayment = flow.app.staticTexts["New Payment"]
+        let (app, contacts) = try openContacts()
+        defer { app.terminate() }
 
-        try startPayment(in: flow, name: nil)
-        if try showSidebar(in: flow) {
-            try flow.waitFor(flow.app.staticTexts["No Contacts"])
+        try contacts.startPayment(to: Self.address, shownAs: Self.shortAddress)
+        if try contacts.showSidebar() {
+            try app.waitFor(contacts.noContacts)
         } else {
-            try flow.waitFor(newPayment)
+            try app.waitFor(contacts.newPaymentTitle)
         }
 
-        try startPayment(in: flow, name: "Alice")
-        try showSidebar(in: flow)
-        let row = NSPredicate(format: "label BEGINSWITH %@", "Alice")
-        try flow.waitFor(flow.app.descendants(matching: .any).matching(row).firstMatch)
-        try flow.waitForAbsence(newPayment)
-        XCTAssertFalse(flow.app.staticTexts["No Contacts"].exists, "Contacts stayed empty after naming a recipient.")
+        try contacts.startPayment(to: Self.address, shownAs: Self.shortAddress, named: "Alice")
+        try contacts.showSidebar()
+        try app.waitFor(contacts.contact("Alice"))
+        try app.waitForAbsence(contacts.newPaymentTitle)
+        XCTAssertFalse(contacts.noContacts.exists, "Contacts stayed empty after naming a recipient.")
     }
 
     @objc(testDeletingTheOnlyContactReturnsToTheEmptyContactsAndReturnError:)
     func `test Deleting the only contact returns to the empty contacts`() throws {
-        let flow = try openContacts()
-        defer { flow.app.terminate() }
+        let (app, contacts) = try openContacts()
+        defer { app.terminate() }
 
-        try startPayment(in: flow, name: nil)
-        try flow.tap(flow.app.buttons["Details"])
-        try flow.tap(flow.app.buttons["Add Contact"])
-        let name = flow.app.textFields["Name"]
-        try flow.tap(name)
-        name.typeText("Alice")
-        try flow.tap(try flow.frontButton("Save Contact"))
-        try flow.waitFor(flow.app.navigationBars["Alice"])
+        try contacts.startPayment(to: Self.address, shownAs: Self.shortAddress)
+        try contacts.addContact(named: "Alice")
 
-        try flow.tap(flow.app.buttons["Delete Contact"])
-        try flow.tap(try flow.frontButton("Delete Contact"))
-        try flow.waitFor(flow.app.staticTexts["No Contacts"])
-        try flow.waitFor(flow.app.buttons["New Payment"])
+        try contacts.deleteContact()
+        try app.waitFor(contacts.noContacts)
+        try app.waitFor(contacts.newPaymentButton)
     }
 
-    private func openContacts() throws -> OnboardingApp {
-        let flow = OnboardingApp()
-        try flow.launch()
-        try flow.createWallet()
-        try flow.openWallet()
-        try flow.tap(flow.app.buttons["Contacts"].firstMatch)
-        try flow.waitFor(flow.app.staticTexts["No Contacts"])
-        return flow
-    }
-
-    private func startPayment(in flow: OnboardingApp, name: String?) throws {
-        try flow.tap(flow.app.buttons["New Payment"].firstMatch)
-        try flow.paste(Self.address)
-        if let name {
-            let field = flow.app.textFields["Name (Optional)"]
-            try flow.tap(field)
-            field.typeText(name)
-        }
-        try flow.tap(try flow.frontButton("Continue"))
-        try flow.waitFor(flow.app.navigationBars[name ?? Self.shortAddress])
-    }
-
-    @discardableResult
-    private func showSidebar(in flow: OnboardingApp) throws -> Bool {
-        let back = flow.app.navigationBars.buttons["BackButton"]
-        if back.exists {
-            try flow.tap(back)
-            return true
-        }
-        let showSidebar = flow.app.buttons["Show Sidebar"]
-        if showSidebar.exists { try flow.tap(showSidebar) }
-        return false
+    private func openContacts() throws -> (UITestApp, ContactsPage) {
+        let app = UITestApp()
+        app.launch()
+        let onboarding = OnboardingPage(driver: app)
+        try onboarding.expectWelcome()
+        try onboarding.createWallet()
+        try onboarding.openWallet()
+        let contacts = ContactsPage(driver: app)
+        try contacts.open()
+        try app.waitFor(contacts.noContacts)
+        return (app, contacts)
     }
 }

@@ -11,6 +11,7 @@ struct UITestApp {
     let app = XCUIApplication()
 
     var portfolioTab: XCUIElement { app.buttons["Portfolio"].firstMatch }
+    var contactsTab: XCUIElement { app.buttons["Contacts"].firstMatch }
     var settingsTab: XCUIElement { app.buttons["Settings"].firstMatch }
 
     init() {
@@ -91,6 +92,11 @@ struct UITestApp {
             XCTFail("UI that should be gone is still on screen", file: file, line: line)
             throw Error.unexpectedElement
         }
+    }
+
+    func type(_ text: String, into field: XCUIElement, file: StaticString = #filePath, line: UInt = #line) throws {
+        try tap(field, file: file, line: line)
+        field.typeText(text)
     }
 
     func tap(_ element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) throws {
