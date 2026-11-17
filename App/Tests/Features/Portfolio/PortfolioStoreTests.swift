@@ -39,6 +39,8 @@ struct PortfolioStoreTests {
         let currency = CurrencyStore.inMemory(StoredValue(CurrencySettings(rateSource: .coinbase)))
         let mainnet = PortfolioChanges(currency: currency)
         let devnet = PortfolioChanges(currency: currency)
+        await priceStore.load()
+        await currency.load()
         let portfolios = PortfolioStore(prices: JupiterPriceProvider(transport: HTTPResponses([:])), currency: currency,
                                         rpcStore: .inMemory(), priceStore: priceStore) { network, _ in
             network == .mainnet ? mainnet : devnet
@@ -47,8 +49,6 @@ struct PortfolioStoreTests {
         defer { viewing.cancel() }
         var mainnetReads = mainnet.priceReads.makeAsyncIterator()
         var devnetReads = devnet.priceReads.makeAsyncIterator()
-        await priceStore.load()
-        await currency.load()
 
         for provider in [PriceSettings.Provider.off, .jupiter] {
             try await priceStore.select(provider)
