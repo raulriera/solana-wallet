@@ -21,13 +21,6 @@ actor PrivateBalances: PrivateBalancing {
     /// Each account's redeem codes on each network, by ``noteID(of:on:)``.
     typealias Codes = [String: RedeemCodeLedger]
 
-    /// The stored item that an operation reads or changes.
-    nonisolated enum Item: Hashable, Sendable {
-        case keys
-        case notes
-        case codes
-    }
-
     /// What a shared sync found for an account on a network.
     nonisolated enum SyncOutcome: Sendable {
         /// This device has no keys for the account.
@@ -48,8 +41,8 @@ actor PrivateBalances: PrivateBalancing {
     private var syncs: [String: Task<SyncOutcome, any Error>] = [:]
     /// The latest outcome recording of each notes entry.
     private var completions: [String: Task<PrivateBalanceStatus, any Error>] = [:]
-    /// The deletion of each item found unreadable during this launch.
-    private var deletions: [Item: Task<Void, any Error>] = [:]
+    /// The deletion of each store found unreadable during this launch, by the store's key path.
+    private var deletions: [AnyKeyPath: Task<Void, any Error>] = [:]
     /// The latest index choice of each codes entry.
     var choices: [String: Task<UInt32, any Error>] = [:]
     /// The number of times ``removeAll()`` ran.
@@ -89,11 +82,11 @@ actor PrivateBalances: PrivateBalancing {
             throw PrivateBalanceError.registeredWithOtherKeys
         case .registered?:
             let id = Self.noteID(of: account, on: network)
-            async let savedKeys: Void = update(keys, .keys, from: generation) { $0[address] = record }
-            async let savedNotes: Void = update(notes, .notes, from: generation) { $0[id] = $0[id] ?? NoteSyncState() }
+            async let savedKeys: Void = update(\.keys, from: generation) { $0[address] = record }
+            async let savedNotes: Void = update(\.notes, from: generation) { $0[id] = $0[id] ?? NoteSyncState() }
             _ = try await (savedKeys, savedNotes)
         case .unregistered?, nil:
-            try await update(keys, .keys, from: generation) { $0[address] = record }
+            try await update(\.keys, from: generation) { $0[address] = record }
         }
     }
 
@@ -108,9 +101,9 @@ actor PrivateBalances: PrivateBalancing {
 
     func savedStatus(of account: Account, on network: Network) async throws -> PrivateBalanceStatus? {
         let generation = generation
-        async let savedKeys = rebuilding(keys, .keys, from: generation) { try await $0.load() }
-        async let savedNotes = rebuilding(notes, .notes, from: generation) { try await $0.load() }
-        guard try await savedKeys?[account.address.value] != nil,
+        async let savedKeys = keyRecord(of: account, from: generation)
+        async let savedNotes = rebuilding(\.notes, from: generation) { try await $0.load() }
+        guard try await savedKeys != nil,
               let state = try await savedNotes?[Self.noteID(of: account, on: network)], state != NoteSyncState()
         else { return nil }
         return .balance(of: state)
@@ -328,16 +321,16 @@ actor PrivateBalances: PrivateBalancing {
                         id: String, from generation: Int) async throws -> PrivateBalanceStatus {
         guard generation == self.generation else { throw CancellationError() }
         guard outcome == .succeeded else {
-            async let savedKeys = rebuilding(keys, .keys, from: generation) { try await $0.load() }
-            async let savedNotes = rebuilding(notes, .notes, from: generation) { try await $0.load() }
+            async let savedKeys = keyRecord(of: transaction.account, from: generation)
+            async let savedNotes = rebuilding(\.notes, from: generation) { try await $0.load() }
             async let releasedCode: Void = recordCode(of: transaction.effect, outcome: outcome, signature: signature,
                                                       id: id, from: generation)
-            let (keyRecords, entries, _) = try await (savedKeys, savedNotes, releasedCode)
-            guard keyRecords?[transaction.account.address.value] != nil else { return .off(isRegistered: false) }
+            let (keyRecord, entries, _) = try await (savedKeys, savedNotes, releasedCode)
+            guard keyRecord != nil else { return .off(isRegistered: false) }
             return entries?[id].map(PrivateBalanceStatus.balance(of:)) ?? .unregistered
         }
         let effect = transaction.effect
-        async let recordedNotes = update(notes, .notes, from: generation) { entries in
+        async let recordedNotes = update(\.notes, from: generation) { entries in
             let saved = entries[id] ?? NoteSyncState()
             let state = switch effect {
             case .deposit(let amount, let asset): try saved.recording(depositOf: amount, of: asset, signature: signature)
@@ -375,9 +368,9 @@ actor PrivateBalances: PrivateBalancing {
     private func synced(_ account: Account, id: String, on network: Network) async throws -> SyncOutcome {
         let generation = generation
         await settle { completions[id] }
-        async let savedKeys = rebuilding(keys, .keys, from: generation) { try await $0.load() }
-        async let savedNotes = rebuilding(notes, .notes, from: generation) { try await $0.load() }
-        guard let record = try await savedKeys?[account.address.value] else { return .off }
+        async let savedKeys = keyRecord(of: account, from: generation)
+        async let savedNotes = rebuilding(\.notes, from: generation) { try await $0.load() }
+        guard let record = try await savedKeys else { return .off }
         let shielded = try record.shieldedAccount(for: account.address)
         do {
             let client = try await client(for: network)
@@ -387,11 +380,11 @@ actor PrivateBalances: PrivateBalancing {
                 case .unregistered: return .unregistered(shielded)
                 case .registeredWithOtherKeys: throw PrivateBalanceError.registeredWithOtherKeys
                 case .registered:
-                    try await update(notes, .notes, from: generation) { $0[id] = $0[id] ?? NoteSyncState() }
+                    try await update(\.notes, from: generation) { $0[id] = $0[id] ?? NoteSyncState() }
                 }
             }
             let synced = try await (saved ?? NoteSyncState()).synced(for: shielded, rpc: client, indexer: client)
-            try await update(notes, .notes, from: generation) { $0[id] = synced }
+            try await update(\.notes, from: generation) { $0[id] = synced }
             return .synced(shielded, synced)
         } catch RPCProviderError.unsupportedNetwork {
             return .unavailable
@@ -401,8 +394,7 @@ actor PrivateBalances: PrivateBalancing {
     /// Changes a store's entries, unless ``removeAll()`` ran after the operation started.
     ///
     /// - Parameters:
-    ///   - store: The keys, notes, or codes storage.
-    ///   - item: The item that `store` keeps.
+    ///   - store: The key path of the keys, notes, or codes storage.
     ///   - generation: The ``generation`` when the operation started.
     ///   - change: Changes the saved entries.
     /// - Returns: The change's result.
@@ -410,11 +402,11 @@ actor PrivateBalances: PrivateBalancing {
     ///   storage error.
     @discardableResult
     func update<Entry: Equatable & Sendable, Result: Sendable>(
-        _ store: any ValueStoring<[String: Entry]>, _ item: Item, from generation: Int,
+        _ store: KeyPath<PrivateBalances, any ValueStoring<[String: Entry]>>, from generation: Int,
         _ change: @escaping @Sendable (inout [String: Entry]) throws -> Result
     ) async throws -> Result {
         guard generation == self.generation else { throw CancellationError() }
-        return try await rebuilding(store, item, from: generation) { store in
+        return try await rebuilding(store, from: generation) { store in
             try await store.update { saved in
                 var entries = saved ?? [:]
                 let result = try change(&entries)
@@ -424,34 +416,46 @@ actor PrivateBalances: PrivateBalancing {
         }
     }
 
-    /// Runs a storage operation and, if the item is unreadable, deletes it and runs the operation again.
+    /// Runs a storage operation and, if the store is unreadable, deletes it and runs the operation again.
     ///
     /// - Parameters:
-    ///   - store: The keys, notes, or codes storage.
-    ///   - item: The item that `store` keeps.
+    ///   - store: The key path of the keys, notes, or codes storage.
     ///   - generation: The ``generation`` when the operation started.
     ///   - operation: Reads or changes `store`.
     /// - Returns: The operation's result.
     /// - Throws: `CancellationError` if ``removeAll()`` ran after the operation started, the operation's or the
-    ///   deletion's error, or ``KeychainItemError/unreadable`` if the item is still unreadable.
+    ///   deletion's error, or ``KeychainItemError/unreadable`` if the store is still unreadable.
     func rebuilding<Value: Equatable & Sendable, Result: Sendable>(
-        _ store: any ValueStoring<Value>, _ item: Item, from generation: Int,
+        _ store: KeyPath<PrivateBalances, any ValueStoring<Value>>, from generation: Int,
         _ operation: (any ValueStoring<Value>) async throws -> Result
     ) async throws -> Result {
+        let storage = self[keyPath: store]
         do {
-            return try await operation(store)
+            return try await operation(storage)
         } catch KeychainItemError.unreadable {
             guard generation == self.generation else { throw CancellationError() }
-            let deletion = deletions[item] ?? Task.immediate { try await store.delete() }
-            deletions[item] = deletion
+            let deletion = deletions[store] ?? Task.immediate { try await storage.delete() }
+            deletions[store] = deletion
             let result = await deletion.result
             guard generation == self.generation else { throw CancellationError() }
             if case .failure(let error) = result {
-                if deletions[item] == deletion { deletions[item] = nil }
+                if deletions[store] == deletion { deletions[store] = nil }
                 throw error
             }
-            return try await operation(store)
+            return try await operation(storage)
         }
+    }
+
+    /// Reads an account's kept keys.
+    ///
+    /// - Parameters:
+    ///   - account: The account whose keys to read.
+    ///   - generation: The ``generation`` when the operation started.
+    /// - Returns: The account's keys, or `nil` without them.
+    /// - Throws: `CancellationError` if ``removeAll()`` ran after `generation`, ``KeychainItemError/unreadable`` if
+    ///   the store is still unreadable, or a storage error.
+    func keyRecord(of account: Account, from generation: Int) async throws -> PrivateBalanceKeyRecord? {
+        try await rebuilding(\.keys, from: generation) { try await $0.load() }?[account.address.value]
     }
 
     /// Returns the identifier of an account's notes entry on a network.
