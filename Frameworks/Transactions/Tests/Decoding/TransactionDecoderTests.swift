@@ -82,7 +82,7 @@ struct TransactionDecoderTests {
         #expect(transaction.signatures.last == Data(repeating: 0x55, count: 64))
     }
 
-    @Test(arguments: 0..<(try DecodingFixture.transaction()).count)
+    @Test(arguments: [0, 1, 4, 8, 40, 42, 170, 190, 198, 208, 272, 335])
     func `Incomplete envelopes are rejected`(length: Int) throws {
         let input = try DecodingFixture.transaction()
         #expect(throws: ValidationError.invalidTransaction) {

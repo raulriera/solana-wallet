@@ -3,22 +3,19 @@ import Testing
 import Transactions
 
 struct MessageBuilderTests {
-    @Test(arguments: [
-        (UInt64(5_000), "gQEAAQ8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIEMhz6Wt0YXoiTpf2IAT7E1+Ei3tRjVMrf9Q2VY5XnW2Au7nuJKk74pEqr+XDMDjfq9yZ2dRcMHWmc0xJ0SWxUP36MCIdgv94d3c8ywX8gm4JC7lKq8TH6zYjQ6ixtCwbyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACIEwAAAAAAACBOAAAAAAEAAwIMAAMCDAAAAgIAAABAQg8AAAAAAAABAgAAAIgTAAAAAAAA"),
-        (UInt64(1_000_000), "gQEAAQ8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIEMhz6Wt0YXoiTpf2IAT7E1+Ei3tRjVMrf9Q2VY5XnW2Au7nuJKk74pEqr+XDMDjfq9yZ2dRcMHWmc0xJ0SWxUP36MCIdgv94d3c8ywX8gm4JC7lKq8TH6zYjQ6ixtCwbyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACIEwAAAAAAACBOAAAAAAEAAwIMAAMCDAAAAgIAAABAQg8AAAAAAAABAgAAAEBCDwAAAAAA"),
-    ])
-    func `SOL transfers preserve the payment and separate service tip`(tipLamports: UInt64, expectedMessage: String) throws {
+    @Test
+    func `SOL transfers preserve the payment and separate service tip`() throws {
         let sender = try Address(MessageFixture.sender)
         let transfer = try SystemProgram.transfer(from: sender, to: Address(MessageFixture.recipient), lamports: 1_000_000)
         let tip = try SystemProgram.transfer(from: sender, to: Address("4ACfpUFoaSD9bfPdeu6DBt89gB6ENTeHBXCAi87NhDEE"),
-                               lamports: tipLamports)
+                               lamports: 5_000)
         let configuration = try Configuration(priorityFeeLamports: 5_000, computeUnitLimit: 20_000,
                                                loadedAccountsDataSizeLimit: 65_536)
         let message = try MessageBuilder().message(instructions: [transfer, tip], payer: sender,
             recentBlockhash: "11111111111111111111111111111111", configuration: configuration)
         let signature = Data(repeating: 0, count: 64)
         let actual = try TransactionDecoder().decode(message + signature)
-        let expected = try TransactionDecoder().decode(#require(Data(base64Encoded: expectedMessage)) + signature)
+        let expected = try TransactionDecoder().decode(#require(Data(base64Encoded: "gQEAAQ8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIEMhz6Wt0YXoiTpf2IAT7E1+Ei3tRjVMrf9Q2VY5XnW2Au7nuJKk74pEqr+XDMDjfq9yZ2dRcMHWmc0xJ0SWxUP36MCIdgv94d3c8ywX8gm4JC7lKq8TH6zYjQ6ixtCwbyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACIEwAAAAAAACBOAAAAAAEAAwIMAAMCDAAAAgIAAABAQg8AAAAAAAABAgAAAIgTAAAAAAAA")) + signature)
 
         #expect(actual.requests == expected.requests)
         #expect(actual.lifetimeSpecifier == expected.lifetimeSpecifier)

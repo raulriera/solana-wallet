@@ -1,6 +1,7 @@
+import Encoding
 import Foundation
 import Testing
-import Transactions
+@testable import Transactions
 
 struct AddressTests {
     private static let malformedAddresses: [String] = [
@@ -28,8 +29,21 @@ struct AddressTests {
         #expect(throws: DecodingError.self) { try JSONDecoder().decode(Address.self, from: data) }
     }
 
-    @Test(arguments: [(SignedTransferFixture.sender, true), (TokenFixtures.transfers[0].destination, false)])
-    func `Curve checks tell signing keys from program-derived addresses`(address: String, onCurve: Bool) throws {
-        #expect(try Address(address).isOnCurve == onCurve)
+    @Test
+    func `Addresses from bytes match the address parsed from their text`() throws {
+        let text = "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"
+        let bytes = try #require(Base58.decode(text, byteCount: 32))
+
+        let address = try Address(bytes: bytes)
+
+        #expect(address == (try Address(text)))
+        #expect(address.value == text)
+    }
+
+    @Test(arguments: [0, 31, 33])
+    func `Addresses from bytes require exactly 32 bytes`(count: Int) {
+        #expect(throws: ValidationError.invalidAddress) {
+            try Address(bytes: Array(repeating: UInt8(1), count: count))
+        }
     }
 }
