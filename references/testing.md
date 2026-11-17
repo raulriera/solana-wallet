@@ -30,7 +30,7 @@ Pass the existing regular iPhone simulator to every command, such as `-destinati
 
 - Follow the [XCUITest Best Practices](plugin://skills@raulriera) skill (`xcuitest-best-practices`).
 - Each test prepares its own state before services start. Destructive reset hooks run only in explicit Debug simulator test launches.
-- Use public fixtures or disposable unfunded wallets; never existing or funded recovery.
+- Use public fixtures; never existing recovery.
 - Query visible text and accessibility labels. Add no test-only identifiers and no accessibility-only tests.
 - Unexpected alerts fail at once; never hide them with timeouts, automatic dismissal, or retries of committed actions.
 - UI tests can't cover scene restoration; check it by hand by sending the app to the background before stopping it.
