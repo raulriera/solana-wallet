@@ -49,19 +49,6 @@ struct TokenMetadataTests {
     }
 
     @Test
-    func `A saved mint keeps its facts and not its account data`() throws {
-        let pyusd = try MetadataFixtures.mint(MetadataFixtures.pyusdMint, program: .token2022,
-                                              data: MetadataFixtures.pyusdMintData)
-
-        let saved = try JSONDecoder().decode(Mint.self, from: JSONEncoder().encode(pyusd))
-
-        #expect(saved == Mint(address: pyusd.address, program: .token2022, decimals: pyusd.decimals,
-                              metadata: TokenMetadata(name: "PayPal USD", symbol: "PYUSD")))
-        #expect(throws: TokenError.invalidAccount) { try saved.associatedAccountSize }
-        #expect(throws: TokenError.invalidAccount) { try saved.isNonFungible }
-    }
-
-    @Test
     func `Only a mint with no decimals and a supply of one is non-fungible`() throws {
         let nft = try MetadataFixtures.mint(MetadataFixtures.nftMint, program: .token, data: MetadataFixtures.nftMintData)
         let usdc = try MetadataFixtures.mint(MetadataFixtures.usdcMint, program: .token, data: MetadataFixtures.usdcMintData)

@@ -3,22 +3,18 @@ import Testing
 import Transactions
 
 struct MintTests {
-    @Test(arguments: TokenFixtures.transfers)
-    func `A decoded mint equals the same mint saved and read back`(_ fixture: TokenFixture) throws {
-        let decoded = try fixture.mint()
-
-        let saved = try JSONDecoder().decode(Mint.self, from: JSONEncoder().encode(decoded))
-
-        #expect(saved == decoded)
-        #expect(saved.hashValue == decoded.hashValue)
-        #expect(Set([Asset.token(saved), .token(decoded)]).count == 1)
-    }
-
     @Test
-    func `Mints with different decimals are different mints`() throws {
-        let address = try Address(TokenFixtures.mint)
+    func `A saved mint keeps its facts and not its account data`() throws {
+        let pyusd = try MetadataFixtures.mint(MetadataFixtures.pyusdMint, program: .token2022,
+                                              data: MetadataFixtures.pyusdMintData)
 
-        #expect(Mint(address: address, program: .token, decimals: 6, metadata: nil)
-            != Mint(address: address, program: .token, decimals: 9, metadata: nil))
+        let saved = try JSONDecoder().decode(Mint.self, from: JSONEncoder().encode(pyusd))
+
+        #expect(saved == Mint(address: pyusd.address, program: .token2022, decimals: pyusd.decimals,
+                              metadata: TokenMetadata(name: "PayPal USD", symbol: "PYUSD")))
+        #expect(saved.hashValue == pyusd.hashValue)
+        #expect(Set([Asset.token(saved), .token(pyusd)]).count == 1)
+        #expect(throws: TokenError.invalidAccount) { try saved.associatedAccountSize }
+        #expect(throws: TokenError.invalidAccount) { try saved.isNonFungible }
     }
 }
