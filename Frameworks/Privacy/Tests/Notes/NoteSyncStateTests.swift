@@ -68,7 +68,7 @@ struct NoteSyncStateTests {
         laterDeposit = try vectors[1].transaction(signature: IndexerResponses.signature(2), slot: 12, mint: sol)
         largestDeposit = try vectors[2].transaction(signature: IndexerResponses.signature(3), slot: 13, mint: sol)
         foreignDeposit = try vectors[3].transaction(signature: IndexerResponses.signature(4), slot: 4, mint: sol)
-        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], transferLamports: 4)
+        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], of: .nativeSOL, transfer: 4)
         transfer = try PlanFixtures.transaction(of: plan, signature: IndexerResponses.signature(5), slot: 9)
     }
 

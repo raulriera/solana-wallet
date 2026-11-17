@@ -106,7 +106,7 @@ struct TransactPlanResolutionTests {
                 PlanFixtures.utxo(amount: 4, treeID: 3, asset: .nativeSOL),
                 PlanFixtures.utxo(amount: 6, treeID: 1, blindingByte: 0xa2, asset: .nativeSOL),
             ],
-            transferLamports: 7
+            of: .nativeSOL, transfer: 7
         )
     }
 

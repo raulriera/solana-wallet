@@ -55,7 +55,7 @@ struct ExternalDataTests {
     func `Prefixes with a withdrawal carry one SOL withdrawal`() throws {
         let key = Curve25519.KeyAgreement.PrivateKey().publicKey
         let externalData = try ExternalData(
-            transactionViewingPublicKey: key, salt: TransferVectors.salt, withdrawal: PlanFixtures.withdrawal(lamports: 0x0102),
+            transactionViewingPublicKey: key, salt: TransferVectors.salt, withdrawal: PlanFixtures.withdrawal(0x0102, of: .nativeSOL),
             outputs: [], payer: Address(TransferVectors.senderSigningAddress)
         )
 
@@ -85,7 +85,7 @@ struct ExternalDataTests {
         let key = Curve25519.KeyAgreement.PrivateKey().publicKey
         let payer = try Address(TransferVectors.senderSigningAddress)
         let toRelayedPayer = try ExternalData(
-            transactionViewingPublicKey: key, salt: TransferVectors.salt, withdrawal: PlanFixtures.withdrawal(lamports: 5),
+            transactionViewingPublicKey: key, salt: TransferVectors.salt, withdrawal: PlanFixtures.withdrawal(5, of: .nativeSOL),
             outputs: [], payer: payer
         )
         let toSender = try ExternalData(
