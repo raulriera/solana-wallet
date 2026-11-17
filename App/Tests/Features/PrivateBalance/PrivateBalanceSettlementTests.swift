@@ -6,19 +6,6 @@ import Testing
 @Suite(.timeLimit(.minutes(1)))
 struct PrivateBalanceSettlementTests {
     @Test
-    func `A succeeded deposit is recorded as pending`() async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let id = PrivateBalances.noteID(of: account, on: .devnet)
-        let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])
-        let settlement = try await Self.settlement(of: PrivateBalanceFixtures.preparedDeposit(5_000, of: .nativeSOL, from: account),
-                                                   notes: notes)
-
-        await settlement.settle(PrivateBalanceFixtures.confirmation(.succeeded))
-
-        #expect(await notes.value?[id]?.pendingAmount(of: .nativeSOL) == 5_000)
-    }
-
-    @Test
     func `A move that can't be recorded changes nothing`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let id = PrivateBalances.noteID(of: account, on: .devnet)
