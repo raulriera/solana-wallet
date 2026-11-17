@@ -33,5 +33,8 @@ struct WindowRoot: View {
         .environment(services.rpcStore)
         .environment(services.priceStore)
         .environment(services.transactionStore)
+        #if DEBUG && targetEnvironment(simulator)
+        .transaction { UITestAnimations.disableAnimations(in: &$0) }
+        #endif
     }
 }

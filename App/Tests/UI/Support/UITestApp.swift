@@ -25,6 +25,7 @@ struct UITestApp {
 
     init() {
         app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launchEnvironment["UI_TEST_DISABLE_ANIMATIONS"] = "1"
     }
 
     func launch() {
