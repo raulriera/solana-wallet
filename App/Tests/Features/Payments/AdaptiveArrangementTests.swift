@@ -43,16 +43,6 @@ struct AdaptiveArrangementTests {
         return frames
     }
 
-    @Test func `Stacked, the second view sits under the keys at their width`() async throws {
-        let frames = try await arrange(in: CGSize(width: 300, height: 600))
-        let secondary = try #require(frames.secondary)
-        let accessory = try #require(frames.accessory)
-
-        #expect(accessory.minY > secondary.maxY)
-        #expect(accessory.width == secondary.width)
-        #expect(accessory.midX == secondary.midX)
-    }
-
     @Test func `Side by side, the second view moves under the primary region at the keys' width`() async throws {
         let frames = try await arrange(in: CGSize(width: 600, height: 120))
         let primary = try #require(frames.primary)

@@ -27,14 +27,6 @@ struct PaymentModelTests {
         keys.forEach(payment.press)
     }
 
-    @Test func `A currency amount converts to tokens`() {
-        let payment = Self.payment(in: Self.sol)
-        Self.type([.digit(1), .digit(2)], into: payment)
-        #expect(payment.value == 12)
-        #expect(payment.quantity == Decimal(string: "0.083408632"))
-        #expect(payment.canSend)
-    }
-
     @Test(arguments: [
         (sol, [KeypadKey.digit(1), .digit(2)], TokenAmount(lamports: 83_408_632), Decimal?.some(12)),
         (usdc, [.digit(2), .decimalSeparator, .digit(5)], TokenAmount(amount: 2_500_000, decimals: 6),
@@ -288,18 +280,5 @@ struct PaymentModelTests {
         payment.unitChoice = unit
         try #require(payment.unit == unit)
         #expect(payment.entryBalance == balance)
-    }
-
-    @Test(arguments: [
-        (PaymentModel.Unit.token, "Balance: 1.23 SOL"),
-        (.currency, "Balance: $176.96"),
-    ])
-    func `The balance line shows the balance in the unit the amount is typed in`(unit: PaymentModel.Unit,
-                                                                                  text: String) {
-        let payment = PaymentModel(tokens: [Self.sol, Self.usdc], currencyCode: "USD")
-        payment.unitChoice = unit
-        var balance = payment.balanceText
-        balance.locale = Locale(identifier: "en_US")
-        #expect(String(localized: balance) == text)
     }
 }

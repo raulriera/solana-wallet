@@ -11,12 +11,10 @@ struct TokenTransferResponses {
         case unsupportedOwner
         case nonemptySystem
         case executable
-        case otherOwner
     }
 
     enum Recipient: Sendable {
         case wallet
-        case absent
         case programOwned
         case tokenAccount
         case otherMintTokenAccount
@@ -40,10 +38,9 @@ struct TokenTransferResponses {
         tokenAccount = try program.associatedAccount(owner: recipient, mint: mint.address)
     }
 
-    func http(destination: Destination, recipient: Recipient = .wallet, defaultFrozen: Bool = false,
+    func http(destination: Destination, recipient: Recipient = .wallet,
               transferFee: (basisPoints: UInt16, maximum: UInt64)? = nil) throws -> HTTPResponses {
-        let plainMint = defaultFrozen ? Self.frozenMint : Self.mintData
-        let mintAccount = account(owner: program.rawValue, data: try transferFee.map(Self.feeMint) ?? plainMint)
+        let mintAccount = account(owner: program.rawValue, data: try transferFee.map(Self.feeMint) ?? Self.mintData)
         let hasFee = transferFee != nil
         let sourceData = try hasFee ? Self.feeAccount(Self.sourceData) : Self.sourceData
         let destinationData = try hasFee ? Self.feeAccount(Self.destinationData) : Self.destinationData
@@ -55,11 +52,9 @@ struct TokenTransferResponses {
         case .unsupportedOwner: account(owner: "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL")
         case .nonemptySystem: account(owner: Self.systemProgram, data: "AA==")
         case .executable: account(owner: Self.systemProgram, executable: true)
-        case .otherOwner: account(owner: program.rawValue, data: Self.sourceData)
         }
         let recipientAccount: Any = switch recipient {
         case .wallet: account(owner: Self.systemProgram)
-        case .absent: NSNull()
         case .programOwned: account(owner: "Stake11111111111111111111111111111111111111", data: "AA==")
         case .tokenAccount: account(owner: program.rawValue, data: Self.destinationData)
         case .otherMintTokenAccount: account(owner: program.rawValue, data: Self.otherMintAccount)
@@ -106,5 +101,4 @@ struct TokenTransferResponses {
     private static let sourceData = "h+q1gBJapZ/LBb6AmqRfdi8pFXsG3s8fywG2OC5pXpwyHPpa3RheiJOl/YgBPsTX4SLe1GNUyt/1DZVjledbYP//////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
     private static let destinationData = "h+q1gBJapZ/LBb6AmqRfdi8pFXsG3s8fywG2OC5pXpx+jAiHYL/eHd3PMsF/IJuCQu5SqvEx+s2I0OosbQsG8gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
     private static let otherMintAccount = "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQF+jAiHYL/eHd3PMsF/IJuCQu5SqvEx+s2I0OosbQsG8gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-    private static let frozenMint = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//////////8GAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQYAAQAC"
 }
