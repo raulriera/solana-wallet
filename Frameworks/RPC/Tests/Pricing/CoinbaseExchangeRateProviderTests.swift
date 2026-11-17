@@ -45,8 +45,6 @@ struct CoinbaseExchangeRateProviderTests {
 
     @Test(arguments: [
         #"{"data":{"currency":"EUR","rates":{"JPY":"175.5"}}}"#,
-        #"{"data":{"currency":"USD","rates":{"EUR":"-0.89"}}}"#,
-        #"{"data":{"currency":"USD","rates":{"EUR":"0"}}}"#,
         #"{"data":{"currency":"USD","rates":{"EUR":"soon"}}}"#,
         #"{"data":{"currency":"USD","rates":{"EUR":0.89}}}"#,
         #"{"data":{"currency":"USD"}}"#,

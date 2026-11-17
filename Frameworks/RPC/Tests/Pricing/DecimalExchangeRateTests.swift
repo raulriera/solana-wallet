@@ -12,13 +12,11 @@ struct DecimalExchangeRateTests {
         #expect(Decimal(exchangeRate: text) == rate)
     }
 
-    @Test(arguments: ["0", "0.0", "-0.89", "soon", "", "NaN"])
-    func `Text that isn't a positive number is not a rate`(text: String) {
-        #expect(Decimal(exchangeRate: text) == nil)
-    }
-
-    @Test(arguments: ["1,5", "1.5abc", " 2", "2 ", "1e3", "+1.5", ".5", "5.", "1.2.3", "١.٥"])
-    func `Text with anything besides plain decimal digits is not a rate`(text: String) {
+    @Test(arguments: [
+        "0", "0.0", "-0.89", "soon", "", "NaN", "1,5", "1.5abc", " 2", "2 ", "1e3", "+1.5", ".5", "5.", "1.2.3",
+        "١.٥",
+    ])
+    func `Text that isn't a plain positive decimal is not a rate`(text: String) {
         #expect(Decimal(exchangeRate: text) == nil)
     }
 }

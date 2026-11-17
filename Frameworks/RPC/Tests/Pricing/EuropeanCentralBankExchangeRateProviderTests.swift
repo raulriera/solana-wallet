@@ -51,8 +51,6 @@ struct EuropeanCentralBankExchangeRateProviderTests {
     }
 
     @Test(arguments: [
-        "<Cube><Cube currency='USD' rate='-1.25'/></Cube>",
-        "<Cube><Cube currency='USD' rate='0'/></Cube>",
         "<Cube><Cube currency='USD' rate='soon'/></Cube>",
         "<Cube><Cube currency='USD'/></Cube>",
         "<Cube><Cube time='2026-10-23'/></Cube>",
