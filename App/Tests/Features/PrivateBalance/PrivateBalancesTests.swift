@@ -654,8 +654,10 @@ struct PrivateBalancesTests {
         #expect(await notes.deletions == 1)
     }
 
-    @Test
-    func `Preparing a registered account's deposit deposits into its own balance`() async throws {
+    @Test(arguments: [PrivateAsset.nativeSOL, .token(.devnetUSDC)])
+    func `Preparing a registered account's deposit deposits the asset into its own balance`(
+        asset: PrivateAsset
+    ) async throws {
         let account = try await PrivateBalanceFixtures.account()
         let record = try await PrivateBalanceFixtures.keys(for: account)
         let shielded = try record.shieldedAccount(for: account.address)
@@ -664,29 +666,13 @@ struct PrivateBalancesTests {
         let balances = try await Self.balances(responses, keys: StoredValue([account.address.value: record]),
                                                notes: notes)
 
-        let prepared = try await balances.prepare(.deposit(5_000, of: .nativeSOL), from: account, on: .devnet)
+        let prepared = try await balances.prepare(.deposit(5_000, of: asset), from: account, on: .devnet)
 
-        #expect(prepared.instructions == [try ShieldedPool.deposit(5_000, of: .nativeSOL, from: account.address, to: shielded.recipient,
-                                                                   treeID: 1)])
+        #expect(prepared.instructions == [try ShieldedPool.deposit(5_000, of: asset, from: account.address,
+                                                                   to: shielded.recipient, treeID: 1)])
         #expect(!prepared.registers)
         #expect(prepared.network == .devnet)
         #expect(try await !Self.methods(of: responses).contains(GetMultipleAccounts.method))
-    }
-
-    @Test
-    func `Preparing a token deposit deposits the token into its own balance`() async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let record = try await PrivateBalanceFixtures.keys(for: account)
-        let shielded = try record.shieldedAccount(for: account.address)
-        let responses = HTTPResponses.privateNotes(outputTreeID: 1)
-        let notes = StoredValue<PrivateBalances.Notes>([PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()])
-        let balances = try await Self.balances(responses, keys: StoredValue([account.address.value: record]),
-                                               notes: notes)
-
-        let prepared = try await balances.prepare(.deposit(5_000, of: .token(.devnetUSDC)), from: account, on: .devnet)
-
-        #expect(prepared.instructions == [try ShieldedPool.deposit(5_000, of: .token(.devnetUSDC), from: account.address,
-                                                                   to: shielded.recipient, treeID: 1)])
     }
 
     @Test
