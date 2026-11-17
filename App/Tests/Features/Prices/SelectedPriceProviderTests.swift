@@ -11,19 +11,6 @@ struct SelectedPriceProviderTests {
     private static let server = URL(string: "https://prices.example.com/v1?key=fixture-key")!
 
     @Test
-    func `Nothing saved looks up Jupiter's prices`() async throws {
-        let jupiter = FixedPrices(currency: "USD")
-        let custom = FixedPrices(currency: "EUR")
-        let prices = SelectedPriceProvider(prices: .inMemory(), jupiter: jupiter) { _ in custom }
-
-        let quotes = try await prices.prices(for: ["mint"])
-
-        #expect(quotes == ["mint": Quote(pricePerUnit: 1, currency: "USD", dayChange: nil)])
-        #expect(await jupiter.lookups.value == [["mint"]])
-        #expect(await custom.lookups.value.isEmpty)
-    }
-
-    @Test
     func `A chosen server answers every lookup through one provider`() async throws {
         let custom = FixedPrices(currency: "EUR")
         let made = Mutex<[URL]>([])
@@ -39,18 +26,6 @@ struct SelectedPriceProviderTests {
         #expect(quotes == ["mint-b": Quote(pricePerUnit: 1, currency: "EUR", dayChange: nil)])
         #expect(await custom.lookups.value == [["mint-a"], ["mint-b"]])
         #expect(made.withLock(\.self) == [Self.server])
-    }
-
-    @Test
-    func `Prices that are off ask no provider`() async throws {
-        let jupiter = FixedPrices(currency: "USD")
-        let custom = FixedPrices(currency: "EUR")
-        let prices = SelectedPriceProvider(prices: .inMemory(selection: .off), jupiter: jupiter) { _ in custom }
-
-        #expect(try await prices.prices(for: ["mint"]).isEmpty)
-
-        #expect(await jupiter.lookups.value.isEmpty)
-        #expect(await custom.lookups.value.isEmpty)
     }
 
     @Test

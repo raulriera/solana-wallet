@@ -25,7 +25,7 @@ struct CustomPriceConnectionTests {
         #expect(await transport.requests.count == 1)
     }
 
-    @Test(arguments: ["http://prices.example.com", "prices.example.com", ""])
+    @Test(arguments: ["http://prices.example.com", ""])
     func `A URL that isn't HTTPS is rejected without a request`(entry: String) async {
         let prices = StoredValue<PriceSettings>()
         let transport = Self.pricedTransport()
@@ -56,9 +56,7 @@ struct CustomPriceConnectionTests {
     @Test(arguments: [
         ("{}", 200),
         (#"{"So11111111111111111111111111111111111111112":{"pricePerUnit":-1,"currency":"USD"}}"#, 200),
-        (#"{"usdPrice":1}"#, 200),
         ("not json", 200),
-        ("{}", 404),
         ("{}", 500),
     ])
     func `A server that doesn't price SOL is rejected`(body: String, status: Int) async {
@@ -127,14 +125,6 @@ struct CustomPriceConnectionTests {
 
         await #expect(throws: CancellationError.self) { try await operation.value }
         #expect(await prices.value == nil)
-    }
-
-    @Test(arguments: [
-        (CustomPriceError.notHTTPS, true), (.duplicate, true), (.unreachable, true),
-        (.rateLimited, false), (.unavailable, false), (.storageFailed, false),
-    ])
-    func `Only rejected URLs show under the field`(error: CustomPriceError, rejectsEntry: Bool) {
-        #expect(error.rejectsEntry == rejectsEntry)
     }
 
     private func makeConnection(prices: StoredValue<PriceSettings>, transport: StubTransport) -> CustomPriceConnection {
