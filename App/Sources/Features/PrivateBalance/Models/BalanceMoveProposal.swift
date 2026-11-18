@@ -86,7 +86,8 @@ struct BalanceMoveProposal: TransactionProposal {
         switch preparation.effect {
         case .deposit:
             let registrationFee = preparation.registers
-                ? try otherFee(of: simulation, for: account, paying: movedLamports, networkFee: networkFee) : nil
+                ? try otherFee(of: simulation, for: account, paying: movedLamports, receiving: 0,
+                               networkFee: networkFee) : nil
             review = Review(networkFee: networkFee, registrationFee: registrationFee, privacyFee: nil,
                             pendingChange: nil, accountDeposit: nil)
             kind = .privateDeposit
@@ -127,8 +128,8 @@ struct BalanceMoveProposal: TransactionProposal {
     /// - Returns: The other fees, in lamports.
     /// - Throws: ``PrivateBalanceError/preparationFailed`` if the simulation doesn't report the account's SOL or
     ///   reports too little.
-    private func otherFee(of simulation: Simulation, for account: Account, paying paid: UInt64 = 0,
-                          receiving received: UInt64 = 0, networkFee: UInt64) throws -> UInt64 {
+    private func otherFee(of simulation: Simulation, for account: Account, paying paid: UInt64,
+                          receiving received: UInt64, networkFee: UInt64) throws -> UInt64 {
         guard let change = solChange(of: account.address, in: simulation) else { throw PrivateBalanceError.preparationFailed }
         let (incoming, incomingOverflow) = change.before.addingReportingOverflow(received)
         let (kept, keptOverflow) = change.after.addingReportingOverflow(paid)
