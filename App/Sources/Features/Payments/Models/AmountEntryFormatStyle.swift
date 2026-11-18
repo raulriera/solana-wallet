@@ -12,31 +12,18 @@ nonisolated struct AmountEntryFormatStyle: LocalizedFormatStyle {
     var locale: Locale = .autoupdatingCurrent
 
     func format(_ value: AmountEntry) -> String {
-        let typed = value.fractionDigits?.count ?? 0
-        let length = value.fractionDigits == nil ? 0 : max(typed, 1)
+        let length = value.fractionDigits?.count ?? 0
+        let separator: NumberFormatStyleConfiguration.DecimalSeparatorDisplayStrategy =
+            value.fractionDigits == nil ? .automatic : .always
         switch unit {
         case .currency(let code):
-            let text = value.value.formatted(.currency(code: code).precision(.fractionLength(length)).locale(locale))
-            return Self.removingPlaceholder(from: text, of: value)
+            return value.value.formatted(.currency(code: code).precision(.fractionLength(length))
+                .decimalSeparator(strategy: separator).locale(locale))
         case .token(let symbol):
-            let number = value.value.formatted(.number.precision(.fractionLength(length)).locale(locale))
-            return "\(Self.removingPlaceholder(from: number, of: value)) \(symbol)"
+            let number = value.value.formatted(.number.precision(.fractionLength(length))
+                .decimalSeparator(strategy: separator).locale(locale))
+            return "\(number) \(symbol)"
         }
-    }
-
-    /// Removes the placeholder digit after a trailing separator.
-    ///
-    /// - Parameters:
-    ///   - text: The formatted amount.
-    ///   - value: The typed amount.
-    /// - Returns: The text without the placeholder, or unchanged when the amount doesn't end in a separator.
-    private static func removingPlaceholder(from text: String, of value: AmountEntry) -> String {
-        guard value.fractionDigits?.isEmpty == true, let placeholder = text.lastIndex(where: \.isNumber) else {
-            return text
-        }
-        var text = text
-        text.remove(at: placeholder)
-        return text
     }
 }
 
