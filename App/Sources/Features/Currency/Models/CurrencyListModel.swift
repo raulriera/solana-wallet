@@ -61,7 +61,8 @@ final class CurrencyListModel {
 
     /// Lists the currencies whose name or code contains the search, ordered by name.
     private func updateListed() {
-        let named = (currencies ?? []).map { (code: $0, name: locale.localizedString(forCurrencyCode: $0) ?? $0) }
+        let style = CurrencyNameFormatStyle(locale: locale)
+        let named = (currencies ?? []).map { (code: $0, name: style.format($0)) }
         listed = named
             .filter { search.isEmpty || $0.name.localizedStandardContains(search) || $0.code.localizedStandardContains(search) }
             .sorted { $0.name.compare($1.name, locale: locale) == .orderedAscending }
