@@ -645,9 +645,9 @@ struct PrivateBalancesTests {
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 0)
     }
 
-    @Test
-    func `Preparing a send proves a private transfer`() async throws {
-        async let funded = Self.fundedAccount(amount: 1_000_000, of: .nativeSOL)
+    @Test(arguments: [PrivateAsset.nativeSOL, .token(.devnetUSDC)])
+    func `Preparing a send proves a private transfer`(asset: PrivateAsset) async throws {
+        async let funded = Self.fundedAccount(amount: 1_000_000, of: asset)
         async let derivedRecipient = PrivateBalanceFixtures.account(index: 1)
         let (sender, recipient) = try await (funded, derivedRecipient)
         let recipientKeys = try await PrivateBalanceFixtures.keys(for: recipient)
@@ -657,7 +657,7 @@ struct PrivateBalancesTests {
                                                    prover: try IndexedProofs.prover())
         let balances = try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
 
-        let prepared = try await balances.prepare(.send(400_000, of: .nativeSOL, to: recipient.address),
+        let prepared = try await balances.prepare(.send(400_000, of: asset, to: recipient.address),
                                                   from: sender.account, on: .devnet)
 
         let spend = try #require(prepared.effect.spend)
@@ -667,7 +667,7 @@ struct PrivateBalancesTests {
         #expect(spend.receivedAmount == 600_000)
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 1)
         #expect(try await balances.complete(prepared, with: PrivateBalanceFixtures.confirmation(.succeeded))
-            == .balance(available: 0, pending: 600_000, of: .nativeSOL))
+            == .balance(available: 0, pending: 600_000, of: asset))
         #expect(await sender.notes.value?[sender.id]?.notes.isEmpty == true)
     }
 

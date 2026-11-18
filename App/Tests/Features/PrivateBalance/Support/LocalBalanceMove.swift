@@ -77,6 +77,34 @@ struct LocalBalanceMove {
         statuses: [GetSignatureStatuses.Response] = [],
         sockets: SocketSequence = SocketSequence()
     ) async throws -> LocalBalanceMove {
+        try await spend(.toPublic, of: asset, registry: [PrivateBalanceFixtures.unregistered],
+                        privateAmount: privateAmount, privacyFee: privacyFee, accountDeposit: accountDeposit,
+                        statuses: statuses, sockets: sockets)
+    }
+
+    static func send(
+        of asset: PrivateAsset,
+        privacyFee: UInt64 = 0,
+        statuses: [GetSignatureStatuses.Response] = []
+    ) async throws -> LocalBalanceMove {
+        let recipient = try await PrivateBalanceFixtures.account(index: 1)
+        let keys = try await PrivateBalanceFixtures.keys(for: recipient)
+        let registry = try PrivateBalanceFixtures.registry(publishing: keys.shieldedAccount(for: recipient.address))
+        return try await spend(.toRecipient(PaymentRecipient(address: recipient.address, name: "Alex")), of: asset,
+                               registry: [registry, PrivateBalanceFixtures.unregistered], privacyFee: privacyFee,
+                               statuses: statuses)
+    }
+
+    private static func spend(
+        _ direction: BalanceMoveProposal.Direction,
+        of asset: PrivateAsset,
+        registry: [String],
+        privateAmount: UInt64 = LocalBalanceMove.privateAmount,
+        privacyFee: UInt64,
+        accountDeposit: UInt64 = 0,
+        statuses: [GetSignatureStatuses.Response],
+        sockets: SocketSequence = SocketSequence()
+    ) async throws -> LocalBalanceMove {
         let account = try await PrivateBalanceFixtures.account()
         let record = try await PrivateBalanceFixtures.keys(for: account)
         let note = try PrivateBalanceFixtures.deposit(
@@ -90,17 +118,18 @@ struct LocalBalanceMove {
                 keys: StoredValue([account.address.value: record]),
                 notes: StoredValue([PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()]),
                 recovery: try PrivateBalanceFixtures.recoveryStore(),
-                responses: HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered], deposits: [note],
+                responses: HTTPResponses.privateNotes(registry: registry, deposits: [note],
                                                       outputTreeID: 1, prover: try IndexedProofs.prover())
             )
         }
         let fixture = try SigningFixture()
-        let instructions = try await balances().prepare(
-            .withdraw(amount, of: asset, to: account.address),
-            from: account,
-            on: .devnet
-        ).instructions
-        let kept = publicLamports + asset.lamports(moving: amount) - networkFee - privacyFee - accountDeposit
+        let (request, received): (PrivateTransactionRequest, UInt64) =
+            switch direction {
+            case .toRecipient(let recipient): (.send(amount, of: asset, to: recipient.address), 0)
+            case .toPrivate, .toPublic: (.withdraw(amount, of: asset, to: account.address), asset.lamports(moving: amount))
+            }
+        let instructions = try await balances().prepare(request, from: account, on: .devnet).instructions
+        let kept = publicLamports + received - networkFee - privacyFee - accountDeposit
         let deposits: [Address: UInt64] =
             switch asset {
             case .nativeSOL: [:]
@@ -108,7 +137,7 @@ struct LocalBalanceMove {
                 [try TokenProgram.token.associatedAccount(owner: account.address, mint: token.mint): accountDeposit]
             }
         return try LocalBalanceMove(
-            .toPublic,
+            direction,
             of: asset,
             from: account,
             spendable: privateAmount,

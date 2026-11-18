@@ -3,12 +3,14 @@ import Privacy
 import RPC
 import Transactions
 
-/// A proposed move of the account's asset between its public and private balances.
+/// A proposed move of the account's asset between its public and private balances, or to a recipient's private balance.
 struct BalanceMoveProposal: TransactionProposal {
     /// The balance that the asset leaves and the one that it reaches.
     nonisolated enum Direction: Hashable, Sendable {
         case toPrivate
         case toPublic
+        /// From the account's private balance to a recipient's private balance.
+        case toRecipient(PaymentRecipient)
 
         /// Returns the title of a move of a token in this direction.
         ///
@@ -25,6 +27,11 @@ struct BalanceMoveProposal: TransactionProposal {
                 LocalizedStringResource(
                     "Make \(symbol) Public",
                     comment: "Title of moving a token out of the private balance. The variable is the token's symbol, such as SOL or USDC."
+                )
+            case .toRecipient:
+                LocalizedStringResource(
+                    "Send \(symbol) Privately",
+                    comment: "Title of sending a token from the private balance to another person's private balance. The variable is the token's symbol, such as SOL or USDC."
                 )
             }
         }
@@ -64,6 +71,7 @@ struct BalanceMoveProposal: TransactionProposal {
             switch direction {
             case .toPrivate: .deposit(sent.amount, of: privateAsset)
             case .toPublic: .withdraw(sent.amount, of: privateAsset, to: account.address)
+            case .toRecipient(let recipient): .send(sent.amount, of: privateAsset, to: recipient.address)
             }
         return try await balances.prepare(request, from: account, on: network)
     }
@@ -76,7 +84,7 @@ struct BalanceMoveProposal: TransactionProposal {
             guard execution.lacksFunds else { throw PrivateBalanceError.preparationFailed }
             throw switch direction {
             case .toPrivate where privateAsset == .nativeSOL: PrivateBalanceError.insufficientPublicBalance
-            case .toPrivate, .toPublic: PrivateBalanceError.insufficientPublicBalanceForFees
+            case .toPrivate, .toPublic, .toRecipient: PrivateBalanceError.insufficientPublicBalanceForFees
             }
         }
         guard let networkFee = simulation.networkFee else { throw PrivateBalanceError.preparationFailed }
@@ -94,11 +102,12 @@ struct BalanceMoveProposal: TransactionProposal {
         case .spend(let spend):
             let accountDeposit = spend.openedAccounts.compactMap { openingDeposit(of: $0, in: simulation) }
                 .reduce(0, +).nonZero
+            let receivedLamports: UInt64 = if case .toRecipient = direction { 0 } else { movedLamports }
             let privacyFee = try otherFee(
                 of: simulation,
                 for: account,
                 paying: accountDeposit ?? 0,
-                receiving: movedLamports,
+                receiving: receivedLamports,
                 networkFee: networkFee
             )
             review = Review(
@@ -108,7 +117,11 @@ struct BalanceMoveProposal: TransactionProposal {
                 pendingChange: spend.receivedAmount.nonZero,
                 accountDeposit: accountDeposit
             )
-            kind = .privateWithdrawal
+            kind = if case .toRecipient(let recipient) = direction {
+                .payment(recipient: recipient.address, asset: asset.id, amount: sent.amount)
+            } else {
+                .privateWithdrawal
+            }
         case .createCode, .redeem:
             throw PrivateBalanceError.preparationFailed
         }

@@ -171,4 +171,37 @@ struct BalanceMoveProposalTests {
         #expect(withdrawal.model.error == nil)
         await withdrawal.sockets.waitUntilClosed()
     }
+
+    @Test(arguments: Self.assets)
+    func `Reviewing a send shows the privacy fee without the sent amount`(asset: PrivateAsset) async throws {
+        let send = try await LocalBalanceMove.send(of: asset, privacyFee: 3_000)
+        let model = send.model
+
+        model.prepareReview()
+        await model.run(model.attempt)
+
+        #expect(send.move.payment.source == .privateBalance)
+        #expect(model.review == BalanceMoveProposal.Review(
+            networkFee: LocalBalanceMove.networkFee, registrationFee: nil, privacyFee: 3_000,
+            pendingChange: LocalBalanceMove.privateAmount - LocalBalanceMove.amount, accountDeposit: nil
+        ))
+        #expect(model.error == nil)
+    }
+
+    @Test
+    func `Approving a send records a payment to the recipient`() async throws {
+        async let recipient = PrivateBalanceFixtures.account(index: 1)
+        let send = try await LocalBalanceMove.send(of: .nativeSOL, statuses: [.status(.finalized)])
+        try await send.model.runReview()
+
+        let record = try await send.model.runApproval()
+
+        #expect(try await record.kind == .payment(recipient: recipient.address, asset: Asset.nativeSOL.id,
+                                        amount: LocalBalanceMove.amount))
+        #expect(try await send.transactions.watch(record.id, for: record.key) == .succeeded)
+        #expect(send.model.outcome == .succeeded)
+        #expect(try await send.balances.refresh(send.account, on: .devnet)
+            == .balance(available: 0, pending: LocalBalanceMove.privateAmount - LocalBalanceMove.amount, of: .nativeSOL))
+        await send.sockets.waitUntilClosed()
+    }
 }

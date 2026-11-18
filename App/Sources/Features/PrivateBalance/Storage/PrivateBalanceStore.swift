@@ -68,7 +68,7 @@ final class PrivateBalanceStore: Erasable, AccountObserving {
         try await shared(account, on: network).turnOn()
     }
 
-    /// Creates a move of a holding's asset between an account's balances, while private balances are on.
+    /// Creates a move of a holding's asset between an account's balances, or to a recipient's private balance, while private balances are on.
     ///
     /// - Parameters:
     ///   - direction: Which balance the asset leaves, and which one it reaches.
@@ -91,7 +91,7 @@ final class PrivateBalanceStore: Erasable, AccountObserving {
             let amount =
                 switch direction {
                 case .toPrivate: publicBalance.amount
-                case .toPublic: balance.available(of: asset)
+                case .toPublic, .toRecipient: balance.available(of: asset)
                 }
             guard let amount,
                 let token = PaymentToken(

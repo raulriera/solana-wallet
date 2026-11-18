@@ -19,14 +19,18 @@ struct BalanceMoveReviewScreen: TransactionReviewContent {
                 LabeledContent("From") {
                     switch move.direction {
                     case .toPrivate: Text("Public Balance")
-                    case .toPublic: Text("Private Balance")
+                    case .toPublic, .toRecipient: Text("Private Balance")
                     }
                 }
                 LabeledContent("To") {
                     switch move.direction {
                     case .toPrivate: Text("Private Balance")
                     case .toPublic: Text("Public Balance")
+                    case .toRecipient(let recipient): Text(verbatim: recipient.title)
                     }
+                }
+                if case .toRecipient(let recipient) = move.direction {
+                    FullAddress(text: recipient.address.value)
                 }
                 CostRow(title: "Network Fee", lamports: costs?.networkFee)
                 if let registrationFee = costs?.registrationFee {
