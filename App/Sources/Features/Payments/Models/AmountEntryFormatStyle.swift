@@ -1,7 +1,7 @@
 import Foundation
 
 /// A format style that shows a typed amount in its unit as typed, as in $12, $12., or $12.50.
-nonisolated struct AmountEntryFormatStyle: FormatStyle {
+nonisolated struct AmountEntryFormatStyle: LocalizedFormatStyle {
     /// The unit of an amount.
     nonisolated enum Unit: Codable, Hashable {
         case currency(code: String)
@@ -37,12 +37,6 @@ nonisolated struct AmountEntryFormatStyle: FormatStyle {
         var text = text
         text.remove(at: placeholder)
         return text
-    }
-
-    func locale(_ locale: Locale) -> Self {
-        var copy = self
-        copy.locale = locale
-        return copy
     }
 }
 

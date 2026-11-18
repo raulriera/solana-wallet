@@ -2,7 +2,7 @@ import Foundation
 import Transactions
 
 /// Formats token quantities exactly or shortened from 10,000 up, with or without a symbol.
-nonisolated struct TokenAmountFormatStyle: FormatStyle {
+nonisolated struct TokenAmountFormatStyle: LocalizedFormatStyle {
     var locale: Locale = .autoupdatingCurrent
     /// Whether quantities from 10,000 up are shortened.
     var abbreviates = false
@@ -37,12 +37,6 @@ nonisolated struct TokenAmountFormatStyle: FormatStyle {
 
         return style.decimalSeparator(strategy: .always).format(whole)
             + style.grouping(.never).precision(.integerLength(fractionLength...)).format(fraction)
-    }
-
-    func locale(_ locale: Locale) -> Self {
-        var copy = self
-        copy.locale = locale
-        return copy
     }
 }
 
