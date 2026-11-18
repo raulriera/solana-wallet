@@ -3,7 +3,6 @@ import SwiftUI
 /// Lists the rate source's currencies to choose from.
 struct CurrencyListScreen: View {
     @Environment(\.palette) private var palette
-    @Environment(\.locale) private var locale
     /// The currency choice, or `nil` until it's read.
     let settings: CurrencySettings?
     let choice: CurrencySettingsModel
@@ -29,8 +28,7 @@ struct CurrencyListScreen: View {
                                 choice.select(currencyCode: nil)
                             } label: {
                                 Text("Automatic", comment: "The currency choice that follows the device's region.")
-                                Text(locale.localizedString(forCurrencyCode: list.automaticCurrency)
-                                     ?? list.automaticCurrency)
+                                Text(list.automaticCurrency, format: .currencyName)
                             }
                             .checked(isRead && chosen == nil)
                         }
@@ -41,7 +39,7 @@ struct CurrencyListScreen: View {
                             Button {
                                 choice.select(currencyCode: code)
                             } label: {
-                                Text(locale.localizedString(forCurrencyCode: code) ?? code)
+                                Text(code, format: .currencyName)
                                 Text(code)
                             }
                             .checked(chosen == code)

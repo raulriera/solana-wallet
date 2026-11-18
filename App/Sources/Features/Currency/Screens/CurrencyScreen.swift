@@ -3,7 +3,6 @@ import SwiftUI
 /// Chooses the source of exchange rates and the currency that values show in.
 struct CurrencyScreen: View {
     @Environment(\.palette) private var palette
-    @Environment(\.locale) private var locale
     /// The currency choice, or `nil` until it's read.
     let settings: CurrencySettings?
     let choice: CurrencySettingsModel
@@ -40,7 +39,9 @@ struct CurrencyScreen: View {
                 Section {
                     NavigationLink(value: CurrencyRoute.currencies) {
                         LabeledContent {
-                            Text(settings?.currencyCode.map { locale.localizedString(forCurrencyCode: $0) ?? $0 } ?? automaticName)
+                            settings?.currencyCode.map { Text($0, format: .currencyName) }
+                                ?? Text("Automatic (\(list.automaticCurrency, format: .currencyName))",
+                                        comment: "The currency choice that follows the device's region. The variable is the currency's name, such as Euro.")
                         } label: {
                             Text("Currency", comment: "The row in Settings > Currency that opens the list of currencies.")
                         }
@@ -52,12 +53,6 @@ struct CurrencyScreen: View {
         .animation(.default, value: source != nil)
         .navigationTitle("Currency")
         .toolbarTitleDisplayMode(.inline)
-    }
-
-    private var automaticName: String {
-        let code = list.automaticCurrency
-        return String(localized: "Automatic (\(locale.localizedString(forCurrencyCode: code) ?? code))",
-                      comment: "The currency choice that follows the device's region. The variable is the currency's name, such as Euro.")
     }
 }
 

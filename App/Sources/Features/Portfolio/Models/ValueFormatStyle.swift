@@ -1,7 +1,7 @@
 import Foundation
 
 /// Formats a token's value or price in its quote currency.
-nonisolated struct ValueFormatStyle: FormatStyle {
+nonisolated struct ValueFormatStyle: LocalizedFormatStyle {
     /// The quote currency's ISO code, such as `USD`.
     let code: String
     /// Whether values from 10,000 up are shortened.
@@ -17,12 +17,6 @@ nonisolated struct ValueFormatStyle: FormatStyle {
         }
         guard isPrice, value != 0, value.magnitude < 1 else { return value.formatted(full) }
         return value.formatted(full.precision(value.magnitude < 0.01 ? .significantDigits(1...4) : .fractionLength(2...4)))
-    }
-
-    func locale(_ locale: Locale) -> Self {
-        var copy = self
-        copy.locale = locale
-        return copy
     }
 }
 
