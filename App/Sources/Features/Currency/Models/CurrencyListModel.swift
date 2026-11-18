@@ -7,8 +7,13 @@ import Observation
 final class CurrencyListModel {
     /// The ISO codes of the rate source's currencies, or `nil` until they load.
     private(set) var currencies: [String]? {
-        didSet { updateListed() }
+        didSet {
+            updateListed()
+            automaticCurrency = Self.automaticCurrency(in: locale, from: currencies)
+        }
     }
+    /// The ISO code of the currency that an automatic choice uses.
+    private(set) var automaticCurrency: String
     var search = "" {
         didSet { updateListed() }
     }
@@ -26,10 +31,16 @@ final class CurrencyListModel {
     /// - Parameter locale: The locale that names and orders the currencies and sets the automatic currency.
     init(locale: Locale = .autoupdatingCurrent) {
         self.locale = locale
+        automaticCurrency = Self.automaticCurrency(in: locale, from: nil)
     }
 
-    /// The ISO code of the currency that an automatic choice uses.
-    var automaticCurrency: String {
+    /// Returns the ISO code of the currency that an automatic choice uses.
+    ///
+    /// - Parameters:
+    ///   - locale: The locale whose region sets the currency.
+    ///   - currencies: The ISO codes that the rate source serves, or `nil` until they load.
+    /// - Returns: The region's currency, or `USD` when the region has none or the source doesn't serve it.
+    private static func automaticCurrency(in locale: Locale, from currencies: [String]?) -> String {
         guard let region = locale.currency?.identifier, currencies?.contains(region) ?? true else { return "USD" }
         return region
     }
