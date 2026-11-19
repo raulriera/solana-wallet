@@ -14,7 +14,7 @@ struct ContactsSplitView: View {
     /// The number of Try Again taps.
     @State private var loadAttempt = 0
     @State private var selection: Address?
-    @State private var columnVisibility = NavigationSplitViewVisibility.automatic
+    @State private var columnVisibility = NavigationSplitViewVisibility.all
     @State private var preferredColumn = NavigationSplitViewColumn.sidebar
     @State private var payment = KeypadPayment.loading
     /// The review of the last sent payment.
