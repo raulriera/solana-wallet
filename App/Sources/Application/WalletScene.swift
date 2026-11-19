@@ -45,7 +45,7 @@ struct WalletScene: View {
         }
         .tabViewStyle(.tabBarOnly)
         .portfolioObservation(of: account, on: network)
-        .privateBalanceObservation(of: account, on: network)
+        .observation(of: account, on: network, in: PrivateBalanceStore.self)
         .onDisappear { settings.cancel() }
     }
 }

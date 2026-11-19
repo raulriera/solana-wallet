@@ -205,6 +205,50 @@ struct WalletPrivateBalanceTests {
     }
 
     @Test
+    func `An observed balance is read again after each interval`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let record = try await PrivateBalanceFixtures.keys(for: account)
+        let registry = try PrivateBalanceFixtures.registry(publishing: record.shieldedAccount(for: account.address))
+        let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered, registry])
+        let clock = ManualClock()
+        var waits = clock.waits.makeAsyncIterator()
+        let store = try PrivateBalanceStore.fixture(responses, keys: StoredValue([account.address.value: record]),
+                                                    clock: clock)
+        let viewing = Task { await store.observe(account, on: .devnet) }
+        defer { viewing.cancel() }
+
+        #expect(try await clock.advanceToNextWait(&waits) == .seconds(30))
+
+        try await PrivateBalanceFixtures.status(of: account, in: store, becomes: .balance(available: 0, pending: 0, of: .nativeSOL))
+    }
+
+    @Test
+    func `Pending SOL after a settled private move is read again quickly`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let sent = try PendingMove(from: account.id)
+        let clock = ManualClock()
+        var waits = clock.waits.makeAsyncIterator()
+        let (store, notes) = try await PrivateBalanceFixtures.pendingDeposit(of: account,
+                                                                             transactions: sent.transactions,
+                                                                             clock: clock)
+        let viewing = Task { await store.observe(account, on: .devnet) }
+        defer { viewing.cancel() }
+        try await PrivateBalanceFixtures.status(of: account, in: store,
+                                                becomes: .balance(available: 0, pending: 1_000_000, of: .nativeSOL))
+        let balance = try #require(store.balance(for: account, on: .devnet))
+        #expect(!balance.isFollowingUp)
+        #expect(try await clock.durationToNextWait(&waits) == .seconds(30))
+
+        #expect(try await sent.settle() == .succeeded)
+
+        for await isFollowingUp in Observations({ balance.isFollowingUp }) where isFollowingUp { break }
+        try await notes.save([PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()])
+        #expect(try await clock.advanceToNextWait(&waits) == .seconds(3))
+        for await status in Observations({ balance.status }) where status == .balance(available: 0, pending: 0, of: .nativeSOL) { break }
+        #expect(!balance.isFollowingUp)
+    }
+
+    @Test
     func `Polls read nothing while private balances are off`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered])

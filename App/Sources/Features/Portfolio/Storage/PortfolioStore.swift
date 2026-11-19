@@ -6,7 +6,7 @@ import Transactions
 /// Keeps each wallet's portfolio on each network.
 @MainActor
 @Observable
-final class PortfolioStore: Erasable {
+final class PortfolioStore: Erasable, AccountObserving {
     /// A network's portfolio and token-list service.
     typealias Service = any PortfolioProviding & TokenListProviding
 
@@ -53,11 +53,6 @@ final class PortfolioStore: Erasable {
         portfolios[Key(account, on: network)]
     }
 
-    /// Observes an account's wallet on a network for the lifetime of the calling task.
-    ///
-    /// - Parameters:
-    ///   - account: The account whose wallet to observe.
-    ///   - network: The network to observe the wallet on.
     func observe(_ account: Account, on network: Network) async {
         guard !Task.isCancelled else { return }
         await portfolio(for: Key(account, on: network)).observe()
