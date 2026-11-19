@@ -11,6 +11,7 @@ struct PendingLabel: View {
             Spacer()
             if isPending {
                 ProgressView()
+                    .tint(nil)
             }
         }
     }
