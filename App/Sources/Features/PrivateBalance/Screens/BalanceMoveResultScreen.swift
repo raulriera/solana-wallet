@@ -64,7 +64,7 @@ struct BalanceMoveResultScreen: TransactionResultContent {
                 comment: "Title after a private token moved to the public balance. The variable is the token's symbol, such as SOL or USDC."
             )
             return (title, message, "checkmark.circle.fill")
-        case (.toRecipient(let recipient), .succeeded):
+        case (.toRecipient(let recipient, _), .succeeded):
             let message: LocalizedStringResource = if review.review?.pendingChange != nil {
                 LocalizedStringResource("\(sent, format: .amount(of: asset)) is in \(recipient.title)'s private balance. The rest of your private balance becomes available within a minute.",
                                         comment: "Message after a private token was sent to another person's private balance, when the rest of the private balance is pending. The variables are the amount with its symbol, such as 0.5 SOL, and the recipient's name or short address.")

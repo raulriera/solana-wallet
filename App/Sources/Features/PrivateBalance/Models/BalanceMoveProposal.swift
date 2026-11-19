@@ -9,8 +9,19 @@ struct BalanceMoveProposal: TransactionProposal {
     nonisolated enum Direction: Hashable, Sendable {
         case toPrivate
         case toPublic
-        /// From the account's private balance to a recipient's private balance.
-        case toRecipient(PaymentRecipient)
+        /// From the account's private balance to a recipient's private balance, with the warnings about the
+        /// recipient, most serious first.
+        case toRecipient(PaymentRecipient, warnings: [RecipientWarning])
+
+        /// Returns the direction of a send to a recipient, with the review's warnings about them.
+        ///
+        /// - Parameters:
+        ///   - recipient: The recipient of the send.
+        ///   - context: The person's own history that the warnings check the recipient against.
+        /// - Returns: The direction to the recipient's private balance.
+        static func send(to recipient: PaymentRecipient, in context: RecipientContext) -> Self {
+            .toRecipient(recipient, warnings: RecipientClassifier.review.warnings(for: recipient.address, in: context))
+        }
 
         /// Returns the title of a move of a token in this direction.
         ///
@@ -71,7 +82,7 @@ struct BalanceMoveProposal: TransactionProposal {
             switch direction {
             case .toPrivate: .deposit(sent.amount, of: privateAsset)
             case .toPublic: .withdraw(sent.amount, of: privateAsset, to: account.address)
-            case .toRecipient(let recipient): .send(sent.amount, of: privateAsset, to: recipient.address)
+            case .toRecipient(let recipient, _): .send(sent.amount, of: privateAsset, to: recipient.address)
             }
         return try await balances.prepare(request, from: account, on: network)
     }

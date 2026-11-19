@@ -15,6 +15,10 @@ struct BalanceMoveReviewScreen: TransactionReviewContent {
             }
             .listRowBackground(Color.clear)
 
+            if case .toRecipient(let recipient, let warnings) = move.direction {
+                RecipientReviewSection(recipient: recipient, warnings: warnings)
+            }
+
             Section {
                 LabeledContent("From") {
                     switch move.direction {
@@ -22,15 +26,10 @@ struct BalanceMoveReviewScreen: TransactionReviewContent {
                     case .toPublic, .toRecipient: Text("Private Balance")
                     }
                 }
-                LabeledContent("To") {
-                    switch move.direction {
-                    case .toPrivate: Text("Private Balance")
-                    case .toPublic: Text("Public Balance")
-                    case .toRecipient(let recipient): Text(verbatim: recipient.title)
-                    }
-                }
-                if case .toRecipient(let recipient) = move.direction {
-                    FullAddress(text: recipient.address.value)
+                switch move.direction {
+                case .toPrivate: LabeledContent("To") { Text("Private Balance") }
+                case .toPublic: LabeledContent("To") { Text("Public Balance") }
+                case .toRecipient: EmptyView()
                 }
                 CostRow(title: "Network Fee", lamports: costs?.networkFee)
                 if let registrationFee = costs?.registrationFee {

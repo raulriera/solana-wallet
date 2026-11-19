@@ -202,4 +202,15 @@ struct BalanceMoveProposalTests {
             == .balance(available: 0, pending: LocalBalanceMove.privateAmount - LocalBalanceMove.amount, of: .nativeSOL))
         await send.sockets.waitUntilClosed()
     }
+
+    @Test(arguments: [false, true])
+    func `A send checks the recipient against the person's history`(paid: Bool) throws {
+        let recipient = PaymentRecipient(address: try SigningFixture().transfer.accounts[1].address, name: nil)
+        let paidAddresses: Set<Address> = paid ? [recipient.address] : []
+        let context = RecipientContext(knownAddresses: Array(paidAddresses), paidAddresses: paidAddresses)
+
+        let direction = BalanceMoveProposal.Direction.send(to: recipient, in: context)
+
+        #expect(direction == .toRecipient(recipient, warnings: paid ? [] : [.firstPayment]))
+    }
 }

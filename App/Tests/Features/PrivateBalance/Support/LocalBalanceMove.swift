@@ -90,7 +90,8 @@ struct LocalBalanceMove {
         let recipient = try await PrivateBalanceFixtures.account(index: 1)
         let keys = try await PrivateBalanceFixtures.keys(for: recipient)
         let registry = try PrivateBalanceFixtures.registry(publishing: keys.shieldedAccount(for: recipient.address))
-        return try await spend(.toRecipient(PaymentRecipient(address: recipient.address, name: "Alex")), of: asset,
+        return try await spend(.toRecipient(PaymentRecipient(address: recipient.address, name: "Alex"), warnings: []),
+                               of: asset,
                                registry: [registry, PrivateBalanceFixtures.unregistered], privacyFee: privacyFee,
                                statuses: statuses)
     }
@@ -125,7 +126,7 @@ struct LocalBalanceMove {
         let fixture = try SigningFixture()
         let (request, received): (PrivateTransactionRequest, UInt64) =
             switch direction {
-            case .toRecipient(let recipient): (.send(amount, of: asset, to: recipient.address), 0)
+            case .toRecipient(let recipient, _): (.send(amount, of: asset, to: recipient.address), 0)
             case .toPrivate, .toPublic: (.withdraw(amount, of: asset, to: account.address), asset.lamports(moving: amount))
             }
         let instructions = try await balances().prepare(request, from: account, on: .devnet).instructions

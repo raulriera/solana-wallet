@@ -43,8 +43,8 @@ struct PrivateSendSheet: View {
             }
             .onChange(of: selection) { _, address in
                 move = address.flatMap {
-                    privateBalances.move(.toRecipient(lists.recipient(for: $0)), of: holding, for: account,
-                                         on: network)
+                    privateBalances.move(.send(to: lists.recipient(for: $0), in: lists.recipientContext), of: holding,
+                                         for: account, on: network)
                 }
             }
             .onChange(of: move?.id) { _, id in
