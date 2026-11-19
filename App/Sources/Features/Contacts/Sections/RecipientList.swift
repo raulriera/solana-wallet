@@ -74,5 +74,6 @@ struct RecipientList: View {
             }
         }
         .listStyle(.sidebar)
+        .animation(.default, value: lists.isLoaded)
     }
 }
