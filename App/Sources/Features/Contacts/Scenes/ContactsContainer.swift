@@ -41,7 +41,7 @@ struct ContactsContainer<Content: View>: View {
                     Button("Try Again") { loadAttempt += 1 }
                         .buttonStyle(.primary)
                 }
-            } else if !lists.isLoaded {
+            } else if isEmpty, !lists.isLoaded {
                 Color.clear
             } else if isEmpty {
                 UnavailableScreen(title: "No Contacts",
