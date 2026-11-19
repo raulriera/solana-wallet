@@ -50,7 +50,7 @@ struct BalanceMoveResultScreen: TransactionResultContent {
             return (title,
                     LocalizedStringResource("\(sent, format: .amount(of: asset)) is pending. It becomes available when the network reports it, usually within a minute.",
                                             comment: "Message after a deposit into the private balance succeeded. The variable is the amount with its symbol, such as 0.5 SOL."),
-                    "eye.slash.circle.fill")
+                    "checkmark.shield.fill")
         case (.toPublic, .succeeded):
             let message: LocalizedStringResource = if review.review?.pendingChange != nil {
                 LocalizedStringResource("\(sent, format: .amount(of: asset)) is in your public balance. The rest of your private balance becomes available within a minute.",
@@ -63,7 +63,7 @@ struct BalanceMoveResultScreen: TransactionResultContent {
                 "\(asset.displaySymbol) Is Public",
                 comment: "Title after a private token moved to the public balance. The variable is the token's symbol, such as SOL or USDC."
             )
-            return (title, message, "eye.circle.fill")
+            return (title, message, "checkmark.circle.fill")
         case (.toPrivate, .failed):
             return ("Transaction Failed",
                     "The network rejected this transaction. Its network fee was paid. Nothing was added to your private balance.",
