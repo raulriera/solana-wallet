@@ -44,11 +44,6 @@ final class PrivateBalanceStore: Erasable, AccountObserving {
         balances[Key(account, on: network)]
     }
 
-    /// Reads and polls an account's private balance on a network for the lifetime of the calling task.
-    ///
-    /// - Parameters:
-    ///   - account: The account whose balance to observe.
-    ///   - network: The network to observe the balance on.
     func observe(_ account: Account, on network: Network) async {
         guard !Task.isCancelled else { return }
         await shared(account, on: network).observe()
