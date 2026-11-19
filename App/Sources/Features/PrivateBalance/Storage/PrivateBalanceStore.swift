@@ -8,7 +8,7 @@ import Transactions
 /// Keeps each account's private balance on each network.
 @MainActor
 @Observable
-final class PrivateBalanceStore: Erasable {
+final class PrivateBalanceStore: Erasable, AccountObserving {
     private var balances: [Key: WalletPrivateBalance] = [:]
     private let privateBalances: any PrivateBalancing
     private let transactions: TransactionStore

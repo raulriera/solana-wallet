@@ -3,33 +3,19 @@ import SwiftUI
 
 /// Observes a wallet's portfolio while the scene is in the foreground and refreshes it after each transaction settles.
 private struct PortfolioObservation: ViewModifier {
-    @Environment(\.scenePhase) private var scenePhase
     @Environment(PortfolioStore.self) private var portfolios
     @Environment(TransactionStore.self) private var transactions
-    @Environment(RPCStore.self) private var rpcStore
     let account: Account
     let network: Network
 
     func body(content: Content) -> some View {
-        let session = Session(accountID: account.id, network: network,
-                              isActive: scenePhase != .background && rpcStore.isRead)
         let settledCount = transactions.settledCount(for: TransactionRecord.Key(account: account.id, network: network))
         content
-            .task(id: session) {
-                guard session.isActive else { return }
-                await portfolios.observe(account, on: network)
-            }
+            .observation(of: account, on: network, in: PortfolioStore.self)
             .task(id: settledCount) {
                 guard settledCount > 0 else { return }
                 await portfolios.refresh(account, on: network)
             }
-    }
-
-    /// The identity of a running observation.
-    private struct Session: Equatable {
-        let accountID: UUID
-        let network: Network
-        let isActive: Bool
     }
 }
 

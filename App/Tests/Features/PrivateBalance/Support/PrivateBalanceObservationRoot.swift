@@ -10,7 +10,7 @@ struct PrivateBalanceObservationRoot: View {
 
     var body: some View {
         Color.clear
-            .privateBalanceObservation(of: account, on: .devnet)
+            .observation(of: account, on: .devnet, in: PrivateBalanceStore.self)
             .environment(store)
             .environment(rpcStore)
             .task { await rpcStore.load() }
