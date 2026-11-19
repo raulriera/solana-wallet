@@ -11,11 +11,17 @@ struct PrivateBalanceActions: View {
 
     var body: some View {
         Group {
-            Button(BalanceMoveProposal.Direction.toPrivate.title(of: asset.displaySymbol), systemImage: "eye.slash") {
+            Button(
+                BalanceMoveProposal.Direction.toPrivate.title(of: asset.displaySymbol),
+                image: .customShieldBadgePlus
+            ) {
                 moveBalance?(.toPrivate)
             }
             if available.amount > 0 {
-                Button(BalanceMoveProposal.Direction.toPublic.title(of: asset.displaySymbol), systemImage: "eye") {
+                Button(
+                    BalanceMoveProposal.Direction.toPublic.title(of: asset.displaySymbol),
+                    image: .customShieldBadgeMinus
+                ) {
                     moveBalance?(.toPublic)
                 }
             }

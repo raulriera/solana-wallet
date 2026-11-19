@@ -3,8 +3,8 @@ import Transactions
 
 /// A token's value, or its balance when the value is unknown, with the 24-hour change under the value.
 ///
-/// The fonts follow the portfolio's layout, and the private balance sign and the 24-hour change use the secondary
-/// foreground style.
+/// The fonts follow the portfolio's layout. The private balance sign has regular weight, and it and the 24-hour change
+/// use the secondary foreground style.
 struct TokenFigures: View {
     @Environment(\.cardStyle.layout) private var layout
     let balance: TokenAmount?
@@ -25,6 +25,7 @@ struct TokenFigures: View {
             HStack(spacing: 6) {
                 if isHeldPrivately {
                     PrivateBalanceSign()
+                        .fontWeight(.regular)
                         .foregroundStyle(.secondary)
                 }
                 if let value {
