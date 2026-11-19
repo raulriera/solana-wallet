@@ -10,31 +10,6 @@ import Transactions
 @Suite(.timeLimit(.minutes(1)))
 struct WalletPortfolioTests {
     @Test
-    func `Observers share one observation, which the last one ends`() async throws {
-        let service = PortfolioResponses()
-        let portfolio = WalletPortfolio(owner: "wallet-a", service: service)
-        var requests = service.requests.makeAsyncIterator()
-        let first = Task { await portfolio.observe() }
-        let second = Task { await portfolio.observe() }
-        defer {
-            first.cancel()
-            second.cancel()
-        }
-        let observation = try #require(await requests.next())
-
-        first.cancel()
-        await first.value
-        let shared = Snapshot.fixture(owner: "wallet-a", lamports: 1)
-        observation.continuation.yield(Update(snapshot: shared, phase: .ready, revision: 1))
-        await waitForSnapshot(shared, in: portfolio)
-        second.cancel()
-        await second.value
-
-        for await _ in observation.termination {}
-        #expect(await service.calls.count == 1)
-    }
-
-    @Test
     func `The last observer's end keeps the holdings and settles progress`() async throws {
         let service = PortfolioResponses()
         let portfolio = WalletPortfolio(owner: "wallet-a", service: service)

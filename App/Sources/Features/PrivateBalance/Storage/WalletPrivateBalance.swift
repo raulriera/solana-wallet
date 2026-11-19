@@ -34,8 +34,7 @@ final class WalletPrivateBalance {
     @ObservationIgnored private var lastReadStarted: Date?
     /// The running read, or `nil` when none runs.
     @ObservationIgnored private var reading: Task<Void, Never>?
-    /// The number of running ``observe()`` calls.
-    @ObservationIgnored private var observers = 0
+    private let observers = Observers()
     /// The task that restarts the poll loop after each settled private move.
     @ObservationIgnored private var watching: Task<Void, Never>?
     /// The read and poll loop.
@@ -89,18 +88,12 @@ final class WalletPrivateBalance {
 
     /// Reads and polls the balance until the calling task is cancelled.
     func observe() async {
-        guard !Task.isCancelled else { return }
-        observers += 1
-        if observers == 1 { start() }
-        let lifetime = AsyncStream<Never> { _ in }
-        for await _ in lifetime {}
-        observers -= 1
-        if observers == 0 { stop() }
+        await observers.observe(starting: start, ending: stop)
     }
 
     /// Restarts reading and polling the balance while it has observers.
     func observeAgain() {
-        guard observers > 0 else { return }
+        guard !observers.isEmpty else { return }
         startPolling()
     }
 

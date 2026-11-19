@@ -25,8 +25,7 @@ final class WalletPortfolio {
     /// The wallet's public address.
     private let owner: String
     private let service: PortfolioStore.Service
-    /// The number of running ``observe()`` calls.
-    @ObservationIgnored private var observers = 0
+    private let observers = Observers()
     @ObservationIgnored private var observation: Task<Void, Never>?
 
     /// Creates a portfolio with no data yet.
@@ -41,24 +40,18 @@ final class WalletPortfolio {
 
     /// Observes the wallet until the calling task is cancelled.
     func observe() async {
-        guard !Task.isCancelled else { return }
-        observers += 1
-        if observers == 1 { start() }
-        let lifetime = AsyncStream<Never> { _ in }
-        for await _ in lifetime {}
-        observers -= 1
-        if observers == 0 { stop() }
+        await observers.observe(starting: start, ending: stop)
     }
 
     /// Reads the observed wallet again.
     func refresh() async {
-        guard observers > 0 else { return }
+        guard !observers.isEmpty else { return }
         await service.reload(for: owner)
     }
 
     /// Restarts the wallet's observation while it has observers.
     func observeAgain() {
-        guard observers > 0 else { return }
+        guard !observers.isEmpty else { return }
         observation?.cancel()
         start()
     }
