@@ -31,8 +31,7 @@ struct ContactsSplitView: View {
                 .sidebarColumn()
                 .toolbar {
                     ToolbarItem(placement: .primaryAction) {
-                        Button("New Payment", systemImage: "plus") { entry = RecipientEntryModel() }
-                            .tint(.primary)
+                        NewPaymentButton(entry: $entry)
                     }
                 }
             } detail: {

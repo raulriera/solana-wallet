@@ -15,6 +15,8 @@ final class PrivateBalanceModel {
     private(set) var isTurnedOn = false
     /// The open balance move, or `nil` when none is open.
     var move: BalanceMove?
+    /// Whether the choice of who to send the private balance to shows.
+    var isSending = false
 
     var isTurningOn: Bool { attempt != nil }
 
@@ -35,6 +37,12 @@ final class PrivateBalanceModel {
     ) {
         guard move == nil else { return }
         move = privateBalances.move(direction, of: holding, for: account, on: network)
+    }
+
+    /// Opens the choice of who to send the private balance to, unless a move is open.
+    func openSend() {
+        guard move == nil else { return }
+        isSending = true
     }
 
     /// Asks to turn private balances on, unless an attempt is already waiting or running.
