@@ -9,7 +9,7 @@ import Transactions
 @Observable
 final class TransactionStore: Erasable {
     /// The most records kept for each account on each network.
-    nonisolated static let recordLimit = 200
+    nonisolated static let recordLimit = 100
 
     private let storage: (TransactionRecord.Key) -> any ValueStoring<[TransactionRecord]>
     private let makeCoordinator: (Network) throws -> any TransactionCoordinating

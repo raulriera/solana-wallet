@@ -65,9 +65,9 @@ struct TransactionStoreTests {
     }
 
     @Test
-    func `Only the latest 200 records are kept`() async throws {
+    func `Only the latest 100 records are kept`() async throws {
         let fixture = try SigningFixture()
-        let saved = try (0..<200).map {
+        let saved = try (0..<100).map {
             try TransactionRecord.fixture(LocalSending.payment(), signature: "saved-\($0)", account: fixture.account.id)
         }
         let sending = try LocalSending(fixture: fixture, records: StoredValue(saved))
@@ -75,9 +75,9 @@ struct TransactionStoreTests {
         let record = try await sending.send()
 
         let kept = try #require(await sending.records.value)
-        #expect(kept.count == 200)
+        #expect(kept.count == 100)
         #expect(kept.first?.id == record.id)
-        #expect(kept.last?.id == "saved-198")
+        #expect(kept.last?.id == "saved-98")
         #expect(sending.store.records(for: sending.key).map(\.id) == kept.map(\.id))
         _ = try await sending.settle(record)
     }
