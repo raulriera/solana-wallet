@@ -35,8 +35,10 @@ nonisolated enum PrivateBalanceError: TransactionReviewError, CaseIterable {
         switch self {
         case .unsupportedAccount, .registeredWithOtherKeys, .turnedOff, .unavailable:
             String(localized: "Private Balance Unavailable")
-        case .recipientUnregistered, .insufficientBalance, .tooManyNotes:
+        case .recipientUnregistered, .insufficientBalance:
             String(localized: "Can't Complete Transaction")
+        case .tooManyNotes:
+            String(localized: "Amount Too Large for One Transaction")
         case .insufficientPublicBalance, .insufficientPublicBalanceForFees:
             String(localized: "Not Enough SOL")
         case .preparationFailed:
@@ -65,7 +67,7 @@ nonisolated enum PrivateBalanceError: TransactionReviewError, CaseIterable {
         case .insufficientBalance:
             String(localized: "Your private balance doesn't cover this amount. Recently received funds can take a moment to become available.")
         case .tooManyNotes:
-            String(localized: "This amount combines too many private payments for one transaction. Try a smaller amount.")
+            String(localized: "Your private balance is made of many small payments, and one transaction can use up to 40 of them. Use a smaller amount, then use the rest in another transaction.")
         case .insufficientPublicBalance:
             String(localized: "Your public balance doesn't cover this amount and the fees. Try a smaller amount.")
         case .insufficientPublicBalanceForFees:
