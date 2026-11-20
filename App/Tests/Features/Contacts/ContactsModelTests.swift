@@ -115,13 +115,13 @@ struct ContactsModelTests {
         let tab = await ContactsFixtures.tab(recents: recents, network: .devnet)
         #expect(tab.lists.recents.isEmpty)
 
-        try await recents.add(RecentPayment(address: ContactsFixtures.stranger, date: .now), on: .devnet)
+        try await recents.add(.fixture(to: ContactsFixtures.stranger), on: .devnet)
 
         #expect(tab.lists.recents.map(\.address) == [ContactsFixtures.stranger])
     }
 
     @Test func `A payment to the account that pays stays out of Recents`() async {
-        let payment = RecentPayment(address: ContactsFixtures.sending, date: .now)
+        let payment = RecentPayment.fixture(to: ContactsFixtures.sending)
         let tab = await ContactsFixtures.tab(recents: ContactsFixtures.recents(StoredValue([.mainnet: [payment]])))
 
         #expect(tab.lists.recents.isEmpty)
@@ -130,7 +130,7 @@ struct ContactsModelTests {
     @Test func `Recents list the payments on the tab's network`() async {
         let recents = ContactsFixtures.recents(StoredValue([
             .mainnet: ContactsFixtures.payments,
-            .devnet: [RecentPayment(address: ContactsFixtures.stranger, date: Date(timeIntervalSinceReferenceDate: 4_000))],
+            .devnet: [.fixture(to: ContactsFixtures.stranger, at: 4_000)],
         ]))
 
         async let mainnetTab = ContactsFixtures.tab(recents: recents)

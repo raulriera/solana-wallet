@@ -10,10 +10,10 @@ import Transactions
 struct RecentPaymentStoreTests {
     @Test
     func `A payment is listed first in place of the earlier payment to its address`() async throws {
-        let store = RecentPaymentStore(storage: StoredValue())
-        let alice = Self.payment(to: ContactsFixtures.alice, at: 1_000)
-        let bruno = Self.payment(to: ContactsFixtures.bruno, at: 2_000)
-        let aliceAgain = Self.payment(to: ContactsFixtures.alice, at: 3_000)
+        let store = RecentPaymentStore.inMemory()
+        let alice = RecentPayment.fixture(to: ContactsFixtures.alice, at: 1_000)
+        let bruno = RecentPayment.fixture(to: ContactsFixtures.bruno, at: 2_000)
+        let aliceAgain = RecentPayment.fixture(to: ContactsFixtures.alice, at: 3_000)
 
         try await store.add(alice, on: .mainnet)
         try await store.add(bruno, on: .mainnet)
@@ -24,9 +24,9 @@ struct RecentPaymentStoreTests {
 
     @Test
     func `Only the latest 10 payments are kept`() async throws {
-        let store = RecentPaymentStore(storage: StoredValue())
+        let store = RecentPaymentStore.inMemory()
         let payments = try "23456789ABC".enumerated().map { index, digit in
-            Self.payment(to: try Address(String(repeating: "1", count: 31) + String(digit)), at: TimeInterval(index))
+            RecentPayment.fixture(to: try Address(String(repeating: "1", count: 31) + String(digit)), at: TimeInterval(index))
         }
 
         for payment in payments { try await store.add(payment, on: .mainnet) }
@@ -40,12 +40,12 @@ struct RecentPaymentStoreTests {
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = RecentPaymentStore(directory: directory)
 
-        try await store.add(Self.payment(to: ContactsFixtures.alice, at: 800_000_000), on: .devnet)
+        try await store.add(RecentPayment.fixture(to: ContactsFixtures.alice, at: 800_000_000), on: .devnet)
 
         let saved = try Data(contentsOf: directory.appending(path: "payments.json"))
-        #expect(try Self.object(saved) == Self.object(Data("""
+        #expect(try saved.jsonObject() == Data("""
             {"version": 1, "value": {"devnet": [{"address": "\(ContactsFixtures.alice.value)", "date": 800000000}]}}
-            """.utf8)))
+            """.utf8).jsonObject())
     }
 
     @Test
@@ -53,8 +53,8 @@ struct RecentPaymentStoreTests {
         let directory = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = RecentPaymentStore(directory: directory)
-        let alice = Self.payment(to: ContactsFixtures.alice, at: 1_000)
-        let bruno = Self.payment(to: ContactsFixtures.bruno, at: 2_000)
+        let alice = RecentPayment.fixture(to: ContactsFixtures.alice, at: 1_000)
+        let bruno = RecentPayment.fixture(to: ContactsFixtures.bruno, at: 2_000)
 
         try await store.add(alice, on: .mainnet)
         try await store.add(bruno, on: .devnet)
@@ -64,13 +64,5 @@ struct RecentPaymentStoreTests {
         await relaunched.load()
         #expect(relaunched.payments(on: .mainnet) == [alice])
         #expect(relaunched.payments(on: .devnet) == [bruno])
-    }
-
-    private static func payment(to address: Address, at seconds: TimeInterval) -> RecentPayment {
-        RecentPayment(address: address, date: Date(timeIntervalSinceReferenceDate: seconds))
-    }
-
-    private static func object(_ data: Data) throws -> NSDictionary {
-        try #require(JSONSerialization.jsonObject(with: data) as? NSDictionary)
     }
 }

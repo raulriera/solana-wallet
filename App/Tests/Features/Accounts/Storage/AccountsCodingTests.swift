@@ -32,12 +32,9 @@ struct AccountsCodingTests {
     @Test
     func `Accounts decode from and encode to version 1 under their permanent names`() throws {
         let accounts = try Self.accounts
-        let encoded = try #require(JSONSerialization.jsonObject(with: AccountsCoding().encode(accounts))
-            as? NSDictionary)
-        let expected = try #require(JSONSerialization.jsonObject(with: Data(Self.file.utf8)) as? NSDictionary)
 
         #expect(AccountsCoding().decode(Data(Self.file.utf8)) == accounts)
-        #expect(encoded == expected)
+        #expect(try AccountsCoding().encode(accounts).jsonObject() == Data(Self.file.utf8).jsonObject())
     }
 
     @Test

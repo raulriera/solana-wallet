@@ -31,8 +31,7 @@ nonisolated enum ContactsFixtures {
         return book
     }()
 
-    static let payments = [RecentPayment(address: alice, date: Date(timeIntervalSinceReferenceDate: 2_000)),
-                           RecentPayment(address: recent, date: Date(timeIntervalSinceReferenceDate: 1_000))]
+    static let payments = [RecentPayment.fixture(to: alice, at: 2_000), .fixture(to: recent, at: 1_000)]
 
     @MainActor
     static func store(_ addressBook: StoredValue<AddressBook> = StoredValue(addressBook)) -> ContactStore {
@@ -43,7 +42,7 @@ nonisolated enum ContactsFixtures {
     static func recents(
         _ payments: StoredValue<[Network: [RecentPayment]]> = StoredValue([.mainnet: payments])
     ) -> RecentPaymentStore {
-        RecentPaymentStore(storage: payments)
+        .inMemory(payments)
     }
 
     static let lists = ContactLists(sendingAccount: sending, accounts: [Contact(savingsAccount)], addressBook: addressBook,

@@ -15,14 +15,10 @@ struct TransactionRecordTests {
 
         let data = try JSONEncoder().encode(settled)
 
-        try #expect(Self.object(data) == Self.object(Data("""
+        #expect(try data.jsonObject() == Data("""
             {"account": "E621E1F8-C36C-495A-93FC-0C247A3E6E5F", "network": "devnet", "kind": "\(name)",
              "signature": "signature", "lastValidBlockHeight": 550}
-            """.utf8)))
+            """.utf8).jsonObject())
         #expect(try JSONDecoder().decode(TransactionRecord.self, from: data) == .fixture(kind, account: Self.account))
-    }
-
-    private static func object(_ data: Data) throws -> NSDictionary {
-        try #require(JSONSerialization.jsonObject(with: data) as? NSDictionary)
     }
 }

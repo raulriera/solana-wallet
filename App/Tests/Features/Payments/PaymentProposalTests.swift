@@ -23,7 +23,7 @@ struct PaymentProposalTests {
         let proposal = PaymentProposal(
             asset: .token(tokens.mint), sent: TokenAmount(amount: 1_000, decimals: 6), value: nil, currencyCode: "USD",
             recipient: PaymentRecipient(address: tokens.recipient, name: nil), warnings: [],
-            recents: RecentPaymentStore(storage: StoredValue()))
+            recents: .inMemory())
 
         let sender = widgets.Account(id: UUID(), recoveryID: UUID(), address: tokens.sender, path: .solana)
 
