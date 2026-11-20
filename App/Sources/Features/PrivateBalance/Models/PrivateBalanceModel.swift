@@ -3,7 +3,7 @@ import Observation
 import Portfolio
 import RPC
 
-/// A Portfolio tab's private-balance workflows: turning private balances on and opening balance moves.
+/// A Portfolio tab's private-balance workflows: turning private balances on, and opening balance moves and private sends.
 @MainActor
 @Observable
 final class PrivateBalanceModel {
@@ -31,7 +31,6 @@ final class PrivateBalanceModel {
     private(set) var attempt: UUID?
     /// Whether the last attempt turned private balances on for its account.
     private(set) var isTurnedOn = false
-    /// The open sheet, or `nil` when none is open.
     var sheet: Sheet?
 
     var isTurningOn: Bool { attempt != nil }

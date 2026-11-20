@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Presents the keypad of a move of a token between the account's balances, and pushes its review.
+/// Presents the keypad of a move of a token between the account's balances.
 struct BalanceMoveSheet: View {
     @Environment(\.dismiss) private var dismiss
     let move: BalanceMove

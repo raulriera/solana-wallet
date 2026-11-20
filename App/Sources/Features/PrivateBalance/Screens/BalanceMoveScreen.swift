@@ -3,7 +3,6 @@ import SwiftUI
 /// Shows the keypad of a balance move, and pushes its review.
 struct BalanceMoveScreen: View {
     let move: BalanceMove
-    /// The review that shows, or `nil` when none shows.
     @State private var presentedReview: TransactionReviewModel<BalanceMoveProposal>?
     /// The error that kept a review from starting.
     @State private var reviewError: PrivateBalanceError?

@@ -76,7 +76,7 @@ final class PrivateBalanceStore: Erasable, AccountObserving {
     ///   - account: The account whose asset moves.
     ///   - network: The network that the asset moves on.
     /// - Returns: The move, or `nil` while private balances are off or unread, for another owner's holding or an
-    ///   asset that private balances don't hold, or without a private amount to withdraw.
+    ///   asset that private balances don't hold, or without a private amount to spend.
     func move(
         _ direction: BalanceMoveProposal.Direction,
         of holding: Holding,
