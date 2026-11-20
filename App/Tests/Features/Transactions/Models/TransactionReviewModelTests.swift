@@ -99,6 +99,55 @@ struct TransactionReviewModelTests {
     }
 
     @Test
+    func `A preliminary transaction is sent before the proposal's own with one authentication`() async throws {
+        let review = try LocalSteppedReview(preliminaryCount: 1, statuses: [.status(.finalized)])
+        let model = review.model
+        try await model.runReview()
+
+        model.approve()
+        await model.run(model.attempt)
+
+        let shared = await review.recovery.shared
+        #expect(model.outcome == .succeeded)
+        #expect(await review.sent.requests.count == 2)
+        #expect(shared.count == 1)
+        #expect(await shared.first?.store.reads.count == 2)
+        #expect(await review.recovery.reads.isEmpty)
+        await review.sockets.waitUntilClosed()
+    }
+
+    @Test
+    func `A preliminary transaction that keeps dropping is sent three times before the send ends`() async throws {
+        let review = try LocalSteppedReview(preliminaryCount: .max, statuses: [.status(nil)], height: 600)
+        let model = review.model
+        try await model.runReview()
+
+        model.approve()
+        await model.run(model.attempt)
+
+        #expect(model.record == nil)
+        #expect(model.error == .notSent)
+        #expect(await review.sent.requests.count == 3)
+        await review.sockets.waitUntilClosed()
+    }
+
+    @Test
+    func `Stopping a send ends it before its next transaction`() async throws {
+        let review = try LocalSteppedReview(preliminaryCount: 1, statuses: [.status(.finalized)])
+        let model = review.model
+        try await model.runReview()
+
+        model.approve()
+        model.stopSending()
+        await model.run(model.attempt)
+
+        #expect(model.record == nil)
+        #expect(model.error == .notSent)
+        #expect(await review.sent.requests.count == 1)
+        await review.sockets.waitUntilClosed()
+    }
+
+    @Test
     func `A failed transaction shows its outcome`() async throws {
         let failure = TransactionError(name: "InstructionError",
                                        details: .array([.integer(0), .object(["Custom": .integer(1)])]))

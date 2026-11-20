@@ -36,10 +36,18 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     }
     /// Whether a simulation waits for approval.
     private var isProposed = false
+    /// Whether a send with preliminary transactions ends before its next transaction.
+    @ObservationIgnored private var isStopping = false
     private let account: Account
     private let network: Network
     private let coordinator: any TransactionCoordinating
     private let transactions: TransactionStore
+
+    /// The most times that a send with preliminary transactions sends a dropped transaction again.
+    private static var maximumResends: Int { 2 }
+
+    /// The most times that a send prepares its next transaction again after an error that can clear by itself.
+    private static var maximumRetries: Int { 2 }
 
     /// How the sent transaction settled, or `nil` before it's sent and while it's pending.
     var outcome: TransactionOutcome? {
@@ -121,11 +129,18 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
         }
     }
 
+    /// Stops a send before its next transaction, when the transaction that was sent has an outcome.
+    func stopSending() {
+        guard attempt?.work == .send else { return }
+        isStopping = true
+    }
+
     /// Starts an attempt.
     ///
     /// - Parameter work: The attempt's work.
     private func start(_ work: Work) {
         error = nil
+        isStopping = false
         attempt = Attempt(work: work)
     }
 
@@ -143,18 +158,86 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
         }
     }
 
-    /// Signs and sends the reviewed transaction and keeps its record.
+    /// Signs and sends the reviewed transaction and keeps its record, after any preliminary transactions.
     private func send() async {
         guard let proposed else { return }
         do {
-            record = try await transactions.send(proposed.simulation, as: proposed.kind, from: account,
-                                                 settling: proposed.settling)
+            let sent = proposed.isPreliminary
+                ? try await sendInSteps(startingWith: proposed)
+                : try await transactions.send(proposed.simulation, as: proposed.kind, from: account,
+                                              settling: proposed.settling)
+            guard let sent else {
+                self.proposed = nil
+                self.error = .notSent
+                return
+            }
+            record = sent
         } catch is CancellationError {
             guard !Task.isCancelled else { return }
             await simulateAgain()
         } catch {
             self.proposed = nil
             self.error = .notSent
+        }
+    }
+
+    /// Sends the proposal's preliminary transactions and then its own, with one authentication for all of them.
+    ///
+    /// - Parameter first: The approved simulation of the first preliminary transaction.
+    /// - Returns: The record of the proposal's own transaction, or `nil` if a preliminary transaction didn't succeed
+    ///   or the send was stopped.
+    /// - Throws: `CancellationError` if the person cancels authentication, or a preparation, signing, or storage
+    ///   error.
+    private func sendInSteps(startingWith first: ProposedTransaction<Proposal.Review>) async throws
+        -> TransactionRecord? {
+        try await coordinator.withSharedAuthentication { coordinator in
+            try await self.sendInSteps(startingWith: first, using: coordinator)
+        }
+    }
+
+    /// Sends each transaction, waits for its outcome, and prepares the next one, sending a dropped one again.
+    ///
+    /// - Parameters:
+    ///   - first: The approved simulation of the first preliminary transaction.
+    ///   - coordinator: The coordinator whose signatures share one authentication.
+    /// - Returns: The record of the proposal's own transaction, or `nil` if a preliminary transaction didn't succeed
+    ///   or the send was stopped.
+    /// - Throws: `CancellationError` if the person cancels authentication, or a preparation, signing, or storage
+    ///   error.
+    private func sendInSteps(startingWith first: ProposedTransaction<Proposal.Review>,
+                             using coordinator: any TransactionCoordinating) async throws -> TransactionRecord? {
+        var proposed = first
+        var resends = 0
+        while true {
+            let sent = try await transactions.send(proposed.simulation, as: proposed.kind, from: account,
+                                                   settling: proposed.settling, using: coordinator)
+            preparation = nil
+            switch try? await transactions.watch(sent.id, for: sent.key) {
+            case .succeeded? where proposed.isPreliminary: resends = 0
+            case .dropped? where resends < Self.maximumResends: resends += 1
+            case .succeeded?, .dropped?, .failed?, nil: return proposed.isPreliminary ? nil : sent
+            }
+            guard !isStopping else { return nil }
+            try Task.checkCancellation()
+            proposed = try await nextProposed(using: coordinator)
+        }
+    }
+
+    /// Prepares and simulates the proposal's next transaction, trying again after an error that can clear by itself.
+    ///
+    /// - Parameter coordinator: The coordinator whose signatures share one authentication.
+    /// - Returns: The simulation of the next transaction.
+    /// - Throws: A preparation or cancellation error.
+    private func nextProposed(using coordinator: any TransactionCoordinating) async throws
+        -> ProposedTransaction<Proposal.Review> {
+        var retries = 0
+        while true {
+            do {
+                let preparation = try await proposal.prepare(from: account, on: network)
+                return try await proposal.simulate(preparation, with: coordinator, from: account)
+            } catch let error as RPCError where error.isRecoverable && retries < Self.maximumRetries {
+                retries += 1
+            }
         }
     }
 

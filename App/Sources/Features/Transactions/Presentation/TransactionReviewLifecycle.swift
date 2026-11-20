@@ -1,7 +1,9 @@
 import SwiftUI
 
-/// Runs a transaction review's steps and refreshes, signals how the transaction settled, and presents errors.
+/// Runs a transaction review's steps and refreshes, signals how the transaction settled, presents errors, and stops
+/// a send with several transactions when the app goes to the background.
 private struct TransactionReviewLifecycle<Proposal: TransactionProposal>: ViewModifier {
+    @Environment(\.scenePhase) private var scenePhase
     @Bindable var review: TransactionReviewModel<Proposal>
 
     func body(content: Content) -> some View {
@@ -19,6 +21,9 @@ private struct TransactionReviewLifecycle<Proposal: TransactionProposal>: ViewMo
                 case .failed?, .dropped?: .error
                 case nil: nil
                 }
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .background { review.stopSending() }
             }
             .alert(error: $review.error, retry: review.retry)
     }

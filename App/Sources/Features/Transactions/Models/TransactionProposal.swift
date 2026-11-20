@@ -2,7 +2,7 @@ import RPC
 
 /// A transaction that the person reviews and approves, such as a payment.
 @MainActor
-protocol TransactionProposal {
+protocol TransactionProposal: SendableMetatype {
     /// What the proposal prepares once per review for each simulation to use.
     associatedtype Preparation = Void
     /// What the review shows about each simulation.

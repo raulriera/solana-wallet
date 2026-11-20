@@ -7,6 +7,9 @@ nonisolated struct ProposedTransaction<Review: Equatable & Sendable>: Sendable {
     let review: Review
     let kind: TransactionRecord.Kind
     let settling: (any TransactionSettling)?
+    /// Whether the proposal needs this transaction to succeed before it can prepare its own, such as one that makes
+    /// the funds spendable.
+    let isPreliminary: Bool
 
     /// Creates one simulation of a proposed transaction.
     ///
@@ -15,11 +18,13 @@ nonisolated struct ProposedTransaction<Review: Equatable & Sendable>: Sendable {
     ///   - review: What the review shows about the transaction.
     ///   - kind: What the record says that the transaction does.
     ///   - settling: What finishes the transaction's work once its outcome is found, or `nil` for nothing.
+    ///   - isPreliminary: Whether the proposal needs this transaction to succeed before it can prepare its own.
     init(simulation: Simulation, review: Review, kind: TransactionRecord.Kind,
-         settling: (any TransactionSettling)? = nil) {
+         settling: (any TransactionSettling)? = nil, isPreliminary: Bool = false) {
         self.simulation = simulation
         self.review = review
         self.kind = kind
         self.settling = settling
+        self.isPreliminary = isPreliminary
     }
 }
