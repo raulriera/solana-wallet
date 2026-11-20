@@ -5,7 +5,7 @@ import Transactions
 @testable import Portfolio
 
 struct TokenListTests {
-    enum UnreadableFile: CaseIterable {
+    enum UnusableFile: CaseIterable {
         case corrupt
         case anotherAccount
     }
@@ -64,8 +64,10 @@ struct TokenListTests {
         #expect(try await fixture.list(for: "wallet").mints.last == mint(TokenList.tokenLimit - 2))
     }
 
-    @Test(arguments: UnreadableFile.allCases)
-    func `An unreadable saved list stays in place instead of becoming the defaults`(_ file: UnreadableFile) async throws {
+    @Test(arguments: UnusableFile.allCases)
+    func `A saved list that can't be used becomes the defaults and is replaced by the next change`(
+        _ file: UnusableFile
+    ) async throws {
         let fixture = TokenListFixture()
         defer { fixture.removeFiles() }
         let files = KeyedFiles(directory: fixture.directory)
@@ -78,12 +80,13 @@ struct TokenListTests {
             try fixture.store.save(TokenList(defaultsFor: .mainnet), for: other)
             try files.write(try #require(try files.read(for: other)), for: key)
         }
-        let saved = try files.read(for: key)
         let service = fixture.portfolio()
         let added = mint(1)
-        await #expect(throws: TokenListError.unreadable) { try await service.addToken(added, for: "wallet") }
-        await #expect(throws: TokenListError.unreadable) { try await service.removeToken(added.address, for: "wallet") }
-        #expect(try files.read(for: key) == saved)
+
+        try await service.addToken(added, for: "wallet")
+
+        #expect(try await fixture.list(for: "wallet").mints == TokenList(defaultsFor: .mainnet).mints + [added])
+        #expect(try fixture.store.tokenList(for: key)?.mints.last == added)
     }
 
     @Test

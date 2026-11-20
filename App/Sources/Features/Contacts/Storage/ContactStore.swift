@@ -21,7 +21,8 @@ final class ContactStore: Erasable {
     /// - Parameter directory: The directory of the file.
     convenience init(directory: URL) {
         self.init(storage: FileItem(url: directory.appending(path: "contacts.json"),
-                                    coding: .json(AddressBook.self, version: 1, unusable: .unreadable)))
+                                    coding: .json(AddressBook.self, version: 1,
+                                                   unusable: .replaced(with: AddressBook()))))
     }
 
     /// The address book, or an empty one before it's read.

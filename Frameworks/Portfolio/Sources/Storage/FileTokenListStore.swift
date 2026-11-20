@@ -12,8 +12,8 @@ struct FileTokenListStore {
     /// Reads an account's saved list.
     ///
     /// - Parameter key: The account and network to look up.
-    /// - Returns: The saved list, or `nil` if the account has none yet.
-    /// - Throws: ``TokenListError/unreadable`` if a saved list exists but can't be read.
+    /// - Returns: The saved list, or `nil` if the account has none that can be used.
+    /// - Throws: ``TokenListError/unreadable`` if the list's file can't be read.
     func tokenList(for key: CacheKey) throws -> TokenList? {
         let data: Data?
         do {
@@ -23,7 +23,7 @@ struct FileTokenListStore {
         }
         guard let data else { return nil }
         guard let envelope = try? JSONDecoder().decode(Envelope.self, from: data), envelope.version == Self.version,
-              envelope.owner == key.owner, envelope.network == key.network else { throw TokenListError.unreadable }
+              envelope.owner == key.owner, envelope.network == key.network else { return nil }
         return TokenList(network: envelope.network, mints: envelope.mints)
     }
 
