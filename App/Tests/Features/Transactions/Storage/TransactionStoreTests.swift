@@ -257,7 +257,7 @@ struct TransactionStoreTests {
         #expect(records.phase == .loaded)
         try await records.update { $0 = [record] }
 
-        let coding = VersionedJSONCoding(version: 1, outdated: [TransactionRecord]())
+        let coding = VersionedJSONCoding<[TransactionRecord]>(version: 1, unusable: .unreadable)
         #expect(try coding.decode(Data(contentsOf: file)) == [record])
     }
 
@@ -269,7 +269,7 @@ struct TransactionStoreTests {
 
         try await TransactionStore.pendingIndex(in: directory).save([key])
 
-        let coding = VersionedJSONCoding(version: 1, outdated: Set<TransactionRecord.Key>())
+        let coding = VersionedJSONCoding<Set<TransactionRecord.Key>>(version: 1, unusable: .unreadable)
         #expect(try coding.decode(Data(contentsOf: directory.appending(path: "pending.json"))) == [key])
     }
 

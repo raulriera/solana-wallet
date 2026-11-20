@@ -25,7 +25,7 @@ final class RecentPaymentStore: Erasable {
     /// - Parameter directory: The directory of the file.
     convenience init(directory: URL) {
         self.init(storage: FileItem(url: directory.appending(path: "payments.json"),
-                                    coding: .json([Network: [RecentPayment]].self, version: 1, outdated: [:])))
+                                    coding: .json([Network: [RecentPayment]].self, version: 1, unusable: .replaced(with: [:]))))
     }
 
     var phase: PersistentValuePhase { lists.phase }

@@ -50,7 +50,7 @@ final class TransactionStore: Erasable {
         { key in
             FileItem(url: directory.appending(path: key.network.rawValue, directoryHint: .isDirectory)
                          .appending(path: "\(key.account.uuidString).json"),
-                     coding: .json([TransactionRecord].self, version: 1, outdated: []))
+                     coding: .json([TransactionRecord].self, version: 1, unusable: .replaced(with: [])))
         }
     }
 
@@ -60,7 +60,7 @@ final class TransactionStore: Erasable {
     /// - Returns: The pending index's storage.
     nonisolated static func pendingIndex(in directory: URL) -> any ValueStoring<Set<TransactionRecord.Key>> {
         FileItem(url: directory.appending(path: "pending.json"),
-                 coding: .json(Set<TransactionRecord.Key>.self, version: 1, outdated: []))
+                 coding: .json(Set<TransactionRecord.Key>.self, version: 1, unusable: .replaced(with: [])))
     }
 
     /// Returns a network's coordinator, creating it on the first request.
