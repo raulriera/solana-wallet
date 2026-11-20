@@ -5,6 +5,7 @@ import Transactions
 struct PrivateBalanceActions: View {
     @Environment(\.palette) private var palette
     @Environment(\.moveBalance) private var moveBalance
+    @Environment(\.sendPrivately) private var sendPrivately
     /// The spendable private balance.
     let available: TokenAmount
     let asset: Asset
@@ -23,6 +24,9 @@ struct PrivateBalanceActions: View {
                     image: .customShieldBadgeMinus
                 ) {
                     moveBalance?(.toPublic)
+                }
+                Button("Send Privately", systemImage: "paperplane") {
+                    sendPrivately?()
                 }
             }
         }

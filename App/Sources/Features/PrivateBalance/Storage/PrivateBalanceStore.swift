@@ -68,7 +68,7 @@ final class PrivateBalanceStore: Erasable, AccountObserving {
         try await shared(account, on: network).turnOn()
     }
 
-    /// Creates a move of a holding's asset between an account's balances, while private balances are on.
+    /// Creates a move of a holding's asset between an account's balances, or to a recipient's private balance, while private balances are on.
     ///
     /// - Parameters:
     ///   - direction: Which balance the asset leaves, and which one it reaches.
@@ -76,7 +76,7 @@ final class PrivateBalanceStore: Erasable, AccountObserving {
     ///   - account: The account whose asset moves.
     ///   - network: The network that the asset moves on.
     /// - Returns: The move, or `nil` while private balances are off or unread, for another owner's holding or an
-    ///   asset that private balances don't hold, or without a private amount to withdraw.
+    ///   asset that private balances don't hold, or without a private amount to spend.
     func move(
         _ direction: BalanceMoveProposal.Direction,
         of holding: Holding,
@@ -88,11 +88,7 @@ final class PrivateBalanceStore: Erasable, AccountObserving {
         else { return nil }
         switch balance.status {
         case .unregistered?, .balance?:
-            let amount =
-                switch direction {
-                case .toPrivate: publicBalance.amount
-                case .toPublic: balance.available(of: asset)
-                }
+            let amount = direction.source == .publicBalance ? publicBalance.amount : balance.available(of: asset)
             guard let amount,
                 let token = PaymentToken(
                     holding: holding,

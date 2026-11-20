@@ -4,7 +4,7 @@ import XCTest
 struct PrivateBalancePage {
     private static let errors = [
         "Private Balance Unavailable", "Can't Complete Transaction", "Not Enough SOL", "Can't Prepare Transaction",
-        "Couldn't Send Transaction", "Couldn't Turn On Private Balance",
+        "Couldn't Send Transaction", "Couldn't Turn On Private Balance", "Amount Too Large for One Transaction",
     ]
 
     let driver: UITestApp
@@ -38,7 +38,7 @@ struct PrivateBalancePage {
     }
 
     func approve(_ title: String, file: StaticString = #filePath, line: UInt = #line) throws {
-        try driver.tap(reviewButton(title), within: 120, file: file, line: line)
+        try driver.tap(reviewButton(title), within: 120, unless: Self.errors, file: file, line: line)
     }
 
     func expectResult(_ message: String, file: StaticString = #filePath, line: UInt = #line) throws {

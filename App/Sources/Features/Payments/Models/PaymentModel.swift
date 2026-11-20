@@ -39,7 +39,7 @@ final class PaymentModel {
                                         comment: "Line under the amount added to a private balance. The variable is the public balance in the unit of the amount, such as 1.2 SOL or $172.64.")
             case .privateBalance:
                 LocalizedStringResource("Private balance: \(balance, format: format)",
-                                        comment: "Line under the amount moved to the public balance. The variable is the available private balance in the unit of the amount, such as 1.2 SOL or $172.64.")
+                                        comment: "Line under an amount that leaves the private balance. The variable is the available private balance in the unit of the amount, such as 1.2 SOL or $172.64.")
             }
         }
 
@@ -54,7 +54,7 @@ final class PaymentModel {
                                         comment: "Warning under the amount added to a private balance when it's more than the public balance.")
             case .privateBalance:
                 LocalizedStringResource("More than your private balance",
-                                        comment: "Warning under the amount moved to the public balance when it's more than the available private balance.")
+                                        comment: "Warning under an amount that leaves the private balance when it's more than the available private balance.")
             }
         }
 
@@ -72,7 +72,7 @@ final class PaymentModel {
                                         comment: "VoiceOver announcement after a key press when the amount added to a private balance is more than the public balance. The variable is the formatted amount.")
             case .privateBalance:
                 LocalizedStringResource("\(amount), more than your private balance",
-                                        comment: "VoiceOver announcement after a key press when the amount moved to the public balance is more than the available private balance. The variable is the formatted amount.")
+                                        comment: "VoiceOver announcement after a key press when an amount that leaves the private balance is more than the available private balance. The variable is the formatted amount.")
             }
         }
     }

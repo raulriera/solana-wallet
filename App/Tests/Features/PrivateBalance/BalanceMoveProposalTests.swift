@@ -156,19 +156,49 @@ struct BalanceMoveProposalTests {
         #expect(model.error == nil)
     }
 
-    @Test
-    func `Approving sends the withdrawal and keeps its change pending`() async throws {
-        let withdrawal = try await LocalBalanceMove.withdrawal(of: .nativeSOL, statuses: [.status(.finalized)])
-        try await withdrawal.model.runReview()
+    @Test(arguments: [TransactionRecord.Kind.privateWithdrawal, .privatePayment])
+    func `Approving a spend records it and keeps its change pending`(kind: TransactionRecord.Kind) async throws {
+        let spend = if kind == .privatePayment {
+            try await LocalBalanceMove.send(of: .nativeSOL, statuses: [.status(.finalized)])
+        } else {
+            try await LocalBalanceMove.withdrawal(of: .nativeSOL, statuses: [.status(.finalized)])
+        }
+        try await spend.model.runReview()
 
-        let record = try await withdrawal.model.runApproval()
+        let record = try await spend.model.runApproval()
 
-        #expect(record.kind == .privateWithdrawal)
-        #expect(try await withdrawal.transactions.watch(record.id, for: record.key) == .succeeded)
-        #expect(withdrawal.model.outcome == .succeeded)
-        #expect(try await withdrawal.balances.refresh(withdrawal.account, on: .devnet)
+        #expect(record.kind == kind)
+        #expect(try await spend.transactions.watch(record.id, for: record.key) == .succeeded)
+        #expect(spend.model.outcome == .succeeded)
+        #expect(try await spend.balances.refresh(spend.account, on: .devnet)
             == .balance(available: 0, pending: LocalBalanceMove.privateAmount - LocalBalanceMove.amount, of: .nativeSOL))
-        #expect(withdrawal.model.error == nil)
-        await withdrawal.sockets.waitUntilClosed()
+        #expect(spend.model.error == nil)
+        await spend.sockets.waitUntilClosed()
+    }
+
+    @Test
+    func `Reviewing a send shows the privacy fee without the sent amount`() async throws {
+        let send = try await LocalBalanceMove.send(of: .nativeSOL, privacyFee: 3_000)
+        let model = send.model
+
+        model.prepareReview()
+        await model.run(model.attempt)
+
+        #expect(model.review == BalanceMoveProposal.Review(
+            networkFee: LocalBalanceMove.networkFee, registrationFee: nil, privacyFee: 3_000,
+            pendingChange: LocalBalanceMove.privateAmount - LocalBalanceMove.amount, accountDeposit: nil
+        ))
+        #expect(model.error == nil)
+    }
+
+    @Test(arguments: [false, true])
+    func `A send checks the recipient against the person's history`(paid: Bool) throws {
+        let recipient = PaymentRecipient(address: try SigningFixture().transfer.accounts[1].address, name: nil)
+        let paidAddresses: Set<Address> = paid ? [recipient.address] : []
+        let context = RecipientContext(knownAddresses: Array(paidAddresses), paidAddresses: paidAddresses)
+
+        let direction = BalanceMoveProposal.Direction.send(to: recipient, in: context)
+
+        #expect(direction == .toRecipient(recipient, warnings: paid ? [] : [.firstPayment]))
     }
 }

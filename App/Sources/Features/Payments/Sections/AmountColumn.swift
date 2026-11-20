@@ -7,6 +7,7 @@ struct AmountColumn: View {
     var body: some View {
         ScrollView {
             AmountSummary(payment: payment)
+                .padding(.horizontal, 24)
                 .padding(.vertical, 8)
                 .frame(maxWidth: .infinity)
         }

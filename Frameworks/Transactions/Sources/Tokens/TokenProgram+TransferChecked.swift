@@ -15,7 +15,7 @@ extension TokenProgram {
     /// - Returns: The checked transfer instruction.
     /// - Throws: ``ValidationError/invalidAddress`` if the program's address is invalid.
     public func transferChecked(_ amount: UInt64, decimals: UInt8, from source: Address, mint: Address,
-                                to destination: Address, authority: Address, fee: UInt64? = nil) throws -> Instruction {
+                                to destination: Address, authority: Address, fee: UInt64?) throws -> Instruction {
         var data = Data(fee == nil ? [12] : [26, 1])
         data.append(littleEndian: amount)
         data.append(decimals)

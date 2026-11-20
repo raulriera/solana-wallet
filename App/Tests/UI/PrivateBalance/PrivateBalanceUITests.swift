@@ -28,6 +28,20 @@ final class PrivateBalanceUITests: XCTestCase {
         try privateBalance.expectResult("0.001 SOL is in your public balance.")
     }
 
+    @objc(testSendingSOLPrivatelyPutsItInTheRecipientsPrivateBalanceAndReturnError:)
+    func `test Sending SOL privately puts it in the recipient's private balance`() throws {
+        let (app, privateBalance) = try openPrivateBalance()
+        defer { app.terminate() }
+
+        try privateBalance.startMove("Send Privately")
+        try app.tap(ContactsPage(driver: app).contact("Account 2"))
+        try PaymentsPage(driver: app).enterAmount("0.001")
+        try privateBalance.review()
+        try privateBalance.approve("Send SOL Privately")
+
+        try privateBalance.expectResult("0.001 SOL is in Account 2's private balance.")
+    }
+
     private func openPrivateBalance() throws -> (UITestApp, PrivateBalancePage) {
         let app = UITestApp()
         app.launch(with: .devWallet)

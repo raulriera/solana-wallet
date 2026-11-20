@@ -16,19 +16,7 @@ struct PaymentReviewScreen: TransactionReviewContent {
             }
             .listRowBackground(Color.clear)
 
-            Section {
-                FullAddress(text: payment.recipient.address.value)
-                ForEach(payment.warnings, id: \.self) { warning in
-                    RecipientWarningLabel(warning: warning)
-                }
-            } header: {
-                if let name = payment.recipient.name {
-                    Text("To \(name)",
-                         comment: "Header above the address a payment goes to. The variable is the recipient's name.")
-                } else {
-                    Text("To")
-                }
-            }
+            RecipientReviewSection(recipient: payment.recipient, warnings: payment.warnings)
 
             Section {
                 LabeledContent("Pay With") {

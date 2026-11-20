@@ -2,7 +2,7 @@ import Foundation
 import Privacy
 import RPC
 
-/// A move of an account's asset between its public and private balances, with the amount being typed.
+/// A move of an account's asset between its public and private balances, or to a recipient's private balance, with the amount being typed.
 @MainActor
 struct BalanceMove: Identifiable {
     let direction: BalanceMoveProposal.Direction
@@ -36,11 +36,7 @@ struct BalanceMove: Identifiable {
         balances: any PrivateBalancing,
         transactions: TransactionStore
     ) {
-        let source: PaymentModel.Source = switch direction {
-        case .toPrivate: .publicBalance
-        case .toPublic: .privateBalance
-        }
-        payment = PaymentModel(tokens: [token], currencyCode: "USD", source: source)
+        payment = PaymentModel(tokens: [token], currencyCode: "USD", source: direction.source)
         self.direction = direction
         self.privateAsset = privateAsset
         self.account = account

@@ -108,17 +108,18 @@ struct WalletPrivateBalanceTests {
         }
     }
 
-    @Test
-    func `A settled private move becomes the last settled move`() async throws {
+    @Test(arguments: [(TransactionRecord.Kind.privateDeposit, true), (.privatePayment, true), (.payment, false)])
+    func `Only a settled private move becomes the last settled move`(kind: TransactionRecord.Kind, isMove: Bool)
+        async throws {
         let account = try await PrivateBalanceFixtures.account()
-        let sent = try PendingMove(from: account.id)
+        let sent = try PendingMove(kind, from: account.id)
         let store = try await PrivateBalanceFixtures.store(holding: .pending, of: account, transactions: sent.transactions)
         let balance = try await PrivateBalanceFixtures.read(account, in: store)
         #expect(balance.lastSettledMove == nil)
 
         #expect(try await sent.settle() == .succeeded)
 
-        #expect(balance.lastSettledMove?.id == sent.record.id)
+        #expect(balance.lastSettledMove?.id == (isMove ? sent.record.id : nil))
     }
 
     @Test
@@ -224,10 +225,10 @@ struct WalletPrivateBalanceTests {
         try await PrivateBalanceFixtures.status(of: account, in: store, becomes: .balance(available: 0, pending: 0, of: .nativeSOL))
     }
 
-    @Test
-    func `Pending SOL after a settled private move is read again quickly`() async throws {
+    @Test(arguments: [TransactionRecord.Kind.privateDeposit, .privatePayment])
+    func `Pending SOL after a settled private move is read again quickly`(kind: TransactionRecord.Kind) async throws {
         let account = try await PrivateBalanceFixtures.account()
-        let sent = try PendingMove(from: account.id)
+        let sent = try PendingMove(kind, from: account.id)
         let clock = ManualClock()
         var waits = clock.waits.makeAsyncIterator()
         let (store, notes) = try await PrivateBalanceFixtures.pendingDeposit(of: account,

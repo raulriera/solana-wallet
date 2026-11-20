@@ -1,7 +1,7 @@
 import SwiftUI
 import Transactions
 
-/// Shows a balance move's amount, balances, and fees for approval.
+/// Shows a balance move's amount, recipient, balances, and fees for approval.
 struct BalanceMoveReviewScreen: TransactionReviewContent {
     @Environment(\.palette) private var palette
     let review: TransactionReviewModel<BalanceMoveProposal>
@@ -15,18 +15,20 @@ struct BalanceMoveReviewScreen: TransactionReviewContent {
             }
             .listRowBackground(Color.clear)
 
+            if case .toRecipient(let recipient, let warnings) = move.direction {
+                RecipientReviewSection(recipient: recipient, warnings: warnings)
+            }
+
             Section {
-                LabeledContent("From") {
-                    switch move.direction {
-                    case .toPrivate: Text("Public Balance")
-                    case .toPublic: Text("Private Balance")
-                    }
-                }
-                LabeledContent("To") {
-                    switch move.direction {
-                    case .toPrivate: Text("Private Balance")
-                    case .toPublic: Text("Public Balance")
-                    }
+                switch move.direction {
+                case .toPrivate:
+                    LabeledContent("From") { Text("Public Balance") }
+                    LabeledContent("To") { Text("Private Balance") }
+                case .toPublic:
+                    LabeledContent("From") { Text("Private Balance") }
+                    LabeledContent("To") { Text("Public Balance") }
+                case .toRecipient:
+                    LabeledContent("From") { Text("Private Balance") }
                 }
                 CostRow(title: "Network Fee", lamports: costs?.networkFee)
                 if let registrationFee = costs?.registrationFee {
@@ -53,7 +55,7 @@ struct BalanceMoveReviewScreen: TransactionReviewContent {
                         .foregroundStyle(palette.secondaryText)
                 } else if costs?.privacyFee != nil {
                     Text("The network fee pays Solana to process this transaction. The privacy fee goes to the private balance pool, which uses it to record what was spent so it can't be spent twice. This app takes no fee.",
-                         comment: "Footer under the fees of moving a private token to the public balance, when the private balance pool charges a privacy fee.")
+                         comment: "Footer under the fees of moving a private token to the public balance or sending it to another person, when the private balance pool charges a privacy fee.")
                         .foregroundStyle(palette.secondaryText)
                 }
             }
