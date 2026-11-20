@@ -5,7 +5,7 @@ import Wallet
 @testable import widgets
 
 struct AccountsCodingTests {
-    private static let file = #"[{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","recoveryID":"0B6D2F4A-6C1E-4E8B-9A3D-5F7C1B2E8D90","address":"7zSmbu6gKkb6HB7UDPtHYjwCWuBHU1D4TpNZFm4sndQe","path":"m\/44'\/501'\/0'\/0'"},{"id":"1C4E7A2B-3D5F-4A6B-8C9D-0E1F2A3B4C5D","recoveryID":"0B6D2F4A-6C1E-4E8B-9A3D-5F7C1B2E8D90","address":"6d8tEyrqPqVbEr6Jpuc7BEyYekeMUTyzHEwdmcAYEmtK","path":"m\/44'\/501'\/0'"}]"#
+    private static let list = #"[{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","recoveryID":"0B6D2F4A-6C1E-4E8B-9A3D-5F7C1B2E8D90","address":"7zSmbu6gKkb6HB7UDPtHYjwCWuBHU1D4TpNZFm4sndQe","path":"m\/44'\/501'\/0'\/0'"},{"id":"1C4E7A2B-3D5F-4A6B-8C9D-0E1F2A3B4C5D","recoveryID":"0B6D2F4A-6C1E-4E8B-9A3D-5F7C1B2E8D90","address":"6d8tEyrqPqVbEr6Jpuc7BEyYekeMUTyzHEwdmcAYEmtK","path":"m\/44'\/501'\/0'"}]"#
 
     private static var accounts: [widgets.Account] {
         get throws {
@@ -23,15 +23,26 @@ struct AccountsCodingTests {
         }
     }
 
+    private static var file: String { Self.file(of: list) }
+
+    private static func file(of list: String) -> String {
+        #"{"version": 1, "value": \#(list)}"#
+    }
+
     @Test
-    func `Accounts decode from and encode to the existing file format`() throws {
+    func `Accounts decode from and encode to version 1 under their permanent names`() throws {
         let accounts = try Self.accounts
         let encoded = try #require(JSONSerialization.jsonObject(with: AccountsCoding().encode(accounts))
-            as? [[String: String]])
-        let existing = try #require(JSONSerialization.jsonObject(with: Data(Self.file.utf8)) as? [[String: String]])
+            as? NSDictionary)
+        let expected = try #require(JSONSerialization.jsonObject(with: Data(Self.file.utf8)) as? NSDictionary)
 
         #expect(AccountsCoding().decode(Data(Self.file.utf8)) == accounts)
-        #expect(encoded == existing)
+        #expect(encoded == expected)
+    }
+
+    @Test
+    func `Accounts saved without a version are unreadable`() {
+        #expect(AccountsCoding().decode(Data(Self.list.utf8)) == nil)
     }
 
     @Test
@@ -40,7 +51,8 @@ struct AccountsCodingTests {
         accounts[0].customName = "Savings"
 
         let encoded = try AccountsCoding().encode(accounts)
-        let records = try #require(JSONSerialization.jsonObject(with: encoded) as? [[String: String]])
+        let file = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        let records = try #require(file["value"] as? [[String: String]])
 
         #expect(AccountsCoding().decode(encoded) == accounts)
         #expect(records.map { $0["name"] } == ["Savings", nil])
@@ -48,18 +60,18 @@ struct AccountsCodingTests {
 
     @Test
     func `An empty list decodes`() {
-        #expect(AccountsCoding().decode(Data("[]".utf8)) == [])
+        #expect(AccountsCoding().decode(Data(Self.file(of: "[]").utf8)) == [])
     }
 
     @Test(arguments: [
         "not-json",
-        #"{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF"}"#,
+        #"[{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF"}]"#,
         #"[{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","address":"7zSmbu6gKkb6HB7UDPtHYjwCWuBHU1D4TpNZFm4sndQe","path":"m\/44'\/501'\/0'\/0'"}]"#,
         #"[{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","recoveryID":"0B6D2F4A-6C1E-4E8B-9A3D-5F7C1B2E8D90","address":"invalid","path":"m\/44'\/501'\/0'\/0'"}]"#,
         #"[{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","recoveryID":"0B6D2F4A-6C1E-4E8B-9A3D-5F7C1B2E8D90","address":"7zSmbu6gKkb6HB7UDPtHYjwCWuBHU1D4TpNZFm4sndQe","path":"m\/44'\/501'\/2147483648'"}]"#,
     ])
-    func `Malformed accounts are unreadable`(_ file: String) {
-        #expect(AccountsCoding().decode(Data(file.utf8)) == nil)
+    func `Malformed accounts are unreadable`(_ list: String) {
+        #expect(AccountsCoding().decode(Data(Self.file(of: list).utf8)) == nil)
     }
 
     @Test
