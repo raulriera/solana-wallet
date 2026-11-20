@@ -4,12 +4,11 @@ import RPC
 
 extension TransactionRecord {
     static func fixture(_ kind: Kind, signature: String = "signature", account: UUID, network: Network = .devnet,
-                        status: Status = .pending, settled: TimeInterval? = nil) -> TransactionRecord {
+                        outcome: TransactionOutcome? = nil) -> TransactionRecord {
         var record = TransactionRecord(kind, from: account,
                                        submission: Submission(signature: signature, network: network,
                                                               lastValidBlockHeight: 550))
-        record.status = status
-        record.settled = settled.map(Date.init(timeIntervalSinceReferenceDate:))
+        if let outcome { record.settle(outcome, at: Date(timeIntervalSinceReferenceDate: 0)) }
         return record
     }
 }

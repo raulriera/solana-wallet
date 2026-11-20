@@ -16,7 +16,7 @@ struct TransactionStoreTests {
 
         let record = try await sending.send()
 
-        #expect(record.status == .pending)
+        #expect(record.isPending)
         #expect(record.settled == nil)
         #expect(record.kind == .payment)
         #expect(record.key == sending.key)
@@ -45,7 +45,7 @@ struct TransactionStoreTests {
         let record = try await sending.send()
 
         #expect(try await sending.settle(record) == .succeeded)
-        #expect(sending.store.record(record.id, for: sending.key)?.status == .succeeded)
+        #expect(sending.store.record(record.id, for: sending.key)?.outcome == .succeeded)
     }
 
     @Test
@@ -54,7 +54,7 @@ struct TransactionStoreTests {
 
         let record = try await sending.send()
 
-        #expect(record.status == .pending)
+        #expect(record.isPending)
         #expect(await sending.savedOnly(record))
         #expect(try await sending.settle(record) == .succeeded)
     }
@@ -77,12 +77,12 @@ struct TransactionStoreTests {
     }
 
     @Test(arguments: [
-        (GetSignatureStatuses.Response.status(.finalized), UInt64(500), TransactionRecord.Status.succeeded),
+        (GetSignatureStatuses.Response.status(.finalized), UInt64(500), TransactionOutcome.succeeded),
         (.status(.finalized, error: TransactionError(name: "InstructionError", details: nil)), 500, .failed),
         (.status(nil), 600, .dropped),
     ])
     func `A settled record keeps its outcome and is no longer saved`(
-        status: GetSignatureStatuses.Response, height: UInt64, expected: TransactionRecord.Status
+        status: GetSignatureStatuses.Response, height: UInt64, expected: TransactionOutcome
     ) async throws {
         let sending = try LocalSending(statuses: [status], height: height)
         let record = try await sending.send()
@@ -91,7 +91,7 @@ struct TransactionStoreTests {
 
         #expect(settled == expected)
         let kept = try #require(sending.store.record(record.id, for: sending.key))
-        #expect(kept.status == expected)
+        #expect(kept.outcome == expected)
         #expect(kept.settled != nil)
         #expect(await sending.pending.value == [])
     }
@@ -105,7 +105,7 @@ struct TransactionStoreTests {
         _ = try await sending.settle(record)
         _ = try await sending.settle(record)
 
-        let expected = RecordingSettling.Call(status: .succeeded, saved: [], settledCount: 0)
+        let expected = RecordingSettling.Call(outcome: .succeeded, saved: [], settledCount: 0)
         #expect(await settling.calls == [expected])
         #expect(sending.store.settledCount(for: sending.key) == 1)
     }
@@ -139,7 +139,7 @@ struct TransactionStoreTests {
         gate.resume()
 
         #expect(try await sending.settle(record) == .succeeded)
-        #expect(sending.store.record(record.id, for: sending.key)?.status == .succeeded)
+        #expect(sending.store.record(record.id, for: sending.key)?.outcome == .succeeded)
     }
 
     @Test
@@ -271,7 +271,7 @@ struct TransactionStoreTests {
 
 private actor RecordingSettling: TransactionSettling {
     struct Call: Equatable {
-        let status: TransactionRecord.Status?
+        let outcome: TransactionOutcome?
         let saved: [TransactionRecord]?
         let settledCount: Int
     }
@@ -288,7 +288,7 @@ private actor RecordingSettling: TransactionSettling {
     }
 
     func settle(_ confirmation: widgets.Confirmation) async {
-        let status = await store.record(confirmation.submission.signature, for: key)?.status
-        calls.append(Call(status: status, saved: await pending.value, settledCount: await store.settledCount(for: key)))
+        let outcome = await store.record(confirmation.submission.signature, for: key)?.outcome
+        calls.append(Call(outcome: outcome, saved: await pending.value, settledCount: await store.settledCount(for: key)))
     }
 }

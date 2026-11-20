@@ -65,7 +65,7 @@ nonisolated struct Confirmer: TransactionConfirming {
             switch event {
             case .landed(let slot, let error):
                 return Confirmation(submission: submission, slot: slot,
-                                    outcome: error.map(Confirmation.Outcome.failed) ?? .succeeded)
+                                    outcome: error == nil ? .succeeded : .failed)
             case .rooted(let root):
                 schedule.root = root
                 guard root >= schedule.nextCheck else { continue }
@@ -173,7 +173,7 @@ nonisolated struct Confirmer: TransactionConfirming {
     private func confirmation(of status: GetSignatureStatuses.Status, for submission: Submission) -> Confirmation? {
         guard status.confirmationStatus == .finalized else { return nil }
         return Confirmation(submission: submission, slot: status.slot,
-                            outcome: status.error.map(Confirmation.Outcome.failed) ?? .succeeded)
+                            outcome: status.error == nil ? .succeeded : .failed)
     }
 
     /// Adds a count to a slot, saturating at the largest slot.

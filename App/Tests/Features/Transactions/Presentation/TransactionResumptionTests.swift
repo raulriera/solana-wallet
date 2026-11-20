@@ -19,7 +19,7 @@ struct TransactionResumptionTests {
 
         scene.phase = .active
 
-        #expect(await sent.transactions.settledStatus(of: sent.record) == .succeeded)
+        #expect(await sent.transactions.outcome(of: sent.record) == .succeeded)
         await sent.sockets.waitUntilClosed()
     }
 
@@ -49,7 +49,7 @@ struct TransactionResumptionTests {
 
         try await scene.rpcStore.select(.helius)
 
-        #expect(await transactions.settledStatus(of: record) == .succeeded)
+        #expect(await transactions.outcome(of: record) == .succeeded)
         await sockets.waitUntilClosed()
     }
 }

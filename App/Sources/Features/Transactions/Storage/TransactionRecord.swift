@@ -4,7 +4,7 @@ import Transactions
 
 /// A sent transaction's public facts: who sent it on which network, what it does, and how it settled.
 ///
-/// Only the facts that find the transaction again are saved. The status and the settled date last for one launch.
+/// Only the facts that find the transaction again are saved. The outcome and the settled date last for one launch.
 nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable {
     /// The account and network whose records are kept together.
     struct Key: Hashable, Sendable {
@@ -21,16 +21,6 @@ nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable
         case privateWithdrawal
     }
 
-    /// Whether a transaction settled, and how.
-    enum Status: Sendable {
-        case pending
-        case succeeded
-        /// The transaction landed and failed.
-        case failed
-        /// The transaction can never land.
-        case dropped
-    }
-
     /// The identifier of the account that sent the transaction.
     let account: UUID
     let network: Network
@@ -38,11 +28,14 @@ nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable
     /// The transaction's first signature, which identifies it.
     let signature: String
     let lastValidBlockHeight: UInt64
-    var status = Status.pending
+    /// How the transaction settled, or `nil` while it's pending.
+    private(set) var outcome: TransactionOutcome?
     /// When the transaction's outcome was found, or `nil` while it's pending.
-    var settled: Date?
+    private(set) var settled: Date?
 
     var id: String { signature }
+
+    var isPending: Bool { outcome == nil }
 
     var key: Key { Key(account: account, network: network) }
 
@@ -64,21 +57,18 @@ nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable
         lastValidBlockHeight = submission.lastValidBlockHeight
     }
 
+    /// Records how the transaction settled.
+    ///
+    /// - Parameters:
+    ///   - outcome: The transaction's outcome.
+    ///   - date: When the outcome was found.
+    mutating func settle(_ outcome: TransactionOutcome, at date: Date) {
+        self.outcome = outcome
+        settled = date
+    }
+
     /// The saved facts.
     private enum CodingKeys: String, CodingKey {
         case account, network, kind, signature, lastValidBlockHeight
-    }
-}
-
-nonisolated extension TransactionRecord.Status {
-    /// Creates the status of a transaction whose outcome was found.
-    ///
-    /// - Parameter outcome: The transaction's outcome.
-    init(_ outcome: Confirmation.Outcome) {
-        self = switch outcome {
-        case .succeeded: .succeeded
-        case .failed: .failed
-        case .dropped: .dropped
-        }
     }
 }

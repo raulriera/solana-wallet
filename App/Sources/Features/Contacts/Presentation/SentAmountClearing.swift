@@ -9,8 +9,8 @@ private struct SentAmountClearing: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .onChange(of: review?.status, initial: true) { _, status in
-                guard status == .succeeded, let payment else { return }
+            .onChange(of: review?.outcome, initial: true) { _, outcome in
+                guard outcome == .succeeded, let payment else { return }
                 withAnimation { payment.clear() }
                 review = nil
             }

@@ -16,10 +16,10 @@ struct ConfirmationTests {
     private let submission = Submission(signature: ExternalFixture.signature, network: .devnet, lastValidBlockHeight: 650)
 
     @Test(.timeLimit(.minutes(1)), arguments: [
-        ("null", widgets.Confirmation.Outcome.succeeded),
-        (#"{"InstructionError":[1,{"Custom":6001}]}"#, .failed(Self.instructionError)),
+        ("null", TransactionOutcome.succeeded),
+        (#"{"InstructionError":[1,{"Custom":6001}]}"#, .failed),
     ])
-    func `A landing settles the watch with its execution result`(error: String, outcome: widgets.Confirmation.Outcome) async throws {
+    func `A landing settles the watch with its execution result`(error: String, outcome: TransactionOutcome) async throws {
         let http = try HTTPResponses.confirmation(statuses: [response(nil)], epochs: [epoch(slot: 1_000, height: 600)])
         let sockets = SocketSequence { _ in SocketSequence.watch(then: [SocketFixture.landingNotification(error: error)]) }
 
@@ -38,11 +38,11 @@ struct ConfirmationTests {
     }
 
     @Test(.timeLimit(.minutes(1)), arguments: [
-        (TransactionError?.none, widgets.Confirmation.Outcome.succeeded),
-        (Self.instructionError, .failed(Self.instructionError)),
+        (TransactionError?.none, TransactionOutcome.succeeded),
+        (Self.instructionError, .failed),
     ])
     func `A catch-up read settles a transaction that landed before the subscription`(
-        error: TransactionError?, outcome: widgets.Confirmation.Outcome
+        error: TransactionError?, outcome: TransactionOutcome
     ) async throws {
         let http = try HTTPResponses.confirmation(statuses: [response(status(.finalized, error: error))],
                                                   epochs: [epoch(slot: 1_000, height: 600)])
@@ -91,7 +91,7 @@ struct ConfirmationTests {
 
         let confirmation = try await confirmer(http, sockets).confirm(submission)
 
-        #expect(confirmation == Confirmation(submission: submission, slot: 405, outcome: .failed(Self.instructionError)))
+        #expect(confirmation == Confirmation(submission: submission, slot: 405, outcome: .failed))
         #expect(try await reads(of: http) == ["getSignatureStatuses": 2, "getEpochInfo": 2])
     }
 

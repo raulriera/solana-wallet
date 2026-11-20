@@ -47,9 +47,9 @@ struct PaymentProposalTests {
         await #expect(throws: expected) { try await Self.simulate(payment.model.proposal, in: payment) }
     }
 
-    @Test(arguments: [(widgets.Confirmation.Outcome.succeeded, true), (.dropped, false)])
+    @Test(arguments: [(TransactionOutcome.succeeded, true), (.dropped, false)])
     func `A payment's recipient becomes a recent payment only when the payment succeeds`(
-        outcome: widgets.Confirmation.Outcome, isRecent: Bool
+        outcome: TransactionOutcome, isRecent: Bool
     ) async throws {
         let payment = try LocalPaymentReview()
         let proposal = payment.model.proposal

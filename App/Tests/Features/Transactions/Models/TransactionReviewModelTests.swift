@@ -68,7 +68,7 @@ struct TransactionReviewModelTests {
         #expect(record.kind == .payment)
         #expect(model.submission?.network == .devnet)
 
-        #expect(await payment.transactions.settledStatus(of: record) == .succeeded)
+        #expect(await payment.transactions.outcome(of: record) == .succeeded)
         #expect(model.outcome == .succeeded)
         #expect(!model.isSending)
         #expect(!model.canApprove)
@@ -93,7 +93,7 @@ struct TransactionReviewModelTests {
 
         let record = try #require(model.record)
         #expect(model.error == nil)
-        #expect(await payment.transactions.settledStatus(of: record) == .succeeded)
+        #expect(await payment.transactions.outcome(of: record) == .succeeded)
         #expect(model.outcome == .succeeded)
         await payment.sockets.waitUntilClosed()
     }
@@ -109,7 +109,7 @@ struct TransactionReviewModelTests {
         model.approve()
         await model.run(model.attempt)
 
-        #expect(await payment.transactions.settledStatus(of: try #require(model.record)) == .failed)
+        #expect(await payment.transactions.outcome(of: try #require(model.record)) == .failed)
         #expect(model.outcome == .failed)
         #expect(model.submission != nil)
         await payment.sockets.waitUntilClosed()
@@ -122,7 +122,7 @@ struct TransactionReviewModelTests {
         try await payment.model.runReview()
         model.approve()
         await model.run(model.attempt)
-        try #require(await payment.transactions.settledStatus(of: try #require(model.record)) == .dropped)
+        try #require(await payment.transactions.outcome(of: try #require(model.record)) == .dropped)
         try #require(model.outcome == .dropped)
         await payment.sockets.waitUntilClosed()
 
@@ -150,14 +150,13 @@ struct TransactionReviewModelTests {
         let record = try #require(model.record)
         await #expect(throws: (any Error).self) { try await payment.transactions.watch(record.id, for: record.key) }
 
-        #expect(model.status == .pending)
         #expect(model.isSending)
         #expect(model.outcome == nil)
         #expect(model.error == nil)
 
         await payment.transactions.resume()
 
-        #expect(await payment.transactions.settledStatus(of: record) == .succeeded)
+        #expect(await payment.transactions.outcome(of: record) == .succeeded)
         #expect(model.outcome == .succeeded)
         #expect(!model.isSending)
         #expect(sockets.sockets.count == 2)

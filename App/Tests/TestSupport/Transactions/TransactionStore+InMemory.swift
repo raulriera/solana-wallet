@@ -12,9 +12,9 @@ extension TransactionStore {
 
     static var unused: TransactionStore { inMemory() }
 
-    func settledStatus(of record: TransactionRecord) async -> TransactionRecord.Status? {
-        for await status in Observations({ self.record(record.id, for: record.key)?.status }) {
-            if let status, status != .pending { return status }
+    func outcome(of record: TransactionRecord) async -> TransactionOutcome? {
+        for await outcome in Observations({ self.record(record.id, for: record.key)?.outcome }) {
+            if let outcome { return outcome }
         }
         return nil
     }

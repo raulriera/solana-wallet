@@ -128,17 +128,17 @@ final class TransactionStore: Erasable {
     /// - Parameters:
     ///   - id: The record's signature.
     ///   - key: The account and network.
-    /// - Returns: The settled status.
+    /// - Returns: The transaction's outcome.
     /// - Throws: ``TransactionStoreError/missingRecord`` if the record isn't kept, `CancellationError` if the caller
     ///   is cancelled, or the watch's error.
-    func watch(_ id: TransactionRecord.ID, for key: TransactionRecord.Key) async throws -> TransactionRecord.Status {
+    func watch(_ id: TransactionRecord.ID, for key: TransactionRecord.Key) async throws -> TransactionOutcome {
         let entry = entry(for: key)
         if let watch = entry.watches[id] { return try await result(of: watch, for: id, in: entry) }
         await load()
         guard let record = entry.records.first(where: { $0.id == id }) else {
             throw TransactionStoreError.missingRecord
         }
-        guard record.status == .pending else { return record.status }
+        if let outcome = record.outcome { return outcome }
         return try await result(of: startWatch(of: record, in: entry), for: id, in: entry)
     }
 
@@ -148,7 +148,7 @@ final class TransactionStore: Erasable {
     func resume(replacingFailedWatches: Bool = false) async {
         await load()
         for entry in entries.values where !entry.isErased {
-            for record in entry.records where record.status == .pending {
+            for record in entry.records where record.isPending {
                 guard let watch = entry.watches[record.id] else {
                     startWatch(of: record, in: entry)
                     continue
@@ -182,7 +182,7 @@ final class TransactionStore: Erasable {
 
     /// The records that haven't settled, across every account and network.
     private var pending: [TransactionRecord] {
-        entries.values.flatMap(\.records).filter { $0.status == .pending }
+        entries.values.flatMap(\.records).filter(\.isPending)
     }
 
     /// Returns a key's entry, creating it on first use.
@@ -247,10 +247,10 @@ final class TransactionStore: Erasable {
     ///   - watch: The record's watch.
     ///   - id: The record's signature.
     ///   - entry: The record's key's entry.
-    /// - Returns: The settled status.
+    /// - Returns: The transaction's outcome.
     /// - Throws: `CancellationError` if the caller is cancelled, or the watch's error.
     private func result(of watch: Watch, for id: TransactionRecord.ID, in entry: Entry) async throws
-        -> TransactionRecord.Status {
+        -> TransactionOutcome {
         defer { if watch.isFinished, entry.watches[id] === watch { entry.watches[id] = nil } }
         return try await watch.value()
     }
@@ -260,21 +260,19 @@ final class TransactionStore: Erasable {
     /// - Parameters:
     ///   - record: The pending record.
     ///   - entry: The record's key's entry.
-    /// - Returns: The settled status.
+    /// - Returns: The transaction's outcome.
     /// - Throws: The coordinator's creation or watch error, or `CancellationError`.
-    private func settle(_ record: TransactionRecord, in entry: Entry) async throws -> TransactionRecord.Status {
+    private func settle(_ record: TransactionRecord, in entry: Entry) async throws -> TransactionOutcome {
         let confirmation = try await coordinator(for: record.network).confirm(record.submission)
         try Task.checkCancellation()
-        let status = TransactionRecord.Status(confirmation.outcome)
         if let index = entry.records.firstIndex(where: { $0.id == record.id }) {
-            entry.records[index].status = status
-            entry.records[index].settled = .now
+            entry.records[index].settle(confirmation.outcome, at: .now)
         }
         await save()
         try Task.checkCancellation()
         if let settling = entry.settlings.removeValue(forKey: record.id) { await settling.settle(confirmation) }
         entry.settledCount += 1
-        return status
+        return confirmation.outcome
     }
 
     /// One account's records on one network, its settled count, and the watches and settlings of its pending records.
@@ -295,17 +293,17 @@ final class TransactionStore: Erasable {
     @MainActor
     fileprivate final class Watch {
         private var task: Task<Void, Never>?
-        private var result: Result<TransactionRecord.Status, any Error>?
-        private var waiters: [UUID: CheckedContinuation<TransactionRecord.Status, any Error>] = [:]
+        private var result: Result<TransactionOutcome, any Error>?
+        private var waiters: [UUID: CheckedContinuation<TransactionOutcome, any Error>] = [:]
 
         var isFinished: Bool { result != nil }
 
         /// Runs the watch in its own task, then hands its result to every caller that waits.
         ///
         /// - Parameter operation: Watches the record until it settles and saves the outcome.
-        func start(_ operation: @escaping @MainActor () async throws -> TransactionRecord.Status) {
+        func start(_ operation: @escaping @MainActor () async throws -> TransactionOutcome) {
             task = Task {
-                let result: Result<TransactionRecord.Status, any Error>
+                let result: Result<TransactionOutcome, any Error>
                 do {
                     result = .success(try await operation())
                 } catch {
@@ -317,9 +315,9 @@ final class TransactionStore: Erasable {
 
         /// Waits for the watch's result.
         ///
-        /// - Returns: The settled status.
+        /// - Returns: The transaction's outcome.
         /// - Throws: `CancellationError` if the caller is cancelled, or the watch's error.
-        func value() async throws -> TransactionRecord.Status {
+        func value() async throws -> TransactionOutcome {
             let id = UUID()
             return try await withTaskCancellationHandler {
                 try await withCheckedThrowingContinuation { continuation in
@@ -343,8 +341,8 @@ final class TransactionStore: Erasable {
 
         /// Keeps the watch's result and hands it to every caller that waits.
         ///
-        /// - Parameter result: The settled status, or the watch's error.
-        private func finish(with result: Result<TransactionRecord.Status, any Error>) {
+        /// - Parameter result: The transaction's outcome, or the watch's error.
+        private func finish(with result: Result<TransactionOutcome, any Error>) {
             self.result = result
             let waiters = waiters
             self.waiters = [:]

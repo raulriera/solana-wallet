@@ -174,7 +174,7 @@ extension PrivateBalances {
     ///   - id: The account's codes entry on the network.
     ///   - generation: The ``generation`` when the completion started.
     /// - Throws: `CancellationError` if ``removeAll()`` ran after `generation`, or a storage error.
-    func recordCode(of effect: PreparedPrivateTransaction.Effect, outcome: Confirmation.Outcome, signature: String,
+    func recordCode(of effect: PreparedPrivateTransaction.Effect, outcome: TransactionOutcome, signature: String,
                     id: String, from generation: Int) async throws {
         switch (effect, outcome) {
         case (.createCode(let spend, let index, let reserve), .succeeded):

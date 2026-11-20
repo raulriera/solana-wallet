@@ -11,7 +11,7 @@ struct TransactionRecordTests {
     func `A record saves the facts that find its transaction again, and is read as pending`(
         kind: TransactionRecord.Kind, name: String
     ) throws {
-        let settled = TransactionRecord.fixture(kind, account: Self.account, status: .succeeded, settled: 800_000_060)
+        let settled = TransactionRecord.fixture(kind, account: Self.account, outcome: .succeeded)
 
         let data = try JSONEncoder().encode(settled)
 
