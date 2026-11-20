@@ -234,10 +234,9 @@ final class TransactionStore: Erasable {
     ///   - entry: The record's key's entry.
     /// - Returns: The running watch.
     @discardableResult
-    private func startWatch(of record: TransactionRecord, in entry: Entry) -> Watch {
-        let watch = Watch()
+    private func startWatch(of record: TransactionRecord, in entry: Entry) -> TransactionWatch {
+        let watch = TransactionWatch { [self] in try await settle(record, in: entry) }
         entry.watches[record.id] = watch
-        watch.start { [self] in try await settle(record, in: entry) }
         return watch
     }
 
@@ -249,7 +248,7 @@ final class TransactionStore: Erasable {
     ///   - entry: The record's key's entry.
     /// - Returns: The transaction's outcome.
     /// - Throws: `CancellationError` if the caller is cancelled, or the watch's error.
-    private func result(of watch: Watch, for id: TransactionRecord.ID, in entry: Entry) async throws
+    private func result(of watch: TransactionWatch, for id: TransactionRecord.ID, in entry: Entry) async throws
         -> TransactionOutcome {
         defer { if watch.isFinished, entry.watches[id] === watch { entry.watches[id] = nil } }
         return try await watch.value()
@@ -285,75 +284,7 @@ final class TransactionStore: Erasable {
         var settledCount = 0
         @ObservationIgnored var isErased = false
         /// The watch of each pending record, kept after it ends until a caller reads its result.
-        @ObservationIgnored var watches: [TransactionRecord.ID: Watch] = [:]
+        @ObservationIgnored var watches: [TransactionRecord.ID: TransactionWatch] = [:]
         @ObservationIgnored var settlings: [TransactionRecord.ID: any TransactionSettling] = [:]
-    }
-
-    /// One watch of a pending record, which callers can join and which keeps its result after it ends.
-    @MainActor
-    fileprivate final class Watch {
-        private var task: Task<Void, Never>?
-        private var result: Result<TransactionOutcome, any Error>?
-        private var waiters: [UUID: CheckedContinuation<TransactionOutcome, any Error>] = [:]
-
-        var isFinished: Bool { result != nil }
-
-        /// Runs the watch in its own task, then hands its result to every caller that waits.
-        ///
-        /// - Parameter operation: Watches the record until it settles and saves the outcome.
-        func start(_ operation: @escaping @MainActor () async throws -> TransactionOutcome) {
-            task = Task {
-                let result: Result<TransactionOutcome, any Error>
-                do {
-                    result = .success(try await operation())
-                } catch {
-                    result = .failure(error)
-                }
-                finish(with: result)
-            }
-        }
-
-        /// Waits for the watch's result.
-        ///
-        /// - Returns: The transaction's outcome.
-        /// - Throws: `CancellationError` if the caller is cancelled, or the watch's error.
-        func value() async throws -> TransactionOutcome {
-            let id = UUID()
-            return try await withTaskCancellationHandler {
-                try await withCheckedThrowingContinuation { continuation in
-                    if let result {
-                        continuation.resume(with: result)
-                    } else if Task.isCancelled {
-                        continuation.resume(throwing: CancellationError())
-                    } else {
-                        waiters[id] = continuation
-                    }
-                }
-            } onCancel: {
-                Task { @MainActor in self.stopWaiting(id) }
-            }
-        }
-
-        /// Cancels the watch.
-        func cancel() {
-            task?.cancel()
-        }
-
-        /// Keeps the watch's result and hands it to every caller that waits.
-        ///
-        /// - Parameter result: The transaction's outcome, or the watch's error.
-        private func finish(with result: Result<TransactionOutcome, any Error>) {
-            self.result = result
-            let waiters = waiters
-            self.waiters = [:]
-            for waiter in waiters.values { waiter.resume(with: result) }
-        }
-
-        /// Ends one caller's wait with a cancellation error.
-        ///
-        /// - Parameter id: The identifier of the caller's wait.
-        private func stopWaiting(_ id: UUID) {
-            waiters.removeValue(forKey: id)?.resume(throwing: CancellationError())
-        }
     }
 }
