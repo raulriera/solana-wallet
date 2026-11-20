@@ -860,6 +860,27 @@ struct PrivateBalancesTests {
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 0)
     }
 
+    @Test
+    func `Preparing a merge proves a transfer of the 40 largest notes to the account itself`() async throws {
+        let sender = try await Self.fundedAccount(amount: 1, of: .nativeSOL)
+        let shielded = try await PrivateBalanceFixtures.keys(for: sender.account).shieldedAccount(for: sender.account.address)
+        let deposits = try (1...41).map { try PrivateBalanceFixtures.deposit(1, to: shielded, leafIndex: UInt64($0), of: .nativeSOL) }
+        let unqueued = AccountReplies.accounts(Array(repeating: nil, count: 40))
+        let responses = HTTPResponses.privateNotes(registry: [unqueued], deposits: deposits, outputTreeID: 1,
+                                                   prover: try IndexedProofs.prover())
+        let balances = try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
+
+        let prepared = try await balances.prepare(.merge(.nativeSOL), from: sender.account, on: .devnet)
+
+        let spend = try #require(prepared.effect.spend)
+        #expect(prepared.instructions == spend.instructions)
+        #expect(spend.amount == 40)
+        #expect(spend.receivedAmount == 40)
+        #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 1)
+        #expect(try await balances.complete(prepared, with: PrivateBalanceFixtures.confirmation(.succeeded))
+            == .balance(available: 1, pending: 40, of: .nativeSOL))
+    }
+
     @MainActor
     private static func balances(
         _ responses: HTTPResponses, provider: RPCSettings.Provider = .helius,

@@ -140,7 +140,7 @@ actor PrivateBalances: PrivateBalancing {
         do {
             let client = try await client(for: network)
             switch request {
-            case .deposit, .send, .withdraw:
+            case .deposit, .send, .withdraw, .merge:
                 return try await preparedTransfer(request, from: account, on: network, client: client)
             case .createCode(let lamports):
                 return try await preparedCode(holding: lamports, from: account, on: network, client: client)
@@ -201,10 +201,10 @@ actor PrivateBalances: PrivateBalancing {
         return client
     }
 
-    /// Builds a deposit, send, or withdrawal after the shared sync of the account's notes.
+    /// Builds a deposit, send, withdrawal, or merge after the shared sync of the account's notes.
     ///
     /// - Parameters:
-    ///   - request: The deposit, send, or withdrawal.
+    ///   - request: The deposit, send, withdrawal, or merge.
     ///   - account: The account that signs and pays.
     ///   - network: The network of the account's private balance.
     ///   - client: The network's client.
@@ -243,6 +243,9 @@ actor PrivateBalances: PrivateBalancing {
                 }
             let spend = try await state.spend(amount, of: asset, to: destination, from: shielded, rpc: client,
                                               prover: client)
+            (instructions, effect) = (spend.instructions, .spend(spend))
+        case .merge(let asset):
+            let spend = try await NoteMerge.spend(of: asset, in: state, from: shielded, rpc: client, prover: client)
             (instructions, effect) = (spend.instructions, .spend(spend))
         case .createCode, .redeem, .takeBack:
             throw Transactions.ValidationError.invalidTransaction

@@ -32,7 +32,7 @@ nonisolated protocol PrivateBalancing: Sendable {
     /// Builds a private-balance transaction for review, syncing the account's notes first.
     ///
     /// - Parameters:
-    ///   - request: The deposit, send, withdrawal, code creation, redeem, or take-back.
+    ///   - request: The deposit, send, withdrawal, merge, code creation, redeem, or take-back.
     ///   - account: The account whose private balance changes.
     ///   - network: The network to run on.
     /// - Returns: The transaction's instructions and authorities, and the change it makes once it succeeds.
