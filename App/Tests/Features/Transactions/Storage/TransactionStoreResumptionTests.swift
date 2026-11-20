@@ -40,11 +40,10 @@ struct TransactionStoreResumptionTests {
     @Test
     func `Resuming reads only the keys in the pending index`() async throws {
         let fixture = try SigningFixture()
-        let record = try TransactionRecord.fixture(LocalSending.payment(), signature: "pending",
-                                                   account: fixture.account.id)
+        let record = TransactionRecord.fixture(.payment, signature: "pending", account: fixture.account.id)
         let skippedKey = TransactionRecord.Key(account: UUID(), network: .devnet)
-        let skipped = StoredValue([try TransactionRecord.fixture(LocalSending.payment(), signature: "skipped",
-                                                                 account: skippedKey.account)])
+        let skipped = StoredValue([TransactionRecord.fixture(.payment, signature: "skipped",
+                                                             account: skippedKey.account)])
         let resuming = try LocalSending(fixture: fixture, records: StoredValue([record]),
                                          otherRecords: [skippedKey: skipped], pending: StoredValue([record.key]))
 
@@ -59,8 +58,7 @@ struct TransactionStoreResumptionTests {
     @Test
     func `Resuming starts no duplicate watches`() async throws {
         let fixture = try SigningFixture()
-        let record = try TransactionRecord.fixture(LocalSending.payment(), signature: "pending",
-                                                   account: fixture.account.id)
+        let record = TransactionRecord.fixture(.payment, signature: "pending", account: fixture.account.id)
         let gate = Suspension()
         let resuming = try LocalSending(statusGate: gate, fixture: fixture, records: StoredValue([record]),
                                          pending: StoredValue([record.key]))
@@ -81,8 +79,7 @@ struct TransactionStoreResumptionTests {
     @Test
     func `Resuming retries a failed watch only after its error is read or on a new connection`() async throws {
         let fixture = try SigningFixture()
-        let record = try TransactionRecord.fixture(LocalSending.payment(), signature: "pending",
-                                                   account: fixture.account.id)
+        let record = TransactionRecord.fixture(.payment, signature: "pending", account: fixture.account.id)
         let sockets = SocketSequence()
         let coordinator = try LocalTransactions(fixture: fixture, statuses: [.status(.finalized)],
                                                 sockets: sockets).coordinator

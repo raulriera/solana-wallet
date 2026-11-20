@@ -48,7 +48,7 @@ struct PaymentProposal: TransactionProposal {
         return ProposedTransaction(
             simulation: simulation,
             review: Review(networkFee: networkFee, accountDeposit: accountDeposit, transferFee: transferFee),
-            kind: .payment(recipient: recipient.address, asset: asset.id, amount: sent.amount),
+            kind: .payment,
             settling: RecentPaymentSettlement(recents: recents, recipient: recipient.address))
     }
 }

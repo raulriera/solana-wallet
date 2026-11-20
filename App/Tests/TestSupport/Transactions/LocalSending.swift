@@ -36,14 +36,12 @@ struct LocalSending {
 
     var key: TransactionRecord.Key { TransactionRecord.Key(account: account.id, network: .devnet) }
 
-    var payment: TransactionRecord.Kind { .payment(recipient: recipient, asset: .nativeSOL, amount: 1_000_000_000) }
-
     func simulate() async throws -> Simulation {
         try await store.coordinator(for: .devnet).transfer(1_000_000_000, of: .nativeSOL, using: account, to: recipient)
     }
 
     func send(settling: (any TransactionSettling)? = nil) async throws -> TransactionRecord {
-        try await store.send(simulate(), as: payment, from: account, settling: settling)
+        try await store.send(simulate(), as: .payment, from: account, settling: settling)
     }
 
     func settle(_ record: TransactionRecord) async throws -> TransactionRecord.Status {
@@ -54,10 +52,5 @@ struct LocalSending {
 
     func savedOnly(_ record: TransactionRecord) async -> Bool {
         await records.value?.map(\.id) == [record.id]
-    }
-
-    static func payment(to recipient: Address? = nil) throws -> TransactionRecord.Kind {
-        .payment(recipient: try recipient ?? Address("4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T"), asset: .nativeSOL,
-                 amount: 1)
     }
 }

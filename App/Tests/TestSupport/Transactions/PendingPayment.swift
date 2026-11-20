@@ -9,14 +9,12 @@ struct PendingPayment {
     let record: TransactionRecord
     let sockets: SocketSequence
 
-    init(from account: UUID, to recipient: Address? = nil,
-         statuses: [GetSignatureStatuses.Response] = [.status(.finalized)],
+    init(from account: UUID, statuses: [GetSignatureStatuses.Response] = [.status(.finalized)],
          sockets: SocketSequence = SocketSequence()) throws {
         let fixture = try SigningFixture()
         self.sockets = sockets
         let coordinator = try LocalTransactions(fixture: fixture, statuses: statuses, sockets: sockets).coordinator
-        record = .fixture(.payment(recipient: recipient ?? fixture.transfer.accounts[1].address, asset: .nativeSOL, amount: 1),
-                          signature: "pending", account: account)
+        record = .fixture(.payment, signature: "pending", account: account)
         transactions = .inMemory([record.key: StoredValue([record])], pending: StoredValue([record.key])) { _ in
             coordinator
         }

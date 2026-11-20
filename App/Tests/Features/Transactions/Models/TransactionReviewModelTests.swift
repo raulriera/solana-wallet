@@ -65,8 +65,7 @@ struct TransactionReviewModelTests {
         model.approve()
         await model.run(model.attempt)
         let record = try #require(model.record)
-        #expect(record.kind == .payment(recipient: model.proposal.recipient.address, asset: .nativeSOL,
-                                        amount: 1_000_000_000))
+        #expect(record.kind == .payment)
         #expect(model.submission?.network == .devnet)
 
         #expect(await payment.transactions.settledStatus(of: record) == .succeeded)

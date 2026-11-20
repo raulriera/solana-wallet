@@ -16,19 +16,12 @@ nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable
     }
 
     /// What a transaction does.
-    enum Kind: Equatable, Sendable {
-        /// A payment of an asset to a recipient.
-        case payment(recipient: Address, asset: Asset.ID, amount: UInt64)
+    enum Kind: String, Codable, Sendable {
+        case payment
         /// A move of the account's public asset into its private balance.
         case privateDeposit
         /// A move of the account's private asset to its own public balance.
         case privateWithdrawal
-
-        /// The address that a payment went to, or `nil` for other kinds.
-        var recipient: Address? {
-            guard case .payment(let recipient, _, _) = self else { return nil }
-            return recipient
-        }
     }
 
     /// Whether a transaction settled, and how.
@@ -76,26 +69,14 @@ nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable
 
     /// The record's persisted field names.
     private enum CodingKeys: String, CodingKey {
-        case account, network, kind, recipient, asset, amount, signature, lastValidBlockHeight, status, created, settled
-    }
-
-    /// The persisted name of each kind.
-    private enum KindName: String, Codable {
-        case payment, privateDeposit, privateWithdrawal
+        case account, network, kind, signature, lastValidBlockHeight, status, created, settled
     }
 
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         key = Key(account: try container.decode(UUID.self, forKey: .account),
                   network: try container.decode(Network.self, forKey: .network))
-        kind = switch try container.decode(KindName.self, forKey: .kind) {
-        case .payment:
-            .payment(recipient: try container.decode(Address.self, forKey: .recipient),
-                     asset: try container.decode(Asset.ID.self, forKey: .asset),
-                     amount: try container.decode(UInt64.self, forKey: .amount))
-        case .privateDeposit: .privateDeposit
-        case .privateWithdrawal: .privateWithdrawal
-        }
+        kind = try container.decode(Kind.self, forKey: .kind)
         signature = try container.decode(String.self, forKey: .signature)
         lastValidBlockHeight = try container.decode(UInt64.self, forKey: .lastValidBlockHeight)
         status = try container.decode(Status.self, forKey: .status)
@@ -107,17 +88,7 @@ nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(key.account, forKey: .account)
         try container.encode(key.network, forKey: .network)
-        switch kind {
-        case .payment(let recipient, let asset, let amount):
-            try container.encode(KindName.payment, forKey: .kind)
-            try container.encode(recipient, forKey: .recipient)
-            try container.encode(asset, forKey: .asset)
-            try container.encode(amount, forKey: .amount)
-        case .privateDeposit:
-            try container.encode(KindName.privateDeposit, forKey: .kind)
-        case .privateWithdrawal:
-            try container.encode(KindName.privateWithdrawal, forKey: .kind)
-        }
+        try container.encode(kind, forKey: .kind)
         try container.encode(signature, forKey: .signature)
         try container.encode(lastValidBlockHeight, forKey: .lastValidBlockHeight)
         try container.encode(status, forKey: .status)

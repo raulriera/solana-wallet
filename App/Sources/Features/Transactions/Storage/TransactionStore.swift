@@ -107,25 +107,6 @@ final class TransactionStore: Erasable {
         records(for: key).first { $0.id == id }
     }
 
-    /// Returns the latest succeeded payment to each recipient across several accounts' records.
-    ///
-    /// - Parameters:
-    ///   - keys: The accounts and networks whose payments count.
-    ///   - limit: The most payments to return.
-    /// - Returns: One payment per recipient, the latest to land first.
-    func recentPayments(for keys: [TransactionRecord.Key], limit: Int) -> [TransactionRecord] {
-        let payments = keys.flatMap(records(for:))
-            .filter { $0.status == .succeeded }
-            .sorted { ($0.settled ?? $0.created) > ($1.settled ?? $1.created) }
-        var recipients: Set<Address> = []
-        var latest: [TransactionRecord] = []
-        for payment in payments where latest.count < limit {
-            guard let recipient = payment.kind.recipient, recipients.insert(recipient).inserted else { continue }
-            latest.append(payment)
-        }
-        return latest
-    }
-
     /// Returns how many of an account's transactions on a network settled since launch.
     ///
     /// - Parameter key: The account and network.

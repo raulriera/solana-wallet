@@ -127,8 +127,7 @@ struct WalletPrivateBalanceTests {
         let key = TransactionRecord.Key(account: account.id, network: .devnet)
         let records: [TransactionRecord] = [
             .fixture(.privateDeposit, signature: "pending deposit", account: account.id, created: 40),
-            .fixture(.payment(recipient: account.address, asset: .nativeSOL, amount: 1), signature: "payment",
-                     account: account.id, status: .succeeded, created: 30, settled: 35),
+            .fixture(.payment, signature: "payment", account: account.id, status: .succeeded, created: 30, settled: 35),
             .fixture(.privateWithdrawal, signature: "withdrawal", account: account.id,
                      status: .failed, created: 20, settled: 25),
             .fixture(.privateDeposit, signature: "deposit", account: account.id, status: .succeeded,

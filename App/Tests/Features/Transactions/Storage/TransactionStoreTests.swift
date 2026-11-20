@@ -18,7 +18,7 @@ struct TransactionStoreTests {
 
         #expect(record.status == .pending)
         #expect(record.settled == nil)
-        #expect(record.kind == sending.payment)
+        #expect(record.kind == .payment)
         #expect(record.key == sending.key)
         #expect(record.lastValidBlockHeight == 550)
         #expect(await sending.savedOnly(record))
@@ -52,7 +52,7 @@ struct TransactionStoreTests {
         let gate = Suspension()
         let sending = try LocalSending(sent: .sending(gate: gate))
         let simulation = try await sending.simulate()
-        let caller = Task { try await sending.store.send(simulation, as: sending.payment, from: sending.account) }
+        let caller = Task { try await sending.store.send(simulation, as: .payment, from: sending.account) }
         await gate.waitUntilStarted()
 
         caller.cancel()
@@ -67,8 +67,8 @@ struct TransactionStoreTests {
     @Test
     func `Only the latest 100 records are kept`() async throws {
         let fixture = try SigningFixture()
-        let saved = try (0..<100).map {
-            try TransactionRecord.fixture(LocalSending.payment(), signature: "saved-\($0)", account: fixture.account.id)
+        let saved = (0..<100).map {
+            TransactionRecord.fixture(.payment, signature: "saved-\($0)", account: fixture.account.id)
         }
         let sending = try LocalSending(fixture: fixture, records: StoredValue(saved))
 
@@ -193,12 +193,10 @@ struct TransactionStoreTests {
     func `Erasing an account deletes its records on every network only`() async throws {
         let fixture = try SigningFixture()
         let other = UUID()
-        let mainnet = StoredValue([try TransactionRecord.fixture(LocalSending.payment(), signature: "mainnet",
-                                                                 account: fixture.account.id, network: .mainnet)])
-        let devnet = StoredValue([try TransactionRecord.fixture(LocalSending.payment(), signature: "devnet",
-                                                                account: fixture.account.id)])
-        let kept = StoredValue([try TransactionRecord.fixture(LocalSending.payment(), signature: "kept",
-                                                              account: other)])
+        let mainnet = StoredValue([TransactionRecord.fixture(.payment, signature: "mainnet",
+                                                             account: fixture.account.id, network: .mainnet)])
+        let devnet = StoredValue([TransactionRecord.fixture(.payment, signature: "devnet", account: fixture.account.id)])
+        let kept = StoredValue([TransactionRecord.fixture(.payment, signature: "kept", account: other)])
         let otherKey = TransactionRecord.Key(account: other, network: .devnet)
         let sending = try LocalSending(fixture: fixture, records: devnet, otherRecords: [
             TransactionRecord.Key(account: fixture.account.id, network: .mainnet): mainnet, otherKey: kept,
@@ -215,44 +213,10 @@ struct TransactionStoreTests {
     }
 
     @Test
-    func `Recent payments list each recipient's latest succeeded payment`() async throws {
-        let (first, second) = (UUID(), UUID())
-        let (bruno, carla, dana) = try (Address("4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T"),
-                                        Address("9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"),
-                                        Address("8CW93AFYFKj2rKZRq3YjLesb4XbgtAiq8k2FgfruVZL5"))
-        let storages = try [
-            TransactionRecord.Key(account: first, network: .devnet): StoredValue<[TransactionRecord]>([
-                .fixture(LocalSending.payment(to: bruno), signature: "bruno-old", account: first, status: .succeeded,
-                         settled: 10),
-                .fixture(LocalSending.payment(to: carla), signature: "carla", account: first, status: .succeeded,
-                         settled: 30),
-                .fixture(LocalSending.payment(to: dana), signature: "dana-failed", account: first, status: .failed,
-                         settled: 60),
-                .fixture(.privateDeposit, signature: "deposit", account: first, status: .succeeded,
-                         settled: 70),
-            ]),
-            TransactionRecord.Key(account: second, network: .devnet): StoredValue<[TransactionRecord]>([
-                .fixture(LocalSending.payment(to: bruno), signature: "bruno-new", account: second, status: .succeeded,
-                         settled: 40),
-                .fixture(LocalSending.payment(to: dana), signature: "dana-pending", account: second),
-                .fixture(LocalSending.payment(to: dana), signature: "dana", account: second, status: .succeeded,
-                         settled: 20),
-            ]),
-        ]
-        let store = TransactionStore.inMemory(storages)
-        let keys = Array(storages.keys)
-        for key in keys { await store.load(key) }
-
-        #expect(store.recentPayments(for: keys, limit: 10).map(\.id) == ["bruno-new", "carla", "dana"])
-        #expect(store.recentPayments(for: keys, limit: 2).map(\.id) == ["bruno-new", "carla"])
-    }
-
-    @Test
     func `Loading reads a key's saved records`() async throws {
         let account = UUID()
         let key = TransactionRecord.Key(account: account, network: .devnet)
-        let saved = StoredValue([TransactionRecord.fixture(try LocalSending.payment(), signature: "saved",
-                                                           account: account)])
+        let saved = StoredValue([TransactionRecord.fixture(.payment, signature: "saved", account: account)])
         let store = TransactionStore.inMemory(saved) { _ in throw TransactionCoordinatorError.unsupportedNetwork }
         #expect(store.phase(for: key) == .unloaded)
 
@@ -269,7 +233,7 @@ struct TransactionStoreTests {
         let directory = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
         defer { try? FileManager.default.removeItem(at: directory) }
         let account = UUID()
-        let record = TransactionRecord.fixture(try LocalSending.payment(), signature: "saved", account: account)
+        let record = TransactionRecord.fixture(.payment, signature: "saved", account: account)
 
         try await TransactionStore.files(in: directory)(record.key).save([record])
 

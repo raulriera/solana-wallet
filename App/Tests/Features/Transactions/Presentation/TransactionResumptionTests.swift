@@ -26,9 +26,7 @@ struct TransactionResumptionTests {
     @Test
     func `A new provider connection retries a failed watch`() async throws {
         let fixture = try SigningFixture()
-        let record = TransactionRecord.fixture(.payment(recipient: fixture.transfer.accounts[1].address, asset: .nativeSOL,
-                                                        amount: 1),
-                                               signature: "pending", account: UUID())
+        let record = TransactionRecord.fixture(.payment, signature: "pending", account: UUID())
         let sockets = SocketSequence()
         let coordinator = try LocalTransactions(fixture: fixture, statuses: [.status(.finalized)],
                                                 sockets: sockets).coordinator
