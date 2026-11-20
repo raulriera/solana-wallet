@@ -6,7 +6,8 @@ import Testing
 struct TransactionRecordTests {
     private static let account = UUID(uuidString: "E621E1F8-C36C-495A-93FC-0C247A3E6E5F")!
 
-    @Test(arguments: [(TransactionRecord.Kind.payment, "payment"), (.privateDeposit, "privateDeposit"),
+    @Test(arguments: [(TransactionRecord.Kind.payment, "payment"), (.privatePayment, "privatePayment"),
+                      (.privateDeposit, "privateDeposit"),
                       (.privateWithdrawal, "privateWithdrawal")])
     func `A record saves the facts that find its transaction again, and is read as pending`(
         kind: TransactionRecord.Kind, name: String

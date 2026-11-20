@@ -15,6 +15,8 @@ nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable
     /// What a transaction does.
     enum Kind: String, Codable, Sendable {
         case payment
+        /// A payment from the account's private balance to a recipient's private balance.
+        case privatePayment
         /// A move of the account's public asset into its private balance.
         case privateDeposit
         /// A move of the account's private asset to its own public balance.

@@ -189,15 +189,13 @@ struct BalanceMoveProposalTests {
     }
 
     @Test
-    func `Approving a send records a payment to the recipient`() async throws {
-        async let recipient = PrivateBalanceFixtures.account(index: 1)
+    func `Approving a send records a private payment`() async throws {
         let send = try await LocalBalanceMove.send(of: .nativeSOL, statuses: [.status(.finalized)])
         try await send.model.runReview()
 
         let record = try await send.model.runApproval()
 
-        #expect(try await record.kind == .payment(recipient: recipient.address, asset: Asset.nativeSOL.id,
-                                        amount: LocalBalanceMove.amount))
+        #expect(record.kind == .privatePayment)
         #expect(try await send.transactions.watch(record.id, for: record.key) == .succeeded)
         #expect(send.model.outcome == .succeeded)
         #expect(try await send.balances.refresh(send.account, on: .devnet)

@@ -117,8 +117,8 @@ struct BalanceMoveProposal: TransactionProposal {
                 pendingChange: spend.receivedAmount.nonZero,
                 accountDeposit: accountDeposit
             )
-            kind = if case .toRecipient(let recipient) = direction {
-                .payment(recipient: recipient.address, asset: asset.id, amount: sent.amount)
+            kind = if case .toRecipient = direction {
+                .privatePayment
             } else {
                 .privateWithdrawal
             }
