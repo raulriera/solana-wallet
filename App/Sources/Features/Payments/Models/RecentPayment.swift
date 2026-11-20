@@ -7,5 +7,5 @@ nonisolated struct RecentPayment: Identifiable, Hashable, Codable, Sendable {
     /// When the payment landed.
     let date: Date
 
-    var id: String { address.value }
+    var id: Address { address }
 }
