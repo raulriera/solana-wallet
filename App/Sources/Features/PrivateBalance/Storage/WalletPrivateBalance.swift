@@ -56,7 +56,7 @@ final class WalletPrivateBalance {
         transactions.records(for: key).lazy
             .filter { record in
                 switch record.kind {
-                case .privateDeposit, .privateWithdrawal: record.settled != nil
+                case .privateDeposit, .privateWithdrawal: !record.isPending
                 case .payment: false
                 }
             }

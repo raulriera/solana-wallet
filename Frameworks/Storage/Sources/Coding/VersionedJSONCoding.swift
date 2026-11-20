@@ -40,8 +40,8 @@ public struct VersionedJSONCoding<Value: Codable & Equatable & Sendable>: ValueC
 
     public func decode(_ data: Data) -> Value? {
         let decoder = JSONDecoder()
+        if let kept = try? decoder.decode(Envelope.self, from: data), kept.version == version { return kept.value }
         let found = (try? decoder.decode(Version.self, from: data))?.version ?? 0
-        if found == version, let kept = try? decoder.decode(Envelope.self, from: data) { return kept.value }
         if found < version, let migrated = migration(data, found) { return migrated }
         switch unusable {
         case .replaced(let value): return value

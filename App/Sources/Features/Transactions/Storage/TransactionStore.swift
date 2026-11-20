@@ -135,9 +135,7 @@ final class TransactionStore: Erasable {
         let entry = entry(for: key)
         if let watch = entry.watches[id] { return try await result(of: watch, for: id, in: entry) }
         await load()
-        guard let record = entry.records.first(where: { $0.id == id }) else {
-            throw TransactionStoreError.missingRecord
-        }
+        guard let record = record(id, for: key) else { throw TransactionStoreError.missingRecord }
         if let outcome = record.outcome { return outcome }
         return try await result(of: startWatch(of: record, in: entry), for: id, in: entry)
     }
@@ -147,13 +145,10 @@ final class TransactionStore: Erasable {
     /// - Parameter replacingFailedWatches: Whether to restart watches that ended with an error that no caller read.
     func resume(replacingFailedWatches: Bool = false) async {
         await load()
-        for entry in entries.values where !entry.isErased {
+        for entry in entries.values {
             for record in entry.records where record.isPending {
-                guard let watch = entry.watches[record.id] else {
-                    startWatch(of: record, in: entry)
-                    continue
-                }
-                if replacingFailedWatches, watch.isFinished { startWatch(of: record, in: entry) }
+                if let watch = entry.watches[record.id], !(replacingFailedWatches && watch.isFinished) { continue }
+                startWatch(of: record, in: entry)
             }
         }
     }
@@ -196,11 +191,10 @@ final class TransactionStore: Erasable {
         return entry
     }
 
-    /// Stops a key's watches for good and forgets the settlings that didn't run.
+    /// Stops a key's watches and forgets the settlings that didn't run.
     ///
     /// - Parameter entry: The key's entry.
     private func stop(_ entry: Entry) {
-        entry.isErased = true
         for watch in entry.watches.values { watch.cancel() }
         entry.watches = [:]
         entry.settlings = [:]
@@ -282,7 +276,6 @@ final class TransactionStore: Erasable {
         var records: [TransactionRecord] = []
         /// How many of the key's transactions settled since launch.
         var settledCount = 0
-        @ObservationIgnored var isErased = false
         /// The watch of each pending record, kept after it ends until a caller reads its result.
         @ObservationIgnored var watches: [TransactionRecord.ID: TransactionWatch] = [:]
         @ObservationIgnored var settlings: [TransactionRecord.ID: any TransactionSettling] = [:]
