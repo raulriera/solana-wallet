@@ -162,13 +162,20 @@ struct UITestApp {
         field.typeText(text)
     }
 
-    func tap(_ element: XCUIElement, within timeout: TimeInterval = 10, file: StaticString = #filePath,
-             line: UInt = #line) throws {
-        let predicate = NSPredicate(format: "exists == true AND isEnabled == true AND isHittable == true")
-        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+    func tap(_ element: XCUIElement, within timeout: TimeInterval = 10, unless alerts: [String] = [],
+             file: StaticString = #filePath, line: UInt = #line) throws {
+        let reports = alerts.map { app.alerts[$0] }
+        let predicate = NSPredicate { _, _ in
+            element.exists && element.isEnabled && element.isHittable || reports.contains { $0.exists }
+        }
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: nil)
         guard XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed else {
             XCTFail("Expected control did not become ready", file: file, line: line)
             throw Error.unavailableControl
+        }
+        if let alert = alerts.first(where: { app.alerts[$0].exists }) {
+            XCTFail("The app reported \(alert) instead of the expected result.", file: file, line: line)
+            throw Error.reportedError
         }
         element.tap()
     }

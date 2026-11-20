@@ -38,7 +38,7 @@ struct PrivateBalancePage {
     }
 
     func approve(_ title: String, file: StaticString = #filePath, line: UInt = #line) throws {
-        try driver.tap(reviewButton(title), within: 120, file: file, line: line)
+        try driver.tap(reviewButton(title), within: 120, unless: Self.errors, file: file, line: line)
     }
 
     func expectResult(_ message: String, file: StaticString = #filePath, line: UInt = #line) throws {
