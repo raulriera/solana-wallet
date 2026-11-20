@@ -31,17 +31,8 @@ nonisolated enum ContactsFixtures {
         return book
     }()
 
-    @MainActor
-    static var records: [TransactionRecord] {
-        [payment(to: alice, signature: "alice", settled: 2_000), payment(to: recent, signature: "recent", settled: 1_000)]
-    }
-
-    @MainActor
-    static func payment(to recipient: Address, signature: String, account: UUID = main.id, network: Network = .mainnet,
-                        settled: TimeInterval) -> TransactionRecord {
-        .fixture(.payment(recipient: recipient, asset: .nativeSOL, amount: 1), signature: signature, account: account,
-                 network: network, status: .succeeded, created: settled - 1, settled: settled)
-    }
+    static let payments = [RecentPayment(address: alice, date: Date(timeIntervalSinceReferenceDate: 2_000)),
+                           RecentPayment(address: recent, date: Date(timeIntervalSinceReferenceDate: 1_000))]
 
     @MainActor
     static func store(_ addressBook: StoredValue<AddressBook> = StoredValue(addressBook)) -> ContactStore {
@@ -49,22 +40,19 @@ nonisolated enum ContactsFixtures {
     }
 
     @MainActor
-    static func transactions(_ records: [TransactionRecord.Key: StoredValue<[TransactionRecord]>] = [
-        TransactionRecord.Key(account: main.id, network: .mainnet): StoredValue(Self.records),
-    ]) -> TransactionStore {
-        .inMemory(records)
+    static func recents(
+        _ payments: StoredValue<[Network: [RecentPayment]]> = StoredValue([.mainnet: payments])
+    ) -> RecentPaymentStore {
+        RecentPaymentStore(storage: payments)
     }
 
     static let lists = ContactLists(sendingAccount: sending, accounts: [Contact(savingsAccount)], addressBook: addressBook,
-                                    payments: [RecentPayment(address: alice, date: Date(timeIntervalSinceReferenceDate: 2_000)),
-                                               RecentPayment(address: recent, date: Date(timeIntervalSinceReferenceDate: 1_000))],
-                                    keys: [], phase: .loaded)
+                                    payments: payments, phase: .loaded)
 
     @MainActor
-    static func tab(store: ContactStore? = nil, transactions: TransactionStore? = nil,
+    static func tab(store: ContactStore? = nil, recents: RecentPaymentStore? = nil,
                     network: Network = .mainnet) async -> ContactsTab {
-        let tab = ContactsTab(store: store ?? self.store(), transactions: transactions ?? self.transactions(),
-                              network: network)
+        let tab = ContactsTab(store: store ?? self.store(), recents: recents ?? self.recents(), network: network)
         await tab.load()
         return tab
     }
@@ -74,15 +62,15 @@ nonisolated enum ContactsFixtures {
 struct ContactsTab {
     let model = ContactsModel()
     let store: ContactStore
-    let transactions: TransactionStore
+    let recents: RecentPaymentStore
     let network: Network
     var wallet = [ContactsFixtures.main, ContactsFixtures.savingsAccount]
 
     var lists: ContactLists {
-        model.lists(for: ContactsFixtures.main, on: network, in: wallet, store: store, transactions: transactions)
+        model.lists(for: ContactsFixtures.main, on: network, in: wallet, store: store, recents: recents)
     }
 
     func load() async {
-        await model.load(lists.keys, from: store, transactions: transactions)
+        await model.load(from: store, recents: recents)
     }
 }

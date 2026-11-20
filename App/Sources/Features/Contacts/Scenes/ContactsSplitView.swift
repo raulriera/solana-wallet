@@ -23,7 +23,7 @@ struct ContactsSplitView: View {
 
     var body: some View {
         let lists = contacts.lists(for: account, on: network, in: accounts.accounts,
-                                   store: store, transactions: transactions)
+                                   store: store, recents: recents)
         ContactsContainer(selection: $selection, lists: lists, contacts: contacts, entry: $entry) {
             NavigationSplitView(columnVisibility: $columnVisibility, preferredCompactColumn: $preferredColumn) {
                 RecipientList(selection: $selection, lists: lists)

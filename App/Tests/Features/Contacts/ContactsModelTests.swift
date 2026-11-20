@@ -4,7 +4,6 @@ import RPC
 import Storage
 import Testing
 import Wallet
-@testable import Transactions
 @testable import widgets
 
 @MainActor
@@ -39,7 +38,8 @@ struct ContactsModelTests {
         let savings = widgets.Account(id: UUID(), recoveryID: ContactsFixtures.wallet, address: ContactsFixtures.savings,
                                       path: try DerivationPath("m/44'/501'/1'/0'"))
         let addressBook = StoredValue<AddressBook>()
-        var tab = ContactsTab(store: ContactsFixtures.store(addressBook), transactions: .unused, network: .mainnet)
+        var tab = ContactsTab(store: ContactsFixtures.store(addressBook), recents: ContactsFixtures.recents(StoredValue()),
+                              network: .mainnet)
         tab.wallet = [main, savings]
         await tab.load()
 
@@ -59,27 +59,16 @@ struct ContactsModelTests {
     @Test func `A new account in the wallet is listed at once`() async {
         let added = widgets.Account(id: UUID(), recoveryID: ContactsFixtures.wallet, address: ContactsFixtures.stranger,
                                     path: .solana(account: 2), customName: "Travel")
-        let transactions = ContactsFixtures.transactions([
-            TransactionRecord.Key(account: ContactsFixtures.main.id, network: .mainnet): StoredValue(ContactsFixtures.records),
-            TransactionRecord.Key(account: added.id, network: .mainnet): StoredValue([
-                ContactsFixtures.payment(to: ContactsFixtures.bruno, signature: "travel", account: added.id,
-                                         settled: 3_000),
-            ]),
-        ])
-        var tab = await ContactsFixtures.tab(transactions: transactions)
+        var tab = await ContactsFixtures.tab()
 
         tab.wallet.append(added)
 
         #expect(tab.lists.accounts.map(\.name) == ["Savings", "Travel"])
-        #expect(!tab.lists.isLoaded)
-        await tab.load()
-        #expect(tab.lists.isLoaded)
-        #expect(tab.lists.payments.map(\.address) == [ContactsFixtures.bruno, ContactsFixtures.alice,
-                                                       ContactsFixtures.recent])
     }
 
     @Test func `A list without anyone else is empty`() async {
-        var tab = ContactsTab(store: ContactsFixtures.store(StoredValue()), transactions: .unused, network: .mainnet)
+        var tab = ContactsTab(store: ContactsFixtures.store(StoredValue()), recents: ContactsFixtures.recents(StoredValue()),
+                              network: .mainnet)
         tab.wallet = [ContactsFixtures.main]
 
         await tab.load()
@@ -121,54 +110,35 @@ struct ContactsModelTests {
         await window.load()
     }
 
-    @Test func `A landed payment shows in every window`() async throws {
-        let sent = try PendingPayment(from: ContactsFixtures.main.id, to: ContactsFixtures.stranger)
-        async let window = ContactsFixtures.tab(transactions: sent.transactions, network: .devnet)
-        async let other = ContactsFixtures.tab(transactions: sent.transactions, network: .devnet)
-        let (first, second) = await (window, other)
-        #expect(first.lists.recents.isEmpty)
+    @Test func `A new payment is listed at once`() async throws {
+        let recents = ContactsFixtures.recents(StoredValue())
+        let tab = await ContactsFixtures.tab(recents: recents, network: .devnet)
+        #expect(tab.lists.recents.isEmpty)
 
-        #expect(try await sent.settle() == .succeeded)
+        try await recents.add(RecentPayment(address: ContactsFixtures.stranger, date: .now), on: .devnet)
 
-        #expect(first.lists.recents.map(\.address) == [ContactsFixtures.stranger])
-        #expect(second.lists.recents.map(\.address) == [ContactsFixtures.stranger])
+        #expect(tab.lists.recents.map(\.address) == [ContactsFixtures.stranger])
     }
 
-    @Test func `Recents list the wallet's payments on the tab's network`() async throws {
-        let transactions = ContactsFixtures.transactions([
-            TransactionRecord.Key(account: ContactsFixtures.main.id, network: .mainnet):
-                StoredValue(ContactsFixtures.records),
-            TransactionRecord.Key(account: ContactsFixtures.savingsAccount.id, network: .mainnet): StoredValue([
-                .fixture(.payment(recipient: ContactsFixtures.recent, asset: .nativeSOL, amount: 1), signature: "savings",
-                         account: ContactsFixtures.savingsAccount.id, network: .mainnet, status: .succeeded,
-                         settled: 3_000),
-            ]),
-            TransactionRecord.Key(account: ContactsFixtures.main.id, network: .devnet):
-                StoredValue([ContactsFixtures.payment(to: ContactsFixtures.stranger, signature: "devnet",
-                                                      network: .devnet, settled: 4_000)]),
-        ])
+    @Test func `A payment to the account that pays stays out of Recents`() async {
+        let payment = RecentPayment(address: ContactsFixtures.sending, date: .now)
+        let tab = await ContactsFixtures.tab(recents: ContactsFixtures.recents(StoredValue([.mainnet: [payment]])))
 
-        async let mainnetTab = ContactsFixtures.tab(transactions: transactions)
-        async let devnetTab = ContactsFixtures.tab(transactions: transactions, network: .devnet)
+        #expect(tab.lists.recents.isEmpty)
+    }
+
+    @Test func `Recents list the payments on the tab's network`() async {
+        let recents = ContactsFixtures.recents(StoredValue([
+            .mainnet: ContactsFixtures.payments,
+            .devnet: [RecentPayment(address: ContactsFixtures.stranger, date: Date(timeIntervalSinceReferenceDate: 4_000))],
+        ]))
+
+        async let mainnetTab = ContactsFixtures.tab(recents: recents)
+        async let devnetTab = ContactsFixtures.tab(recents: recents, network: .devnet)
         let (mainnet, devnet) = await (mainnetTab, devnetTab)
 
-        #expect(mainnet.lists.payments.map(\.address) == [ContactsFixtures.recent, ContactsFixtures.alice])
-        #expect(mainnet.lists.payments.first?.date == Date(timeIntervalSinceReferenceDate: 3_000))
+        #expect(mainnet.lists.payments == ContactsFixtures.payments)
         #expect(devnet.lists.payments.map(\.address) == [ContactsFixtures.stranger])
-    }
-
-    @Test func `Only the latest ten payments are listed`() async throws {
-        let addresses = try (1...12).map { try Address(bytes: [UInt8](repeating: UInt8($0), count: 32)) }
-        let records = addresses.enumerated().map { index, address in
-            ContactsFixtures.payment(to: address, signature: "payment-\(index)", settled: Double(index + 1))
-        }
-        let transactions = ContactsFixtures.transactions([
-            TransactionRecord.Key(account: ContactsFixtures.main.id, network: .mainnet): StoredValue(records),
-        ])
-
-        let tab = await ContactsFixtures.tab(transactions: transactions)
-
-        #expect(tab.lists.payments.map(\.address) == Array(addresses.reversed().prefix(ContactsModel.recentLimit)))
     }
 
     @Test func `Unreadable contacts are reported, not emptied`() async {
@@ -181,11 +151,8 @@ struct ContactsModelTests {
     }
 
     @Test func `Unreadable payments are reported`() async {
-        let transactions = ContactsFixtures.transactions([
-            TransactionRecord.Key(account: ContactsFixtures.main.id, network: .mainnet):
-                StoredValue(ContactsFixtures.records, unreadable: true),
-        ])
-        let tab = await ContactsFixtures.tab(transactions: transactions)
+        let payments = StoredValue([Network.mainnet: ContactsFixtures.payments], unreadable: true)
+        let tab = await ContactsFixtures.tab(recents: ContactsFixtures.recents(payments))
 
         #expect(tab.lists.isUnreadable)
         #expect(!tab.lists.isLoaded)

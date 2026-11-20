@@ -14,13 +14,3 @@ nonisolated struct RecentPayment: Identifiable, Hashable, Codable, Sendable {
         case address, date
     }
 }
-
-nonisolated extension RecentPayment {
-    /// Creates the recent payment of a sent payment's record, or `nil` when the record has no recipient.
-    ///
-    /// - Parameter record: The payment's record.
-    init?(_ record: TransactionRecord) {
-        guard let recipient = record.kind.recipient else { return nil }
-        self.init(address: recipient, date: record.settled ?? record.created)
-    }
-}

@@ -6,8 +6,6 @@ import Transactions
 nonisolated struct ContactLists: Sendable {
     /// The address of the account that pays.
     let sendingAccount: Address
-    /// The keys of the records whose payments are listed.
-    let keys: [TransactionRecord.Key]
     /// The wallet's other accounts.
     let accounts: [Contact]
     /// The saved contacts, sorted by name.
@@ -16,7 +14,7 @@ nonisolated struct ContactLists: Sendable {
     let payments: [RecentPayment]
     /// The favorite accounts, then the favorite contacts.
     let favorites: [Contact]
-    /// The recent payments to unsaved addresses.
+    /// The recent payments to unsaved addresses, without the account that pays.
     let recents: [RecentPayment]
     let recipientContext: RecipientContext
     private let phase: PersistentValuePhase
@@ -31,12 +29,10 @@ nonisolated struct ContactLists: Sendable {
     ///   - accounts: The wallet's other accounts, without their favorite marks.
     ///   - addressBook: The saved contacts and favorite accounts.
     ///   - payments: The recent payments, newest first.
-    ///   - keys: The keys of the records whose payments are listed.
-    ///   - phase: Whether the saved contacts and records were read.
+    ///   - phase: Whether the saved contacts and payments were read.
     init(sendingAccount: Address, accounts: [Contact], addressBook: AddressBook, payments: [RecentPayment],
-         keys: [TransactionRecord.Key], phase: PersistentValuePhase) {
+         phase: PersistentValuePhase) {
         self.sendingAccount = sendingAccount
-        self.keys = keys
         self.phase = phase
         self.accounts = accounts.map { account in
             var account = account
@@ -48,7 +44,7 @@ nonisolated struct ContactLists: Sendable {
         favorites = (self.accounts + contacts).filter(\.isFavorite)
         let saved = Dictionary((self.accounts + contacts).map { ($0.address, $0) }) { account, _ in account }
         self.saved = saved
-        recents = payments.filter { saved[$0.address] == nil }
+        recents = payments.filter { saved[$0.address] == nil && $0.address != sendingAccount }
         recentAddresses = Set(recents.map(\.address))
         recipientContext = RecipientContext(
             knownAddresses: [sendingAccount] + self.accounts.map(\.address) + contacts.map(\.address)
