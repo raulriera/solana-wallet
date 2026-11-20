@@ -229,15 +229,20 @@ struct TransactionStoreTests {
     }
 
     @Test
-    func `Each key's records are kept in their own file as version 1`() async throws {
+    func `Records saved before the version are replaced by version 1 in the key's own file`() async throws {
         let directory = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
         defer { try? FileManager.default.removeItem(at: directory) }
         let account = UUID()
         let record = TransactionRecord.fixture(.payment, signature: "saved", account: account)
-
-        try await TransactionStore.files(in: directory)(record.key).save([record])
-
         let file = directory.appending(path: "devnet/\(account.uuidString).json")
+        try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data(#"[{"kind": "payment", "amount": 1000000, "signature": "old"}]"#.utf8).write(to: file)
+        let records = PersistentValue(storage: TransactionStore.files(in: directory)(record.key), empty: [])
+
+        await records.load()
+        #expect(records.phase == .loaded)
+        try await records.update { $0 = [record] }
+
         let coding = VersionedJSONCoding(version: 1, outdated: [TransactionRecord]())
         #expect(try coding.decode(Data(contentsOf: file)) == [record])
     }

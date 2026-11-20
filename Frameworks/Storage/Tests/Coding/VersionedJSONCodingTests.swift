@@ -13,14 +13,14 @@ struct VersionedJSONCodingTests {
         #expect(Self.coding.decode(data) == ["saved"])
     }
 
-    @Test
-    func `Bytes of another version decode to the outdated value`() {
-        #expect(Self.coding.decode(Data(#"{"version": 1, "value": {"title": "saved"}}"#.utf8)) == [])
+    @Test(arguments: [#"{"version": 3, "value": ["saved"]}"#, #"["saved"]"#, #"{"version": 2, "value": 7}"#, "damaged"])
+    func `Bytes of a later version, without a version, or damaged decode to the outdated value`(_ kept: String) {
+        #expect(Self.coding.decode(Data(kept.utf8)) == [])
     }
 
-    @Test(arguments: [#"["saved"]"#, #"{"version": 2, "value": 7}"#])
-    func `Bytes without a version or without the value decode to nothing`(_ kept: String) {
-        #expect(Self.coding.decode(Data(kept.utf8)) == nil)
+    @Test
+    func `Bytes of an earlier version that no migration reads decode to the outdated value`() {
+        #expect(Self.coding.decode(Data(#"{"version": 1, "value": {"title": "saved"}}"#.utf8)) == [])
     }
 }
 
