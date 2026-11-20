@@ -32,7 +32,8 @@ struct LocalPaymentReview {
         let transactions = TransactionStore.inMemory(records) { _ in coordinator }
         let proposal = PaymentProposal(
             asset: .nativeSOL, sent: TokenAmount(lamports: 1_000_000_000), value: nil, currencyCode: "USD",
-            recipient: PaymentRecipient(address: fixture.transfer.accounts[1].address, name: "Bruno"), warnings: [])
+            recipient: PaymentRecipient(address: fixture.transfer.accounts[1].address, name: "Bruno"), warnings: [],
+            recents: RecentPaymentStore(storage: StoredValue()))
         model = try TransactionReviewModel(proposal, from: fixture.account, on: .devnet, transactions: transactions)
         account = fixture.account
         self.transactions = transactions

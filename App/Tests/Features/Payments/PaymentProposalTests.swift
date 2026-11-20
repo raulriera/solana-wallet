@@ -22,7 +22,8 @@ struct PaymentProposalTests {
             with: Preparer(rpc: preparation.client), configuration: fixture.configuration, accounts: accounts.client)
         let proposal = PaymentProposal(
             asset: .token(tokens.mint), sent: TokenAmount(amount: 1_000, decimals: 6), value: nil, currencyCode: "USD",
-            recipient: PaymentRecipient(address: tokens.recipient, name: nil), warnings: [])
+            recipient: PaymentRecipient(address: tokens.recipient, name: nil), warnings: [],
+            recents: RecentPaymentStore(storage: StoredValue()))
 
         let sender = widgets.Account(id: UUID(), recoveryID: UUID(), address: tokens.sender, path: .solana)
 
@@ -44,6 +45,20 @@ struct PaymentProposalTests {
         let payment = try LocalPaymentReview(simulation: .failure(error, fee: LocalPaymentReview.networkFee))
 
         await #expect(throws: expected) { try await Self.simulate(payment.model.proposal, in: payment) }
+    }
+
+    @Test(arguments: [(widgets.Confirmation.Outcome.succeeded, true), (.dropped, false)])
+    func `A payment's recipient becomes a recent payment only when the payment succeeds`(
+        outcome: widgets.Confirmation.Outcome, isRecent: Bool
+    ) async throws {
+        let payment = try LocalPaymentReview()
+        let proposal = payment.model.proposal
+        let settling = try #require(try await Self.simulate(proposal, in: payment).settling)
+        let submission = Submission(signature: "signature", network: .devnet, lastValidBlockHeight: 550)
+
+        await settling.settle(widgets.Confirmation(submission: submission, slot: nil, outcome: outcome))
+
+        #expect(proposal.recents.payments(on: .devnet).map(\.address) == (isRecent ? [proposal.recipient.address] : []))
     }
 
     private static func simulate(_ proposal: PaymentProposal, in payment: LocalPaymentReview) async throws

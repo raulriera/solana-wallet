@@ -26,6 +26,8 @@ struct PaymentProposal: TransactionProposal {
     let recipient: PaymentRecipient
     /// The recipient warnings, most serious first.
     let warnings: [RecipientWarning]
+    /// The store that keeps the recipient once the payment succeeds.
+    let recents: RecentPaymentStore
 
     var refreshInterval: Duration { .seconds(10) }
 
@@ -46,6 +48,7 @@ struct PaymentProposal: TransactionProposal {
         return ProposedTransaction(
             simulation: simulation,
             review: Review(networkFee: networkFee, accountDeposit: accountDeposit, transferFee: transferFee),
-            kind: .payment(recipient: recipient.address, asset: asset.id, amount: sent.amount))
+            kind: .payment(recipient: recipient.address, asset: asset.id, amount: sent.amount),
+            settling: RecentPaymentSettlement(recents: recents, recipient: recipient.address))
     }
 }

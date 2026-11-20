@@ -7,6 +7,8 @@ struct PaymentSender {
     let account: Account
     let network: Network
     let transactions: TransactionStore
+    /// The store that keeps the recipients of the payments that succeed.
+    let recents: RecentPaymentStore
 
     /// Creates the review of the typed payment to a recipient.
     ///
@@ -23,7 +25,8 @@ struct PaymentSender {
         let proposal = PaymentProposal(asset: payment.token.asset, sent: sent, value: payment.value,
                                        currencyCode: payment.currencyCode, recipient: recipient,
                                        warnings: RecipientClassifier.review.warnings(for: recipient.address,
-                                                                                     in: context))
+                                                                                     in: context),
+                                       recents: recents)
         return try TransactionReviewModel(proposal, from: account, on: network, transactions: transactions)
     }
 }
