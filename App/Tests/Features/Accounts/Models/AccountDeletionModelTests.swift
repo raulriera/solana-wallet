@@ -37,7 +37,9 @@ struct AccountDeletionModelTests {
         model.delete(second.id)
         await model.run(model.attempt, store: store, transactions: .inMemory(pending))
 
-        #expect(await pending.value == Self.records(of: [first]))
+        let kept = try #require(await pending.value)
+        #expect(kept.count == Network.allCases.count)
+        #expect(kept.allSatisfy { $0.account == first.id })
     }
 
     @Test
