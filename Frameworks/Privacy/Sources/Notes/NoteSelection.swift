@@ -16,15 +16,22 @@ enum NoteSelection {
     ///   spends from don't cover it.
     static func notes(covering amount: UInt64, from notes: [ReceivedNote], writingTo outputTreeID: UInt16) throws
         -> [ReceivedNote] {
-        let trees = Dictionary(grouping: notes, by: \.utxo.treeID).sorted { $0.key < $1.key }.map(\.value)
-        let candidates = trees.combinations(ofCount: 1...TransactPlan.maximumInputTrees)
-            .compactMap { combination in covering(amount, from: Array(combination.joined())) }
+        let candidates = treeChoices(of: notes).compactMap { covering(amount, from: $0) }
         guard !candidates.isEmpty else { throw PrivateSpend.ValidationError.insufficientFunds }
         let ranked = candidates.sorted { rank(of: $0, writingTo: outputTreeID) < rank(of: $1, writingTo: outputTreeID) }
         guard let best = ranked.first(where: { $0.count <= TransactPlan.maximumInputs }) else {
             throw PrivateSpend.ValidationError.tooManyNotes
         }
         return best
+    }
+
+    /// Lists the notes of each choice of trees that one transaction spends from.
+    ///
+    /// - Parameter notes: The unspent notes.
+    /// - Returns: The notes of each tree and of each pair of trees, in the order of the lower trees.
+    static func treeChoices(of notes: [ReceivedNote]) -> [[ReceivedNote]] {
+        let trees = Dictionary(grouping: notes, by: \.utxo.treeID).sorted { $0.key < $1.key }.map(\.value)
+        return trees.combinations(ofCount: 1...TransactPlan.maximumInputTrees).map { Array($0.joined()) }
     }
 
     /// Ranks notes by what spending them costs.
