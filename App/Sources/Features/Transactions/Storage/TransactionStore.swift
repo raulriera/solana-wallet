@@ -104,12 +104,15 @@ final class TransactionStore: Erasable {
     ///   - kind: What the transaction does.
     ///   - account: The account that signs and pays.
     ///   - settling: What finishes the transaction's work once its outcome is found, or `nil` for nothing.
+    ///   - coordinator: The coordinator that signs and sends, which accepts the simulation, or `nil` for this
+    ///     store's coordinator for the simulation's network.
     /// - Returns: The pending record.
     /// - Throws: `CancellationError` if the person cancels authentication, or the coordinator's error if nothing was
     ///   sent.
     func send(_ simulation: Simulation, as kind: TransactionRecord.Kind, from account: Account,
-              settling: (any TransactionSettling)? = nil) async throws -> TransactionRecord {
-        let coordinator = try coordinator(for: simulation.network)
+              settling: (any TransactionSettling)? = nil,
+              using coordinator: (any TransactionCoordinating)? = nil) async throws -> TransactionRecord {
+        let coordinator = try coordinator ?? self.coordinator(for: simulation.network)
         let delivery = Task { @concurrent in
             let submission: Submission
             do {

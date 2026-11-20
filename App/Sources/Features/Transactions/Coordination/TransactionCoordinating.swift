@@ -48,9 +48,31 @@ nonisolated protocol TransactionCoordinating: TransactionConfirming {
     /// - Returns: The transaction's receipt.
     /// - Throws: A validation, authentication, signing, or cancellation error, or a ``DeliveryError`` after signing.
     func submit(_ simulation: Simulation) async throws -> Submission
+
+    /// Runs an operation whose transactions share one authentication of a saved account's owner.
+    ///
+    /// - Parameter operation: The work to run. It signs and submits with the coordinator that it receives, which
+    ///   accepts this coordinator's simulations: the first signature authenticates the owner, and later signatures
+    ///   reuse that authentication until the operation ends.
+    /// - Returns: The operation's result.
+    /// - Throws: The operation's error.
+    func withSharedAuthentication<Value: Sendable>(
+        _ operation: @Sendable (any TransactionCoordinating) async throws -> Value
+    ) async throws -> Value
 }
 
 extension TransactionCoordinating {
+    /// Runs an operation with this coordinator, where each signature authenticates on its own.
+    ///
+    /// - Parameter operation: The work to run with this coordinator.
+    /// - Returns: The operation's result.
+    /// - Throws: The operation's error.
+    func withSharedAuthentication<Value: Sendable>(
+        _ operation: @Sendable (any TransactionCoordinating) async throws -> Value
+    ) async throws -> Value {
+        try await operation(self)
+    }
+
     /// Simulates a payment of SOL or a token from the account's associated token account.
     ///
     /// - Parameters:

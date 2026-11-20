@@ -11,4 +11,31 @@ nonisolated protocol TransactionSigning: Sendable {
     /// - Returns: The preparation with its signed transaction.
     /// - Throws: A validation, RPC, storage, or signing error, or `CancellationError` if cancelled.
     func sign(_ preparation: Preparation, for authority: Authority, reason: String) async throws -> SignedTransaction
+
+    /// Runs an operation whose signatures share one authentication of a saved account's owner.
+    ///
+    /// - Parameters:
+    ///   - reason: The localized reason for authentication, in place of the signatures' own reasons.
+    ///   - operation: The work to run. It signs with the signer that it receives: the first signature authenticates
+    ///     the owner, and later signatures reuse that authentication until the operation ends.
+    /// - Returns: The operation's result.
+    /// - Throws: The operation's error.
+    func withSharedAuthentication<Value: Sendable>(
+        reason: String, _ operation: @Sendable (any TransactionSigning) async throws -> Value
+    ) async throws -> Value
+}
+
+extension TransactionSigning {
+    /// Runs an operation with this signer, where each signature authenticates on its own.
+    ///
+    /// - Parameters:
+    ///   - reason: The localized reason, which this signer doesn't show.
+    ///   - operation: The work to run with this signer.
+    /// - Returns: The operation's result.
+    /// - Throws: The operation's error.
+    func withSharedAuthentication<Value: Sendable>(
+        reason: String, _ operation: @Sendable (any TransactionSigning) async throws -> Value
+    ) async throws -> Value {
+        try await operation(self)
+    }
 }

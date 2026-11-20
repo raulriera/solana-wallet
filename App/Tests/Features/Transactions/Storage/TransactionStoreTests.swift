@@ -28,6 +28,28 @@ struct TransactionStoreTests {
         #expect(try await sending.settle(record) == .succeeded)
     }
 
+    @Test
+    func `Payments sent with a shared authentication read recovery through it`() async throws {
+        let recovery = SigningRecoveryStore(recovery: try SigningFixture().recovery)
+        let sending = try LocalSending(recovery: recovery)
+        let (store, account) = (sending.store, sending.account)
+        let simulations = [try await sending.simulate(), try await sending.simulate()]
+
+        let records = try await store.coordinator(for: .devnet).withSharedAuthentication { shared in
+            var records: [TransactionRecord] = []
+            for simulation in simulations {
+                records.append(try await store.send(simulation, as: .payment, from: account, using: shared))
+            }
+            return records
+        }
+
+        let shared = await recovery.shared
+        #expect(records.count == 2)
+        #expect(shared.map(\.reason) == ["Approve transaction"])
+        #expect(await shared.first?.store.reads.count == 2)
+        #expect(await recovery.reads.isEmpty)
+    }
+
     @Test(arguments: [CancellationError(), CocoaError(.fileReadUnknown)] as [any Error])
     func `A payment that isn't signed records nothing`(_ error: any Error) async throws {
         let sending = try LocalSending(recovery: SigningRecoveryStore(recovery: try SigningFixture().recovery,
