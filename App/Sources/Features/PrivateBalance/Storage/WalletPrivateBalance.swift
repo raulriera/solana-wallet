@@ -123,7 +123,7 @@ final class WalletPrivateBalance {
 
     /// Reads the balance once the account's last private move finishes settling.
     func readAfterSettling() async {
-        await transactions.load(key)
+        await transactions.load()
         if let move = lastSettledMove {
             _ = try? await transactions.watch(move.id, for: key)
         }
@@ -159,9 +159,8 @@ final class WalletPrivateBalance {
     /// Starts the poll loop, and restarts it after each settled private move.
     private func start() {
         let transactions = transactions
-        let key = key
         watching = Task { [weak self] in
-            await transactions.load(key)
+            await transactions.load()
             for await _ in Observations({ [weak self] in self?.lastSettledMove?.id }).removeDuplicates() {
                 guard let self, !Task.isCancelled else { return }
                 startPolling()

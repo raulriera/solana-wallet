@@ -15,9 +15,7 @@ struct PendingPayment {
         self.sockets = sockets
         let coordinator = try LocalTransactions(fixture: fixture, statuses: statuses, sockets: sockets).coordinator
         record = .fixture(.payment, signature: "pending", account: account)
-        transactions = .inMemory([record.key: StoredValue([record])], pending: StoredValue([record.key])) { _ in
-            coordinator
-        }
+        transactions = .inMemory(StoredValue([record])) { _ in coordinator }
     }
 
     func settle() async throws -> TransactionRecord.Status {

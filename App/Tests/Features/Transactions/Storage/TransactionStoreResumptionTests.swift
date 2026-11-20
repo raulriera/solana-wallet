@@ -9,49 +9,17 @@ import Transactions
 @Suite(.timeLimit(.minutes(1)))
 struct TransactionStoreResumptionTests {
     @Test
-    func `The index lists only keys with pending records`() async throws {
-        let settledKey = TransactionRecord.Key(account: UUID(), network: .devnet)
-        let settled = StoredValue([TransactionRecord.fixture(.privateDeposit, signature: "settled",
-                                                             account: settledKey.account, status: .succeeded,
-                                                             settled: 10)])
-        let gate = Suspension()
-        let resuming = try LocalSending(statusGate: gate, otherRecords: [settledKey: settled],
-                                         pending: StoredValue([settledKey]))
+    func `Resuming watches the saved pending records of every account and network`() async throws {
+        let records = [TransactionRecord.fixture(.payment, signature: "devnet", account: UUID()),
+                       .fixture(.privateDeposit, signature: "mainnet", account: UUID(), network: .mainnet)]
+        let resuming = try LocalSending(pending: StoredValue(records))
 
-        let record = try await resuming.send()
-        #expect(await resuming.pending.value == [settledKey, resuming.key])
         await resuming.store.resume()
 
-        #expect(await resuming.pending.value == [resuming.key])
-        gate.resume()
-        _ = try await resuming.settle(record)
-    }
-
-    @Test
-    func `A settled record leaves the index`() async throws {
-        let resuming = try LocalSending()
-        let record = try await resuming.send()
-
-        #expect(try await resuming.settle(record) == .succeeded)
-
+        for record in records {
+            #expect(await resuming.store.settledStatus(of: record) == .succeeded)
+        }
         #expect(await resuming.pending.value == [])
-    }
-
-    @Test
-    func `Resuming reads only the keys in the pending index`() async throws {
-        let fixture = try SigningFixture()
-        let record = TransactionRecord.fixture(.payment, signature: "pending", account: fixture.account.id)
-        let skippedKey = TransactionRecord.Key(account: UUID(), network: .devnet)
-        let skipped = StoredValue([TransactionRecord.fixture(.payment, signature: "skipped",
-                                                             account: skippedKey.account)])
-        let resuming = try LocalSending(fixture: fixture, records: StoredValue([record]),
-                                         otherRecords: [skippedKey: skipped], pending: StoredValue([record.key]))
-
-        await resuming.store.resume()
-
-        #expect(await resuming.store.settledStatus(of: record) == .succeeded)
-        #expect(await skipped.loads == 0)
-        #expect(resuming.store.phase(for: skippedKey) == .unloaded)
         await resuming.sockets.waitUntilClosed()
     }
 
@@ -60,8 +28,7 @@ struct TransactionStoreResumptionTests {
         let fixture = try SigningFixture()
         let record = TransactionRecord.fixture(.payment, signature: "pending", account: fixture.account.id)
         let gate = Suspension()
-        let resuming = try LocalSending(statusGate: gate, fixture: fixture, records: StoredValue([record]),
-                                         pending: StoredValue([record.key]))
+        let resuming = try LocalSending(statusGate: gate, fixture: fixture, pending: StoredValue([record]))
         let store = resuming.store
 
         await withDiscardingTaskGroup { group in
@@ -85,8 +52,7 @@ struct TransactionStoreResumptionTests {
                                                 sockets: sockets).coordinator
         let (attempts, attempted) = AsyncStream.makeStream(of: Void.self)
         var failures = 2
-        let store = TransactionStore.inMemory([record.key: StoredValue([record])], pending: StoredValue([record.key])) {
-            _ in
+        let store = TransactionStore.inMemory(StoredValue([record])) { _ in
             attempted.yield()
             guard failures == 0 else {
                 failures -= 1
@@ -106,20 +72,5 @@ struct TransactionStoreResumptionTests {
         await store.resume(replacingFailedWatches: true)
         #expect(await store.settledStatus(of: record) == .succeeded)
         await sockets.waitUntilClosed()
-    }
-
-    @Test
-    func `Erasing an account removes only its keys from the index`() async throws {
-        let (erased, kept) = (UUID(), UUID())
-        let keptKey = TransactionRecord.Key(account: kept, network: .devnet)
-        let pending = StoredValue<Set<TransactionRecord.Key>>([
-            TransactionRecord.Key(account: erased, network: .devnet),
-            TransactionRecord.Key(account: erased, network: .mainnet), keptKey,
-        ])
-        let store = TransactionStore.inMemory([:], pending: pending)
-
-        try await store.erase(account: erased)
-
-        #expect(await pending.value == [keptKey])
     }
 }

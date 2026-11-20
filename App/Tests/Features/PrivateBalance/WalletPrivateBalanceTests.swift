@@ -125,17 +125,21 @@ struct WalletPrivateBalanceTests {
     func `The last settled move is the private move that settled last`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let key = TransactionRecord.Key(account: account.id, network: .devnet)
-        let records: [TransactionRecord] = [
-            .fixture(.privateDeposit, signature: "pending deposit", account: account.id, created: 40),
-            .fixture(.payment, signature: "payment", account: account.id, status: .succeeded, created: 30, settled: 35),
-            .fixture(.privateWithdrawal, signature: "withdrawal", account: account.id,
-                     status: .failed, created: 20, settled: 25),
-            .fixture(.privateDeposit, signature: "deposit", account: account.id, status: .succeeded,
-                     created: 10, settled: 28),
-        ]
-        let store = try await PrivateBalanceFixtures.store(holding: .available, of: account,
-                                                           transactions: .inMemory([key: StoredValue(records)]))
+        let sockets = SocketSequence()
+        let coordinator = try LocalTransactions(fixture: SigningFixture(), statuses: [.status(.finalized)],
+                                                sockets: sockets).coordinator
+        let transactions = TransactionStore.inMemory(StoredValue([
+            .fixture(.privateDeposit, signature: "pending deposit", account: account.id),
+            .fixture(.privateWithdrawal, signature: "withdrawal", account: account.id),
+            .fixture(.payment, signature: "payment", account: account.id),
+            .fixture(.privateDeposit, signature: "deposit", account: account.id),
+        ])) { _ in coordinator }
+        let store = try await PrivateBalanceFixtures.store(holding: .available, of: account, transactions: transactions)
         let balance = try await PrivateBalanceFixtures.read(account, in: store)
+        for signature in ["withdrawal", "deposit", "payment"] {
+            _ = try await transactions.watch(signature, for: key)
+        }
+        await sockets.waitUntilClosed()
 
         await balance.readAfterSettling()
 
@@ -159,8 +163,7 @@ struct WalletPrivateBalanceTests {
         let balance = try #require(store.balance(for: account, on: .devnet))
 
         let settling = Task { await balance.readAfterSettling() }
-        let key = TransactionRecord.Key(account: account.id, network: .devnet)
-        for await phase in Observations({ transactions.phase(for: key) }) where phase == .loaded { break }
+        await transactions.load()
         gate.resume()
         await running.value
         await settling.value

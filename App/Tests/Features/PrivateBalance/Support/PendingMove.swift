@@ -13,7 +13,7 @@ struct PendingMove {
         let coordinator = try LocalTransactions(fixture: SigningFixture(), statuses: [.status(.finalized)],
                                                 sockets: sockets).coordinator
         record = .fixture(.privateDeposit, signature: "pending", account: account)
-        transactions = .inMemory([record.key: StoredValue([record])]) { _ in coordinator }
+        transactions = .inMemory(StoredValue([record])) { _ in coordinator }
     }
 
     func settle() async throws -> TransactionRecord.Status {

@@ -3,9 +3,11 @@ import RPC
 import Transactions
 
 /// A sent transaction's public facts: who sent it on which network, what it does, and how it settled.
+///
+/// Only the facts that find the transaction again are saved. The status and the settled date last for one launch.
 nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable {
     /// The account and network whose records are kept together.
-    struct Key: Hashable, Codable, Sendable {
+    struct Key: Hashable, Sendable {
         let account: UUID
         let network: Network
     }
@@ -20,7 +22,7 @@ nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable
     }
 
     /// Whether a transaction settled, and how.
-    enum Status: String, Codable, Sendable {
+    enum Status: Sendable {
         case pending
         case succeeded
         /// The transaction landed and failed.
@@ -36,9 +38,7 @@ nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable
     /// The transaction's first signature, which identifies it.
     let signature: String
     let lastValidBlockHeight: UInt64
-    var status: Status
-    /// When the transaction was sent.
-    let created: Date
+    var status = Status.pending
     /// When the transaction's outcome was found, or `nil` while it's pending.
     var settled: Date?
 
@@ -56,15 +56,17 @@ nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable
     ///   - kind: What the transaction does.
     ///   - account: The identifier of the account that sent it.
     ///   - submission: The transaction's receipt.
-    ///   - created: When the transaction was sent.
-    init(_ kind: Kind, from account: UUID, submission: Submission, created: Date) {
+    init(_ kind: Kind, from account: UUID, submission: Submission) {
         self.account = account
         network = submission.network
         self.kind = kind
         signature = submission.signature
         lastValidBlockHeight = submission.lastValidBlockHeight
-        status = .pending
-        self.created = created
+    }
+
+    /// The saved facts.
+    private enum CodingKeys: String, CodingKey {
+        case account, network, kind, signature, lastValidBlockHeight
     }
 }
 

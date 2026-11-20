@@ -32,8 +32,7 @@ struct TransactionResumptionTests {
                                                 sockets: sockets).coordinator
         let (attempts, attempted) = AsyncStream.makeStream(of: Void.self)
         var fails = true
-        let transactions = TransactionStore.inMemory([record.key: StoredValue([record])],
-                                                     pending: StoredValue([record.key])) { _ in
+        let transactions = TransactionStore.inMemory(StoredValue([record])) { _ in
             attempted.yield()
             guard !fails else {
                 fails = false

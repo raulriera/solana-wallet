@@ -3,22 +3,14 @@ import Observation
 @testable import widgets
 
 extension TransactionStore {
-    static func inMemory(_ records: StoredValue<[TransactionRecord]> = StoredValue(),
-                         coordinators: @escaping (Network) throws -> any TransactionCoordinating) -> TransactionStore {
-        TransactionStore(storage: { _ in records }, pending: StoredValue(), coordinators: coordinators)
-    }
-
-    static func inMemory(_ records: [TransactionRecord.Key: StoredValue<[TransactionRecord]>],
-                         pending: StoredValue<Set<TransactionRecord.Key>> = StoredValue(),
+    static func inMemory(_ pending: StoredValue<[TransactionRecord]> = StoredValue(),
                          coordinators: @escaping (Network) throws -> any TransactionCoordinating = {
                              try TransactionCoordinator.unused(on: $0)
                          }) -> TransactionStore {
-        TransactionStore(storage: { records[$0] ?? StoredValue() }, pending: pending, coordinators: coordinators)
+        TransactionStore(storage: pending, coordinators: coordinators)
     }
 
-    static var unused: TransactionStore {
-        inMemory { try TransactionCoordinator.unused(on: $0) }
-    }
+    static var unused: TransactionStore { inMemory() }
 
     func settledStatus(of record: TransactionRecord) async -> TransactionRecord.Status? {
         for await status in Observations({ self.record(record.id, for: record.key)?.status }) {

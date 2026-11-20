@@ -91,8 +91,7 @@ struct TransactionReviewModelTests {
         gate.resume()
         await review.value
 
-        let record = try #require(await payment.records.value?.first)
-        #expect(model.record?.id == record.id)
+        let record = try #require(model.record)
         #expect(model.error == nil)
         #expect(await payment.transactions.settledStatus(of: record) == .succeeded)
         #expect(model.outcome == .succeeded)
