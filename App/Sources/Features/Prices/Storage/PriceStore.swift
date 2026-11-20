@@ -19,7 +19,9 @@ final class PriceStore: Erasable {
     ///
     /// - Parameter service: The Keychain service that keeps the choice.
     convenience init(service: String) {
-        self.init(storage: KeychainItem(service: service, account: "settings", coding: .json(PriceSettings.self)))
+        self.init(storage: KeychainItem(
+            service: service, account: "settings",
+            coding: .json(PriceSettings.self, version: 1, unusable: .replaced(with: PriceSettings()))))
     }
 
     /// The choice and custom price servers with every change made so far, or `nil` until they're read.

@@ -24,7 +24,9 @@ final class RPCStore: Erasable {
     ///
     /// - Parameter service: The Keychain service that keeps the provider items.
     convenience init(service: String) {
-        self.init(settings: KeychainItem(service: service, account: "settings", coding: .json(RPCSettings.self)),
+        self.init(settings: KeychainItem(
+                      service: service, account: "settings",
+                      coding: .json(RPCSettings.self, version: 1, unusable: .replaced(with: RPCSettings()))),
                   key: KeychainItem(service: service, account: "api-key", coding: .utf8))
     }
 

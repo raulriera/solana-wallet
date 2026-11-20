@@ -82,7 +82,7 @@ struct CurrencyStoreTests {
     }
 
     @Test
-    func `The choice is saved in the directory`() async throws {
+    func `The choice is saved in the directory as version 1`() async throws {
         let directory = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = CurrencyStore(directory: directory, rates: CurrencyResponses.rates())
@@ -90,7 +90,9 @@ struct CurrencyStoreTests {
 
         try await store.select(.europeanCentralBank)
 
-        #expect(try FileManager.default.contentsOfDirectory(atPath: directory.path) == ["settings.json"])
+        let coding = VersionedJSONCoding<CurrencySettings>(version: 1, unusable: .unreadable)
+        #expect(try coding.decode(Data(contentsOf: directory.appending(path: "settings.json")))
+            == CurrencySettings(rateSource: .europeanCentralBank))
         let relaunched = CurrencyStore(directory: directory, rates: CurrencyResponses.rates())
         await relaunched.load()
         #expect(relaunched.settings == CurrencySettings(rateSource: .europeanCentralBank))

@@ -26,7 +26,8 @@ final class CurrencyStore: Erasable {
     ///   - directory: The directory that keeps the Currency files.
     ///   - rates: The exchange-rate provider for each rate source.
     convenience init(directory: URL, rates: [CurrencySettings.RateSource: any ExchangeRateProviding]) {
-        let file = FileItem(url: directory.appending(path: "settings.json"), coding: .json(CurrencySettings.self))
+        let file = FileItem(url: directory.appending(path: "settings.json"),
+                            coding: .json(CurrencySettings.self, version: 1, unusable: .replaced(with: CurrencySettings())))
         self.init(storage: file, rates: rates)
     }
 
