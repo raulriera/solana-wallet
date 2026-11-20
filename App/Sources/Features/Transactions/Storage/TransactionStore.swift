@@ -17,7 +17,7 @@ final class TransactionStore: Erasable {
     @ObservationIgnored private var coordinators: [Network: any TransactionCoordinating] = [:]
     @ObservationIgnored private var entries: [TransactionRecord.Key: Entry] = [:]
 
-    /// Creates a store with the storage of its records and pending index.
+    /// Creates a store that keeps its records and pending index in memory and saves them when their storage works.
     ///
     /// - Parameters:
     ///   - storage: Returns the storage of an account's records on a network.
@@ -26,8 +26,8 @@ final class TransactionStore: Erasable {
     init(storage: @escaping (TransactionRecord.Key) -> any ValueStoring<[TransactionRecord]>,
          pending: any ValueStoring<Set<TransactionRecord.Key>>,
          coordinators: @escaping (Network) throws -> any TransactionCoordinating) {
-        self.storage = storage
-        pendingKeys = PersistentValue(storage: pending, empty: [])
+        self.storage = { MemoryItem(savingTo: storage($0)) }
+        pendingKeys = PersistentValue(storage: MemoryItem(savingTo: pending), empty: [])
         makeCoordinator = coordinators
     }
 

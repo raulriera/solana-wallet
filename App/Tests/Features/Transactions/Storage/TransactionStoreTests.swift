@@ -36,6 +36,20 @@ struct TransactionStoreTests {
         await Self.expectNothingSent(by: sending)
     }
 
+    @Test(arguments: [(true, false), (false, true)])
+    func `A payment is sent and settles when its saved records can't be read or written`(
+        failsLoading: Bool, failsSaving: Bool
+    ) async throws {
+        let sending = try LocalSending(
+            records: StoredValue(failsLoading: failsLoading, failsSaving: failsSaving),
+            pending: StoredValue(failsLoading: failsLoading, failsSaving: failsSaving))
+
+        let record = try await sending.send()
+
+        #expect(try await sending.settle(record) == .succeeded)
+        #expect(sending.store.record(record.id, for: sending.key)?.status == .succeeded)
+    }
+
     @Test
     func `A payment with unknown delivery is recorded and watched`() async throws {
         let sending = try LocalSending(sent: HTTPResponses([:], error: Self.rateLimit))
