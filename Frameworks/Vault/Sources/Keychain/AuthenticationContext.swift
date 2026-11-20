@@ -13,7 +13,7 @@ final class AuthenticationContext: @unchecked Sendable {
     let context: LAContext
     private let outcome = Mutex(Outcome.running)
 
-    /// Creates an authentication context for one operation.
+    /// Creates an authentication context for one operation, or for the operations that share it.
     ///
     /// - Parameters:
     ///   - context: An unused context.

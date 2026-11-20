@@ -79,6 +79,35 @@ struct KeychainStoreTests {
     }
 
     @Test
+    func `Reads in a shared authentication use one context that ends with the operation`() async throws {
+        let contexts = Mutex<[TestContext]>([])
+        let keychain = KeychainStub(contextFactory: {
+            let context = TestContext()
+            contexts.withLock { $0.append(context) }
+            return context
+        })
+        let store: any RecoveryStoring = KeychainStore(service: "test.recovery", keychain: keychain)
+        let ids = [UUID(), UUID()]
+        for id in ids { try await store.save(Fixtures.recovery(), for: id) }
+
+        let endedEarly = try await store.withSharedAuthentication(reason: "Approve transaction") { shared in
+            _ = try await shared.recovery(for: ids[0], reason: "First read")
+            let sharedContext = contexts.withLock(\.last)
+            let endedEarly = try #require(sharedContext).waitForInvalidation(until: .now())
+            _ = try await shared.recovery(for: ids[1], reason: "Second read")
+            return endedEarly
+        }
+
+        let reads = keychain.state.withLock(\.readContexts)
+        let made = contexts.withLock(\.last)
+        let last = try #require(made)
+        #expect(!endedEarly)
+        #expect(reads == [ObjectIdentifier(last), ObjectIdentifier(last)])
+        #expect(keychain.state.withLock(\.promptReasons) == ["Approve transaction", "Approve transaction"])
+        #expect(last.waitForInvalidation(until: .now()))
+    }
+
+    @Test
     func `Cancelling recovery invalidates authentication without deleting the wallet`() async throws {
         let (started, signal) = AsyncStream<Void>.makeStream()
         let keychain = KeychainStub(beforeRead: { signal.yield(()) })

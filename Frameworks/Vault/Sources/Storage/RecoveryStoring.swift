@@ -19,6 +19,18 @@ public protocol RecoveryStoring: Sendable {
     /// - Throws: `CancellationError` if cancelled, or an error if the item can't be read.
     func recovery(for recoveryID: UUID, reason: String) async throws -> Recovery
 
+    /// Runs an operation whose recovery reads share one authentication of the user.
+    ///
+    /// - Parameters:
+    ///   - reason: The localized reason to show during authentication, in place of the reads' own reasons.
+    ///   - operation: The work to run. It reads recovery from the store that it receives: the first read
+    ///     authenticates the user, and later reads reuse that authentication until the operation ends.
+    /// - Returns: The operation's result.
+    /// - Throws: The operation's error.
+    func withSharedAuthentication<Value: Sendable>(
+        reason: String, _ operation: @Sendable (any RecoveryStoring) async throws -> Value
+    ) async throws -> Value
+
     /// Deletes the recovery material for one wallet.
     ///
     /// - Parameter recoveryID: The identifier of the recovery material to delete.
@@ -29,4 +41,19 @@ public protocol RecoveryStoring: Sendable {
     ///
     /// - Throws: An error if deletion fails.
     func deleteAllRecovery() async throws
+}
+
+extension RecoveryStoring {
+    /// Runs an operation with this store, where each recovery read authenticates the user on its own.
+    ///
+    /// - Parameters:
+    ///   - reason: The localized reason, which this store doesn't show.
+    ///   - operation: The work to run with this store.
+    /// - Returns: The operation's result.
+    /// - Throws: The operation's error.
+    public func withSharedAuthentication<Value: Sendable>(
+        reason: String, _ operation: @Sendable (any RecoveryStoring) async throws -> Value
+    ) async throws -> Value {
+        try await operation(self)
+    }
 }

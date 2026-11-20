@@ -12,6 +12,8 @@ public struct KeychainStore: RecoveryStoring {
     private let service: String
     private let keychain: any KeychainAccessing
     private let clock: any Clock<Duration>
+    /// The authentication that this store's operations share, or `nil` if each operation has its own.
+    private let authentication: AuthenticationContext?
     private let queue = DispatchQueue(label: "Vault.Keychain", qos: .userInitiated)
 
     /// The longest a recovery read waits for authentication once it starts.
@@ -30,10 +32,13 @@ public struct KeychainStore: RecoveryStoring {
     ///   - service: The app-specific Keychain service name.
     ///   - keychain: The Keychain operations.
     ///   - clock: The clock that times authentication.
-    init(service: String, keychain: any KeychainAccessing, clock: any Clock<Duration> = ContinuousClock()) {
+    ///   - authentication: The authentication that the store's operations share, or `nil` if each has its own.
+    init(service: String, keychain: any KeychainAccessing, clock: any Clock<Duration> = ContinuousClock(),
+         authentication: AuthenticationContext? = nil) {
         self.service = service
         self.keychain = keychain
         self.clock = clock
+        self.authentication = authentication
     }
 
     public func save(_ recovery: Recovery, for recoveryID: UUID) async throws {
@@ -70,6 +75,17 @@ public struct KeychainStore: RecoveryStoring {
         }
     }
 
+    public func withSharedAuthentication<Value: Sendable>(
+        reason: String, _ operation: @Sendable (any RecoveryStoring) async throws -> Value
+    ) async throws -> Value {
+        if authentication != nil { return try await operation(self) }
+        let authentication = AuthenticationContext(context: keychain.makeContext(), reason: reason)
+        defer { authentication.finish() }
+        return try await operation(
+            KeychainStore(service: service, keychain: keychain, clock: clock, authentication: authentication)
+        )
+    }
+
     public func deleteRecovery(for recoveryID: UUID) async throws {
         try await perform { _ in
             let status = keychain.delete(matching: identity(for: recoveryID))
@@ -102,10 +118,11 @@ public struct KeychainStore: RecoveryStoring {
         namespace.merging([kSecAttrAccount as String: recoveryID.uuidString]) { $1 }
     }
 
-    /// Runs a blocking Keychain operation on the Keychain queue, optionally within a time limit.
+    /// Runs a blocking Keychain operation on the Keychain queue, optionally within a time limit, with the shared
+    /// authentication or one of its own that ends with the operation.
     ///
     /// - Parameters:
-    ///   - reason: The localized reason to show during authentication.
+    ///   - reason: The localized reason to show during an authentication of its own.
     ///   - timeout: The longest to wait once the operation starts, or `nil` for no limit.
     ///   - operation: The blocking Keychain work.
     /// - Returns: The operation's result.
@@ -117,7 +134,8 @@ public struct KeychainStore: RecoveryStoring {
         _ operation: @escaping Operation<Value>
     ) async throws -> Value {
         try Task.checkCancellation()
-        let authentication = AuthenticationContext(context: keychain.makeContext(), reason: reason)
+        let shared = self.authentication
+        let authentication = shared ?? AuthenticationContext(context: keychain.makeContext(), reason: reason)
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
                 let pending = Mutex<CheckedContinuation<Value, any Error>?>(continuation)
@@ -133,7 +151,7 @@ public struct KeychainStore: RecoveryStoring {
                         }
                     }
                     defer {
-                        authentication.finish()
+                        if shared == nil { authentication.finish() }
                         timer?.cancel()
                     }
                     let result = Result {
