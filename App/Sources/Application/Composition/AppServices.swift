@@ -56,11 +56,14 @@ struct AppServices {
         recovery = KeychainStore(service: recoveryService)
         accountCreation = AccountCreation(recovery: recovery, wallet: wallet)
         let privateBalanceKeys = KeychainItem(service: privateBalanceService, account: "keys",
-                                              coding: .json(PrivateBalances.Keys.self))
+                                              coding: .json(PrivateBalances.Keys.self, version: 1,
+                                                            unusable: .unreadable))
         let privateBalanceNotes = KeychainItem(service: privateBalanceService, account: "notes",
-                                               coding: .json(PrivateBalances.Notes.self))
+                                               coding: .json(PrivateBalances.Notes.self, version: 1,
+                                                             unusable: .unreadable))
         let privateBalanceCodes = KeychainItem(service: privateBalanceService, account: "codes",
-                                               coding: .json(PrivateBalances.Codes.self))
+                                               coding: .json(PrivateBalances.Codes.self, version: 1,
+                                                             unusable: .unreadable))
         let rpcStore = RPCStore(service: rpcService)
         self.rpcStore = rpcStore
         let rpcProvider: @Sendable (Network) -> SelectedRPCProvider = { network in

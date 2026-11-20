@@ -42,9 +42,9 @@ struct PrivateBalanceKeyRecordTests {
             "nullifierSecret": Data(repeating: 1, count: 31), "viewingKey": Data(repeating: 1, count: 32),
             "codeRoot": Data(repeating: 1, count: 32),
         ]
-        let coding: JSONCoding<PrivateBalances.Keys> = .json(PrivateBalances.Keys.self)
+        let coding = VersionedJSONCoding<PrivateBalances.Keys>(version: 1, unusable: .unreadable)
 
-        let kept = coding.decode(try JSONEncoder().encode(["account": record]))
+        let kept = coding.decode(try JSONEncoder().encode(KeptKeys(version: 1, value: ["account": record])))
 
         #expect(kept == nil)
     }
@@ -60,4 +60,9 @@ struct PrivateBalanceKeyRecordTests {
 
         #expect(oneTime.address == (try OneTimeAccount(codeRoot: keys.codeRoot, index: 3)).address)
     }
+}
+
+private struct KeptKeys: Encodable {
+    let version: Int
+    let value: [String: [String: Data]]
 }
