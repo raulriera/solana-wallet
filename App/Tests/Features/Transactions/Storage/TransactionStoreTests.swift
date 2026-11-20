@@ -22,7 +22,8 @@ struct TransactionStoreTests {
         #expect(record.kind == .payment)
         #expect(record.key == sending.key)
         #expect(record.lastValidBlockHeight == 550)
-        #expect(await sending.savedOnly(record))
+        let saved = await sending.pending.value
+        #expect(saved == [record])
         gate.resume()
         #expect(try await sending.settle(record) == .succeeded)
     }
@@ -58,7 +59,8 @@ struct TransactionStoreTests {
         let record = try await sending.send()
 
         #expect(record.isPending)
-        #expect(await sending.savedOnly(record))
+        let saved = await sending.pending.value
+        #expect(saved == [record])
         gate.resume()
         #expect(try await sending.settle(record) == .succeeded)
     }
@@ -76,7 +78,8 @@ struct TransactionStoreTests {
         let record = try await caller.value
 
         #expect(await !sending.sent.wasCancelled)
-        #expect(await sending.savedOnly(record))
+        let saved = await sending.pending.value
+        #expect(saved == [record])
         status.resume()
         #expect(try await sending.settle(record) == .succeeded)
     }
@@ -124,7 +127,8 @@ struct TransactionStoreTests {
         for await _ in sockets.openings { break }
 
         await #expect(throws: DeliveryError.self) { try await sending.store.watch(record.id, for: sending.key) }
-        #expect(await sending.savedOnly(record))
+        let saved = await sending.pending.value
+        #expect(saved == [record])
         #expect(sending.store.settledCount(for: sending.key) == 0)
 
         #expect(try await sending.settle(record) == .succeeded)
