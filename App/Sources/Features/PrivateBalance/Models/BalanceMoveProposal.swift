@@ -23,6 +23,14 @@ struct BalanceMoveProposal: TransactionProposal {
             .toRecipient(recipient, warnings: RecipientClassifier.review.warnings(for: recipient.address, in: context))
         }
 
+        /// The balance of the account that the move spends.
+        var source: PaymentModel.Source {
+            switch self {
+            case .toPrivate: .publicBalance
+            case .toPublic, .toRecipient: .privateBalance
+            }
+        }
+
         /// Returns the title of a move of a token in this direction.
         ///
         /// - Parameter symbol: The token's symbol, such as SOL.
@@ -113,7 +121,15 @@ struct BalanceMoveProposal: TransactionProposal {
         case .spend(let spend):
             let accountDeposit = spend.openedAccounts.compactMap { openingDeposit(of: $0, in: simulation) }
                 .reduce(0, +).nonZero
-            let receivedLamports: UInt64 = if case .toRecipient = direction { 0 } else { movedLamports }
+            let receivedLamports: UInt64
+            switch direction {
+            case .toRecipient:
+                receivedLamports = 0
+                kind = .privatePayment
+            case .toPrivate, .toPublic:
+                receivedLamports = movedLamports
+                kind = .privateWithdrawal
+            }
             let privacyFee = try otherFee(
                 of: simulation,
                 for: account,
@@ -128,11 +144,6 @@ struct BalanceMoveProposal: TransactionProposal {
                 pendingChange: spend.receivedAmount.nonZero,
                 accountDeposit: accountDeposit
             )
-            kind = if case .toRecipient = direction {
-                .privatePayment
-            } else {
-                .privateWithdrawal
-            }
         case .createCode, .redeem:
             throw PrivateBalanceError.preparationFailed
         }

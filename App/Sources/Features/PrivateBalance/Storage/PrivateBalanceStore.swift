@@ -88,11 +88,7 @@ final class PrivateBalanceStore: Erasable, AccountObserving {
         else { return nil }
         switch balance.status {
         case .unregistered?, .balance?:
-            let amount =
-                switch direction {
-                case .toPrivate: publicBalance.amount
-                case .toPublic, .toRecipient: balance.available(of: asset)
-                }
+            let amount = direction.source == .publicBalance ? publicBalance.amount : balance.available(of: asset)
             guard let amount,
                 let token = PaymentToken(
                     holding: holding,

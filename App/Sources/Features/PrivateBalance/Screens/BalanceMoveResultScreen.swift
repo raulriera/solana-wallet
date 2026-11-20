@@ -73,18 +73,18 @@ struct BalanceMoveResultScreen: TransactionResultContent {
                                         comment: "Message after a private token was sent to another person's private balance. The variables are the amount with its symbol, such as 0.5 SOL, and the recipient's name or short address.")
             }
             return ("Sent Privately", message, "checkmark.shield.fill")
-        case (.toPrivate, .failed):
+        case (_, .failed):
             return ("Transaction Failed",
-                    "The network rejected this transaction. Its network fee was paid. Nothing was added to your private balance.",
+                    move.direction.source == .publicBalance
+                        ? "The network rejected this transaction. Its network fee was paid. Nothing was added to your private balance."
+                        : "The network rejected this transaction. Its network fee was paid. Nothing left your private balance.",
                     "exclamationmark.triangle.fill")
-        case (.toPublic, .failed), (.toRecipient, .failed):
-            return ("Transaction Failed",
-                    "The network rejected this transaction. Its network fee was paid. Nothing left your private balance.",
-                    "exclamationmark.triangle.fill")
-        case (.toPrivate, .dropped):
-            return ("Not Sent", "Nothing left your public balance.", "xmark.circle.fill")
-        case (.toPublic, .dropped), (.toRecipient, .dropped):
-            return ("Not Sent", "Nothing left your private balance.", "xmark.circle.fill")
+        case (_, .dropped):
+            return ("Not Sent",
+                    move.direction.source == .publicBalance
+                        ? "Nothing left your public balance."
+                        : "Nothing left your private balance.",
+                    "xmark.circle.fill")
         }
     }
 }
