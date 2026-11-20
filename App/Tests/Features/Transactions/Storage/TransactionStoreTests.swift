@@ -12,7 +12,8 @@ struct TransactionStoreTests {
 
     @Test
     func `A sent payment is saved as pending`() async throws {
-        let sending = try LocalSending()
+        let gate = Suspension()
+        let sending = try LocalSending(statusGate: gate)
 
         let record = try await sending.send()
 
@@ -22,6 +23,7 @@ struct TransactionStoreTests {
         #expect(record.key == sending.key)
         #expect(record.lastValidBlockHeight == 550)
         #expect(await sending.savedOnly(record))
+        gate.resume()
         #expect(try await sending.settle(record) == .succeeded)
     }
 
@@ -50,29 +52,32 @@ struct TransactionStoreTests {
 
     @Test
     func `A payment with unknown delivery is recorded and watched`() async throws {
-        let sending = try LocalSending(sent: HTTPResponses([:], error: Self.rateLimit))
+        let gate = Suspension()
+        let sending = try LocalSending(statusGate: gate, sent: HTTPResponses([:], error: Self.rateLimit))
 
         let record = try await sending.send()
 
         #expect(record.isPending)
         #expect(await sending.savedOnly(record))
+        gate.resume()
         #expect(try await sending.settle(record) == .succeeded)
     }
 
     @Test
     func `Cancelling the caller doesn't stop delivery`() async throws {
-        let gate = Suspension()
-        let sending = try LocalSending(sent: .sending(gate: gate))
+        let (delivery, status) = (Suspension(), Suspension())
+        let sending = try LocalSending(statusGate: status, sent: .sending(gate: delivery))
         let simulation = try await sending.simulate()
         let caller = Task { try await sending.store.send(simulation, as: .payment, from: sending.account) }
-        await gate.waitUntilStarted()
+        await delivery.waitUntilStarted()
 
         caller.cancel()
-        gate.resume()
+        delivery.resume()
         let record = try await caller.value
 
         #expect(await !sending.sent.wasCancelled)
         #expect(await sending.savedOnly(record))
+        status.resume()
         #expect(try await sending.settle(record) == .succeeded)
     }
 
