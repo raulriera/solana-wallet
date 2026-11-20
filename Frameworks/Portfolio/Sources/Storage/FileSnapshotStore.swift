@@ -4,7 +4,7 @@ import RPC
 /// A store that persists one versioned JSON snapshot per wallet and network.
 struct FileSnapshotStore: SnapshotStoring {
     let directory: URL
-    private static let version = 4
+    private static let version = 1
 
     private var files: KeyedFiles { KeyedFiles(directory: directory) }
 
