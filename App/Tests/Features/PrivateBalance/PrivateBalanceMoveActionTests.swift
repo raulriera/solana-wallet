@@ -31,7 +31,7 @@ struct PrivateBalanceMoveActionTests {
 
         moveBalance(.toPublic)
 
-        let move = try #require(model.move)
+        let move = try #require(model.sheet?.move)
         #expect(move.direction == .toPublic)
         #expect(Decimal(move.payment.token.balance) == Decimal(string: "0.001"))
     }

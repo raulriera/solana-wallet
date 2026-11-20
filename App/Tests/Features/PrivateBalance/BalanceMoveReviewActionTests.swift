@@ -74,7 +74,7 @@ struct BalanceMoveReviewActionTests {
         let model = PrivateBalanceModel()
         await store.refresh(account, on: .devnet)
         model.open(.toPrivate, of: PrivateBalanceFixtures.solHolding, in: store, for: account, on: .devnet)
-        return try #require(model.move)
+        return try #require(model.sheet?.move)
     }
 
     private static func action(for move: BalanceMove, presented: Presented) -> BalanceMoveReviewAction {

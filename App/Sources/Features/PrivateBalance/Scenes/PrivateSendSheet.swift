@@ -46,6 +46,7 @@ struct PrivateSendSheet: View {
                     privateBalances.move(.send(to: lists.recipient(for: $0), in: lists.recipientContext), of: holding,
                                          for: account, on: network)
                 }
+                if move == nil { selection = nil }
             }
             .onChange(of: move?.id) { _, id in
                 if id == nil { selection = nil }

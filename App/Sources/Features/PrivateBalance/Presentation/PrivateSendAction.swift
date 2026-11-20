@@ -2,8 +2,8 @@
 struct PrivateSendAction {
     let model: PrivateBalanceModel
 
-    /// Opens the choice of recipient, unless a move is open.
+    /// Opens the choice of recipient, unless a sheet is open.
     func callAsFunction() {
-        model.openSend()
+        model.openRecipients()
     }
 }

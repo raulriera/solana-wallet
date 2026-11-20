@@ -7,20 +7,36 @@ import RPC
 @MainActor
 @Observable
 final class PrivateBalanceModel {
+    /// A sheet that the private balance presents.
+    enum Sheet: Identifiable {
+        case move(BalanceMove)
+        /// The choice of who to send the private balance to.
+        case recipients
+
+        /// The move's identifier, or `nil` for the choice of recipient.
+        var id: ObjectIdentifier? {
+            move?.id
+        }
+
+        /// The open balance move, or `nil` for the choice of recipient.
+        var move: BalanceMove? {
+            guard case .move(let move) = self else { return nil }
+            return move
+        }
+    }
+
     /// The error of the last attempt to turn private balances on.
     var error: PrivateBalanceError?
     /// The attempt to turn private balances on that's waiting or running.
     private(set) var attempt: UUID?
     /// Whether the last attempt turned private balances on for its account.
     private(set) var isTurnedOn = false
-    /// The open balance move, or `nil` when none is open.
-    var move: BalanceMove?
-    /// Whether the choice of who to send the private balance to shows.
-    var isSending = false
+    /// The open sheet, or `nil` when none is open.
+    var sheet: Sheet?
 
     var isTurningOn: Bool { attempt != nil }
 
-    /// Opens a move of a holding's asset between an account's balances, unless one is open.
+    /// Opens a move of a holding's asset between an account's balances, unless a sheet is open.
     ///
     /// - Parameters:
     ///   - direction: Which balance the asset leaves, and which one it reaches.
@@ -35,14 +51,14 @@ final class PrivateBalanceModel {
         for account: Account,
         on network: Network
     ) {
-        guard move == nil else { return }
-        move = privateBalances.move(direction, of: holding, for: account, on: network)
+        guard sheet == nil else { return }
+        sheet = privateBalances.move(direction, of: holding, for: account, on: network).map(Sheet.move)
     }
 
-    /// Opens the choice of who to send the private balance to, unless a move is open.
-    func openSend() {
-        guard move == nil else { return }
-        isSending = true
+    /// Opens the choice of who to send the private balance to, unless a sheet is open.
+    func openRecipients() {
+        guard sheet == nil else { return }
+        sheet = .recipients
     }
 
     /// Asks to turn private balances on, unless an attempt is already waiting or running.

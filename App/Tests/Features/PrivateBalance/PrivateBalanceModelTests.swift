@@ -8,19 +8,23 @@ import Transactions
 
 @MainActor
 struct PrivateBalanceModelTests {
-    @Test
-    func `A second move keeps the open one`() async throws {
+    @Test(arguments: [false, true])
+    func `A second sheet keeps the open one`(isMoveFirst: Bool) async throws {
         let account = try await PrivateBalanceFixtures.account()
         let store = try await PrivateBalanceFixtures.store(holding: .available, of: account)
         let model = PrivateBalanceModel()
         await store.refresh(account, on: .devnet)
-        model.open(.toPrivate, of: PrivateBalanceFixtures.solHolding, in: store, for: account, on: .devnet)
-        let first = try #require(model.move)
+        let openMove = {
+            model.open(.toPrivate, of: PrivateBalanceFixtures.solHolding, in: store, for: account, on: .devnet)
+        }
+        let sendPrivately = PrivateSendAction(model: model)
+        if isMoveFirst { openMove() } else { sendPrivately() }
+        let first = try #require(model.sheet)
 
-        model.open(.toPublic, of: PrivateBalanceFixtures.solHolding, in: store, for: account, on: .devnet)
+        if isMoveFirst { sendPrivately() } else { openMove() }
 
-        #expect(model.move?.id == first.id)
-        #expect(model.move?.direction == .toPrivate)
+        #expect(model.sheet?.id == first.id)
+        #expect(model.sheet?.move?.direction == (isMoveFirst ? .toPrivate : nil))
     }
 
     @Test
