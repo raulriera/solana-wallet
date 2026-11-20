@@ -30,15 +30,9 @@ final class ContactsModel {
             self.derived = (source, derived.lists)
             return derived.lists
         }
-        let phase: PersistentValuePhase = if phases.contains(.unreadable) {
-            .unreadable
-        } else if phases.allSatisfy({ $0 == .loaded }) {
-            .loaded
-        } else {
-            .loading
-        }
         let lists = ContactLists(sendingAccount: source.sendingAccount, accounts: source.accounts.map(Contact.init),
-                                 addressBook: source.addressBook, payments: source.payments, phase: phase)
+                                 addressBook: source.addressBook, payments: source.payments,
+                                 phase: PersistentValuePhase(combining: phases))
         derived = (source, lists)
         return lists
     }

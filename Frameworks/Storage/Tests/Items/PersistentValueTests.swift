@@ -282,4 +282,15 @@ struct PersistentValueTests {
         #expect(persistent.value == ["saved"])
         #expect(await storage.value == ["saved"])
     }
+
+    @Test(arguments: [
+        ([PersistentValuePhase.loaded, .loading, .unreadable], PersistentValuePhase.unreadable),
+        ([.loaded, .loaded], .loaded),
+        ([.loaded, .unloaded, .loading], .loading),
+        ([.loaded, .unloaded], .unloaded),
+    ])
+    func `Values that are used together share one phase`(phases: [PersistentValuePhase],
+                                                          combined: PersistentValuePhase) {
+        #expect(PersistentValuePhase(combining: phases) == combined)
+    }
 }

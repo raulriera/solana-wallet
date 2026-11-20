@@ -31,14 +31,7 @@ final class RPCStore: Erasable {
     }
 
     /// The read phase of the choice and the key together.
-    var phase: PersistentValuePhase {
-        switch (choice.phase, apiKey.phase) {
-        case (.unreadable, _), (_, .unreadable): .unreadable
-        case (.loaded, .loaded): .loaded
-        case (.loading, _), (_, .loading): .loading
-        default: .unloaded
-        }
-    }
+    var phase: PersistentValuePhase { PersistentValuePhase(combining: [choice.phase, apiKey.phase]) }
 
     /// Whether a read of the settings ended, even one that failed.
     var isRead: Bool { phase == .loaded || phase == .unreadable }

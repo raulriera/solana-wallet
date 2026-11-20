@@ -166,4 +166,22 @@ public enum PersistentValuePhase: Equatable, Sendable {
     case loading
     case loaded
     case unreadable
+
+    /// Creates the read phase of several values that are used together.
+    ///
+    /// The phase is `unreadable` if any value is, `loaded` once all of them are, `loading` while any is being read,
+    /// and `unloaded` otherwise.
+    ///
+    /// - Parameter phases: The phases of the values.
+    public init(combining phases: some Collection<PersistentValuePhase>) {
+        self = if phases.contains(.unreadable) {
+            .unreadable
+        } else if phases.allSatisfy({ $0 == .loaded }) {
+            .loaded
+        } else if phases.contains(.loading) {
+            .loading
+        } else {
+            .unloaded
+        }
+    }
 }
