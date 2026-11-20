@@ -29,6 +29,7 @@ struct RecipientRow: View {
             }
         } icon: {
             Image(systemName: systemImage)
+                .symbolRenderingMode(.monochrome)
         }
         .accessibilityElement(children: .combine)
     }
