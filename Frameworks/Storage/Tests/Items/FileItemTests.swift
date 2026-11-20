@@ -42,7 +42,8 @@ struct FileItemTests {
         let directory = Self.isolatedDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         try await Self.text(in: directory).save("not a list")
-        let item = FileItem(url: directory.appending(path: "value"), coding: .json([String].self))
+        let item = FileItem(url: directory.appending(path: "value"),
+                            coding: .json([String].self, version: 1, unusable: .unreadable))
 
         await #expect(throws: FileItemError.unreadable) { try await item.load() }
         await #expect(throws: FileItemError.unreadable) { try await item.update { $0 = ["replaced"] } }
@@ -53,7 +54,8 @@ struct FileItemTests {
     func `Updates made at the same time are all kept`() async throws {
         let directory = Self.isolatedDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let item = FileItem(url: directory.appending(path: "value"), coding: .json([Int].self))
+        let item = FileItem(url: directory.appending(path: "value"),
+                            coding: .json([Int].self, version: 1, unusable: .unreadable))
 
         try await withThrowingTaskGroup(of: Void.self) { group in
             for number in 0..<20 {

@@ -45,7 +45,8 @@ struct KeychainItemTests {
         try await Self.text(in: service).save("not a list")
 
         await #expect(throws: KeychainItemError.unreadable) {
-            try await KeychainItem(service: service, account: "value", coding: .json([String].self)).load()
+            try await KeychainItem(service: service, account: "value",
+                                   coding: .json([String].self, version: 1, unusable: .unreadable)).load()
         }
     }
 
