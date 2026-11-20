@@ -135,11 +135,14 @@ struct UITestApp {
         let either = NSCompoundPredicate(orPredicateWithSubpredicates: [outcome] + reports)
         let result = app.descendants(matching: .any).matching(either).firstMatch
         try waitFor(result, within: timeout, file: file, line: line)
-        if let alert = alerts.first(where: { app.alerts[$0].exists }) {
-            XCTFail("The app reported \(alert) instead of the expected result.", file: file, line: line)
-            throw Error.reportedError
-        }
+        try failIfReported(alerts, file: file, line: line)
         try waitFor(destination, file: file, line: line)
+    }
+
+    private func failIfReported(_ alerts: [String], file: StaticString, line: UInt) throws {
+        guard let alert = alerts.first(where: { app.alerts[$0].exists }) else { return }
+        XCTFail("The app reported \(alert) instead of the expected result.", file: file, line: line)
+        throw Error.reportedError
     }
 
     func waitFor(_ element: XCUIElement, within timeout: TimeInterval = 10, file: StaticString = #filePath,
@@ -173,10 +176,7 @@ struct UITestApp {
             XCTFail("Expected control did not become ready", file: file, line: line)
             throw Error.unavailableControl
         }
-        if let alert = alerts.first(where: { app.alerts[$0].exists }) {
-            XCTFail("The app reported \(alert) instead of the expected result.", file: file, line: line)
-            throw Error.reportedError
-        }
+        try failIfReported(alerts, file: file, line: line)
         element.tap()
     }
 }
