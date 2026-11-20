@@ -14,6 +14,16 @@ private struct PrivateBalanceLifecycle: ViewModifier {
     func body(content: Content) -> some View {
         let attempt = model.attempt
         content
+            .environment(
+                \.moveBalance,
+                PrivateBalanceMoveAction(
+                    model: model,
+                    privateBalances: privateBalances,
+                    account: account,
+                    network: network,
+                    holding: holding
+                )
+            )
             .environment(\.sendPrivately, PrivateSendAction(model: model))
             .task(id: attempt) { await model.run(attempt, in: privateBalances, for: account, on: network) }
             .alert(error: $model.error)

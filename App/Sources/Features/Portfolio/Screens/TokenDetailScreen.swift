@@ -95,16 +95,6 @@ struct TokenDetailScreen: View {
                     isStale: isPrivateBalanceStale,
                     refresh: refresh
                 )
-                .environment(
-                    \.moveBalance,
-                    PrivateBalanceMoveAction(
-                        model: privateBalance,
-                        privateBalances: privateBalances,
-                        account: account,
-                        network: network,
-                        holding: holding
-                    )
-                )
             }
         }
         .animation(.default, value: privateStatus)
