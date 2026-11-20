@@ -43,8 +43,4 @@ struct LocalSending {
         await sockets.waitUntilClosed()
         return status
     }
-
-    func savedOnly(_ record: TransactionRecord) async -> Bool {
-        await pending.value == [record]
-    }
 }
