@@ -83,6 +83,8 @@ struct PrivateBalanceStoreTests {
 
         let deposit = store.move(.toPrivate, of: holding, for: account, on: .devnet)
         let withdrawal = store.move(.toPublic, of: holding, for: account, on: .devnet)
+        let recipient = PaymentRecipient(address: try SigningFixture().transfer.accounts[1].address, name: nil)
+        let send = store.move(.toRecipient(recipient, warnings: []), of: holding, for: account, on: .devnet)
 
         #expect(deposit?.direction == .toPrivate)
         #expect(deposit?.payment.source == .publicBalance)
@@ -90,6 +92,8 @@ struct PrivateBalanceStoreTests {
         #expect(withdrawal?.direction == .toPublic)
         #expect(withdrawal?.payment.source == .privateBalance)
         #expect(withdrawal.map { Decimal($0.payment.token.balance) } == privateBalance)
+        #expect(send?.payment.source == .privateBalance)
+        #expect(send.map { Decimal($0.payment.token.balance) } == privateBalance)
     }
 
     @Test(arguments: [
