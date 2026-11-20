@@ -1,10 +1,12 @@
 import Darwin
 import Foundation
+import Storage
 
 /// File operations on the theme catalog's folder.
 nonisolated enum CatalogFiles {
     static let packageName = "Theme.xtheme"
     static let metadataName = "state.json"
+    static let coding = VersionedJSONCoding<CatalogState>(version: 1, unusable: .unreadable)
 
     /// Reads the catalog's state, deleting it and the installed packages when it's unreadable.
     ///
@@ -18,7 +20,7 @@ nonisolated enum CatalogFiles {
             guard values.isRegularFile == true, values.isSymbolicLink != true else { throw ThemeCatalogError.invalidStorage }
         } catch CocoaError.fileReadNoSuchFile { return CatalogState() }
         let data = try Data(contentsOf: url)
-        guard let state = try? JSONDecoder().decode(CatalogState.self, from: data),
+        guard let state = coding.decode(data),
               state.customEntries.allSatisfy({ $0.key == $0.value.id && $0.value.origin == .custom }),
               Set(state.customEntries.values.map(\.revision)).count == state.customEntries.count else {
             try discard(packagesIn: directory)
@@ -71,7 +73,7 @@ nonisolated enum CatalogFiles {
         var committed = state
         guard committed.revision < UInt64.max else { throw ThemeCatalogError.invalidStorage }
         committed.revision += 1
-        let data = try JSONEncoder().encode(committed)
+        let data = try coding.encode(committed)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try checkCancellation()
         try data.write(to: directory.appendingPathComponent(metadataName), options: .atomic)
