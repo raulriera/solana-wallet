@@ -20,7 +20,7 @@ struct ContactStoreTests {
     }
 
     @Test
-    func `The address book is saved in the directory`() async throws {
+    func `The address book is saved in the directory as version 1`() async throws {
         let directory = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = ContactStore(directory: directory)
@@ -28,7 +28,8 @@ struct ContactStoreTests {
 
         try await store.save(bruno)
 
-        #expect(try FileManager.default.contentsOfDirectory(atPath: directory.path) == ["contacts.json"])
+        let coding = VersionedJSONCoding<AddressBook>(version: 1, unusable: .unreadable)
+        #expect(try coding.decode(Data(contentsOf: directory.appending(path: "contacts.json")))?.contacts == [bruno])
         let relaunched = ContactStore(directory: directory)
         await relaunched.load()
         #expect(relaunched.addressBook.contacts == [bruno])
