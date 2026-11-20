@@ -34,7 +34,9 @@ nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable
         case dropped
     }
 
-    let key: Key
+    /// The identifier of the account that sent the transaction.
+    let account: UUID
+    let network: Network
     let kind: Kind
     /// The transaction's first signature, which identifies it.
     let signature: String
@@ -47,8 +49,10 @@ nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable
 
     var id: String { signature }
 
+    var key: Key { Key(account: account, network: network) }
+
     var submission: Submission {
-        Submission(signature: signature, network: key.network, lastValidBlockHeight: lastValidBlockHeight)
+        Submission(signature: signature, network: network, lastValidBlockHeight: lastValidBlockHeight)
     }
 
     /// Creates a pending record of a sent transaction.
@@ -59,7 +63,8 @@ nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable
     ///   - submission: The transaction's receipt.
     ///   - created: When the transaction was sent.
     init(_ kind: Kind, from account: UUID, submission: Submission, created: Date) {
-        key = Key(account: account, network: submission.network)
+        self.account = account
+        network = submission.network
         self.kind = kind
         signature = submission.signature
         lastValidBlockHeight = submission.lastValidBlockHeight
@@ -70,30 +75,6 @@ nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable
     /// The record's persisted field names.
     private enum CodingKeys: String, CodingKey {
         case account, network, kind, signature, lastValidBlockHeight, status, created, settled
-    }
-
-    init(from decoder: any Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        key = Key(account: try container.decode(UUID.self, forKey: .account),
-                  network: try container.decode(Network.self, forKey: .network))
-        kind = try container.decode(Kind.self, forKey: .kind)
-        signature = try container.decode(String.self, forKey: .signature)
-        lastValidBlockHeight = try container.decode(UInt64.self, forKey: .lastValidBlockHeight)
-        status = try container.decode(Status.self, forKey: .status)
-        created = try container.decode(Date.self, forKey: .created)
-        settled = try container.decodeIfPresent(Date.self, forKey: .settled)
-    }
-
-    func encode(to encoder: any Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(key.account, forKey: .account)
-        try container.encode(key.network, forKey: .network)
-        try container.encode(kind, forKey: .kind)
-        try container.encode(signature, forKey: .signature)
-        try container.encode(lastValidBlockHeight, forKey: .lastValidBlockHeight)
-        try container.encode(status, forKey: .status)
-        try container.encode(created, forKey: .created)
-        try container.encodeIfPresent(settled, forKey: .settled)
     }
 }
 

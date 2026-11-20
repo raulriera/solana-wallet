@@ -229,7 +229,7 @@ struct TransactionStoreTests {
     }
 
     @Test
-    func `Each key's records are kept in their own file`() async throws {
+    func `Each key's records are kept in their own file as version 1`() async throws {
         let directory = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
         defer { try? FileManager.default.removeItem(at: directory) }
         let account = UUID()
@@ -238,7 +238,20 @@ struct TransactionStoreTests {
         try await TransactionStore.files(in: directory)(record.key).save([record])
 
         let file = directory.appending(path: "devnet/\(account.uuidString).json")
-        #expect(try JSONDecoder().decode([TransactionRecord].self, from: Data(contentsOf: file)) == [record])
+        let coding = VersionedJSONCoding(version: 1, outdated: [TransactionRecord]())
+        #expect(try coding.decode(Data(contentsOf: file)) == [record])
+    }
+
+    @Test
+    func `The pending index is kept in its file as version 1`() async throws {
+        let directory = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let key = TransactionRecord.Key(account: UUID(), network: .devnet)
+
+        try await TransactionStore.pendingIndex(in: directory).save([key])
+
+        let coding = VersionedJSONCoding(version: 1, outdated: Set<TransactionRecord.Key>())
+        #expect(try coding.decode(Data(contentsOf: directory.appending(path: "pending.json"))) == [key])
     }
 
     @Test

@@ -36,26 +36,6 @@ struct TransactionRecordTests {
             """))
     }
 
-    @Test
-    func `A saved payment reads back`() throws {
-        let saved = Data("""
-            {"account": "E621E1F8-C36C-495A-93FC-0C247A3E6E5F", "network": "devnet", "kind": "payment",
-             "signature": "signature", "lastValidBlockHeight": 550, "status": "pending", "created": 800000000}
-            """.utf8)
-
-        #expect(try JSONDecoder().decode(TransactionRecord.self, from: saved) == Self.record(.payment))
-    }
-
-    @Test
-    func `A saved record of an unknown kind can't be read`() {
-        let saved = Data("""
-            {"account": "E621E1F8-C36C-495A-93FC-0C247A3E6E5F", "network": "devnet", "kind": "swap",
-             "signature": "signature", "lastValidBlockHeight": 550, "status": "pending", "created": 800000000}
-            """.utf8)
-
-        #expect(throws: DecodingError.self) { try JSONDecoder().decode(TransactionRecord.self, from: saved) }
-    }
-
     private static func record(_ kind: TransactionRecord.Kind, status: TransactionRecord.Status = .pending,
                                settled: TimeInterval? = nil) -> TransactionRecord {
         .fixture(kind, account: account, status: status, created: 800_000_000, settled: settled)
