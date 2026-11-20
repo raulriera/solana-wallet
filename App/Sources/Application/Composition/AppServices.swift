@@ -25,6 +25,7 @@ struct AppServices {
     let rpcStore: RPCStore
     let priceStore: PriceStore
     let contactStore: ContactStore
+    let recentPaymentStore: RecentPaymentStore
     let accountStore: AccountStore
     let accountCreation: AccountCreation
     let transactionStore: TransactionStore
@@ -46,17 +47,23 @@ struct AppServices {
         appearance = AppearanceServices()
         contactStore = ContactStore(directory: .persistentDirectory.appending(path: "Contacts",
                                                                               directoryHint: .isDirectory))
+        recentPaymentStore = RecentPaymentStore(
+            directory: .persistentDirectory.appending(path: "RecentPayments", directoryHint: .isDirectory)
+        )
         let wallet = Wallet()
         self.wallet = wallet
         discovery = AccountDiscovery(rpc: SolanaRPC(network: .mainnet), wallet: wallet)
         recovery = KeychainStore(service: recoveryService)
         accountCreation = AccountCreation(recovery: recovery, wallet: wallet)
         let privateBalanceKeys = KeychainItem(service: privateBalanceService, account: "keys",
-                                              coding: .json(PrivateBalances.Keys.self))
+                                              coding: .json(PrivateBalances.Keys.self, version: 1,
+                                                            unusable: .unreadable))
         let privateBalanceNotes = KeychainItem(service: privateBalanceService, account: "notes",
-                                               coding: .json(PrivateBalances.Notes.self))
+                                               coding: .json(PrivateBalances.Notes.self, version: 1,
+                                                             unusable: .unreadable))
         let privateBalanceCodes = KeychainItem(service: privateBalanceService, account: "codes",
-                                               coding: .json(PrivateBalances.Codes.self))
+                                               coding: .json(PrivateBalances.Codes.self, version: 1,
+                                                             unusable: .unreadable))
         let rpcStore = RPCStore(service: rpcService)
         self.rpcStore = rpcStore
         let rpcProvider: @Sendable (Network) -> SelectedRPCProvider = { network in
@@ -106,8 +113,8 @@ struct AppServices {
             owner: DeviceOwnerAuthentication(),
             reset: AppReset(recovery: recovery, privateBalances: privateBalances,
                             directories: directories, appearance: appearance.appearance,
-                            stores: [contactStore, transactionStore, currencyStore, rpcStore, priceStore,
-                                     portfolios, privateBalanceStore],
+                            stores: [contactStore, recentPaymentStore, transactionStore, currencyStore, rpcStore,
+                                     priceStore, portfolios, privateBalanceStore],
                             accounts: accountStore),
             pasteboard: recoveryPasteboard
         )

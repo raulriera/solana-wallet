@@ -24,19 +24,14 @@ final class RPCStore: Erasable {
     ///
     /// - Parameter service: The Keychain service that keeps the provider items.
     convenience init(service: String) {
-        self.init(settings: KeychainItem(service: service, account: "settings", coding: .json(RPCSettings.self)),
+        self.init(settings: KeychainItem(
+                      service: service, account: "settings",
+                      coding: .json(RPCSettings.self, version: 1, unusable: .replaced(with: RPCSettings()))),
                   key: KeychainItem(service: service, account: "api-key", coding: .utf8))
     }
 
     /// The read phase of the choice and the key together.
-    var phase: PersistentValuePhase {
-        switch (choice.phase, apiKey.phase) {
-        case (.unreadable, _), (_, .unreadable): .unreadable
-        case (.loaded, .loaded): .loaded
-        case (.loading, _), (_, .loading): .loading
-        default: .unloaded
-        }
-    }
+    var phase: PersistentValuePhase { PersistentValuePhase(combining: [choice.phase, apiKey.phase]) }
 
     /// Whether a read of the settings ended, even one that failed.
     var isRead: Bool { phase == .loaded || phase == .unreadable }

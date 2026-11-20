@@ -31,6 +31,7 @@ struct WindowRoot: View {
         .environment(\.artworkColors, services.artworkColors)
         .environment(services.currencyStore)
         .environment(services.contactStore)
+        .environment(services.recentPaymentStore)
         .environment(services.accountStore)
         .environment(\.accountCreation, services.accountCreation)
         .environment(services.portfolios)

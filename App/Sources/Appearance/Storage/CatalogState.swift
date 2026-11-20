@@ -1,7 +1,7 @@
 import Foundation
 
 /// The saved state of the theme catalog: installed themes and selections.
-nonisolated struct CatalogState: Codable, Sendable {
+nonisolated struct CatalogState: Codable, Equatable, Sendable {
     var revision: UInt64 = 0
     var customEntries: [UUID: ThemeEntry] = [:]
     var preferences = AppearancePreferences()

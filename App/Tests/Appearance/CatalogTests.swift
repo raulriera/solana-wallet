@@ -1,4 +1,5 @@
 import Foundation
+import Storage
 import Testing
 import Themes
 @testable import widgets
@@ -206,16 +207,19 @@ nonisolated struct CatalogTests {
 
     enum Corruption: CaseIterable {
         case undecodable
+        case unversioned
         case mismatched
 
         func metadata() throws -> Data {
             switch self {
             case .undecodable:
                 return Data("invalid".utf8)
+            case .unversioned:
+                return try JSONEncoder().encode(CatalogState())
             case .mismatched:
                 var state = CatalogState()
                 state.customEntries = [UUID(): ThemeEntry(id: UUID(), name: "Example", origin: .custom)]
-                return try JSONEncoder().encode(state)
+                return try CatalogFiles.coding.encode(state)
             }
         }
     }

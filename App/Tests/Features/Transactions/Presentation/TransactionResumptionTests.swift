@@ -19,23 +19,20 @@ struct TransactionResumptionTests {
 
         scene.phase = .active
 
-        #expect(await sent.transactions.settledStatus(of: sent.record) == .succeeded)
+        #expect(await sent.transactions.outcome(of: sent.record) == .succeeded)
         await sent.sockets.waitUntilClosed()
     }
 
     @Test
     func `A new provider connection retries a failed watch`() async throws {
         let fixture = try SigningFixture()
-        let record = TransactionRecord.fixture(.payment(recipient: fixture.transfer.accounts[1].address, asset: .nativeSOL,
-                                                        amount: 1),
-                                               signature: "pending", account: UUID())
+        let record = TransactionRecord.fixture(.payment, signature: "pending", account: UUID())
         let sockets = SocketSequence()
         let coordinator = try LocalTransactions(fixture: fixture, statuses: [.status(.finalized)],
                                                 sockets: sockets).coordinator
         let (attempts, attempted) = AsyncStream.makeStream(of: Void.self)
         var fails = true
-        let transactions = TransactionStore.inMemory([record.key: StoredValue([record])],
-                                                     pending: StoredValue([record.key])) { _ in
+        let transactions = TransactionStore.inMemory(StoredValue([record])) { _ in
             attempted.yield()
             guard !fails else {
                 fails = false
@@ -52,7 +49,7 @@ struct TransactionResumptionTests {
 
         try await scene.rpcStore.select(.helius)
 
-        #expect(await transactions.settledStatus(of: record) == .succeeded)
+        #expect(await transactions.outcome(of: record) == .succeeded)
         await sockets.waitUntilClosed()
     }
 }

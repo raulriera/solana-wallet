@@ -7,6 +7,7 @@ struct ContactsSplitView: View {
     @Environment(ContactStore.self) private var store
     @Environment(AccountStore.self) private var accounts
     @Environment(TransactionStore.self) private var transactions
+    @Environment(RecentPaymentStore.self) private var recents
     /// The account that pays.
     let account: Account
     let network: Network
@@ -22,7 +23,7 @@ struct ContactsSplitView: View {
 
     var body: some View {
         let lists = contacts.lists(for: account, on: network, in: accounts.accounts,
-                                   store: store, transactions: transactions)
+                                   store: store, recents: recents)
         ContactsContainer(selection: $selection, lists: lists, contacts: contacts, entry: $entry) {
             NavigationSplitView(columnVisibility: $columnVisibility, preferredCompactColumn: $preferredColumn) {
                 RecipientList(selection: $selection, lists: lists)
@@ -39,7 +40,7 @@ struct ContactsSplitView: View {
                     RecipientPaymentStack(recipient: lists.recipient(for: selection), payment: payment.model,
                                           context: lists.recipientContext,
                                           sender: PaymentSender(account: account, network: network,
-                                                                transactions: transactions),
+                                                                transactions: transactions, recents: recents),
                                           review: $review) {
                         RecipientScreen(address: selection, lists: lists)
                     }

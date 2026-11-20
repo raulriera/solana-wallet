@@ -5,7 +5,7 @@ import Vault
 @testable import widgets
 
 actor ResetStorage: RecoveryStoring {
-    nonisolated enum Step: String, Sendable, CaseIterable { case recovery, privateBalances, contacts, transactions, pendingTransactions, currency, key, settings, prices, appearance, accounts }
+    nonisolated enum Step: String, Sendable, CaseIterable { case recovery, privateBalances, contacts, transactions, currency, key, settings, prices, appearance, accounts }
 
     nonisolated let directory = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
     private var failing: Step?
@@ -23,12 +23,9 @@ actor ResetStorage: RecoveryStoring {
     @MainActor var appearance: ResetAppearance { ResetAppearance(storage: self) }
 
     @MainActor var stores: [any Erasable] {
-        let transactions = TransactionStore(storage: { _ in ResetValue(storage: self, step: .transactions) },
-                                            pending: ResetValue(storage: self, step: .pendingTransactions),
-                                            coordinators: { _ in throw TransactionCoordinatorError.unsupportedNetwork })
-        _ = transactions.records(for: TransactionRecord.Key(account: UUID(), network: .devnet))
         return [ContactStore(storage: ResetValue<AddressBook>(storage: self, step: .contacts)),
-                transactions,
+                TransactionStore(storage: ResetValue<[TransactionRecord]>(storage: self, step: .transactions),
+                                 coordinators: { _ in throw TransactionCoordinatorError.unsupportedNetwork }),
                 CurrencyStore(storage: ResetValue<CurrencySettings>(storage: self, step: .currency), rates: [:]),
                 RPCStore(settings: ResetValue<RPCSettings>(storage: self, step: .settings),
                          key: ResetValue<String>(storage: self, step: .key)),

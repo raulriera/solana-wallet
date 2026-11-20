@@ -30,7 +30,7 @@ struct SentAmountClearingTests {
         let send = try await sending.approveAndClose()
         await sending.deliver(send)
         let record = try #require(sending.payment.model.record)
-        #expect(await sending.payment.transactions.settledStatus(of: record) == .succeeded)
+        #expect(await sending.payment.transactions.outcome(of: record) == .succeeded)
         #expect(sending.keypad.quantity == 1)
 
         let hosted = try HostedWindow(SentAmountClearingRoot(payment: sending.keypad, kept: sending.kept))
@@ -54,7 +54,7 @@ struct SentAmountClearingTests {
         await sending.deliver(send)
 
         let record = try #require(sending.payment.model.record)
-        #expect(await sending.payment.transactions.settledStatus(of: record) == .succeeded)
+        #expect(await sending.payment.transactions.outcome(of: record) == .succeeded)
         #expect(sending.keypad.quantity == 15)
         await sending.payment.sockets.waitUntilClosed()
     }

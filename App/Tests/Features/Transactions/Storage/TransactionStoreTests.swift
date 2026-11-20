@@ -16,9 +16,9 @@ struct TransactionStoreTests {
 
         let record = try await sending.send()
 
-        #expect(record.status == .pending)
+        #expect(record.isPending)
         #expect(record.settled == nil)
-        #expect(record.kind == sending.payment)
+        #expect(record.kind == .payment)
         #expect(record.key == sending.key)
         #expect(record.lastValidBlockHeight == 550)
         #expect(await sending.savedOnly(record))
@@ -36,13 +36,25 @@ struct TransactionStoreTests {
         await Self.expectNothingSent(by: sending)
     }
 
+    @Test(arguments: [(true, false), (false, true)])
+    func `A payment is sent and settles when its saved records can't be read or written`(
+        failsLoading: Bool, failsSaving: Bool
+    ) async throws {
+        let sending = try LocalSending(pending: StoredValue(failsLoading: failsLoading, failsSaving: failsSaving))
+
+        let record = try await sending.send()
+
+        #expect(try await sending.settle(record) == .succeeded)
+        #expect(sending.store.record(record.id, for: sending.key)?.outcome == .succeeded)
+    }
+
     @Test
     func `A payment with unknown delivery is recorded and watched`() async throws {
         let sending = try LocalSending(sent: HTTPResponses([:], error: Self.rateLimit))
 
         let record = try await sending.send()
 
-        #expect(record.status == .pending)
+        #expect(record.isPending)
         #expect(await sending.savedOnly(record))
         #expect(try await sending.settle(record) == .succeeded)
     }
@@ -52,7 +64,7 @@ struct TransactionStoreTests {
         let gate = Suspension()
         let sending = try LocalSending(sent: .sending(gate: gate))
         let simulation = try await sending.simulate()
-        let caller = Task { try await sending.store.send(simulation, as: sending.payment, from: sending.account) }
+        let caller = Task { try await sending.store.send(simulation, as: .payment, from: sending.account) }
         await gate.waitUntilStarted()
 
         caller.cancel()
@@ -64,53 +76,36 @@ struct TransactionStoreTests {
         #expect(try await sending.settle(record) == .succeeded)
     }
 
-    @Test
-    func `Only the latest 200 records are kept`() async throws {
-        let fixture = try SigningFixture()
-        let saved = try (0..<200).map {
-            try TransactionRecord.fixture(LocalSending.payment(), signature: "saved-\($0)", account: fixture.account.id)
-        }
-        let sending = try LocalSending(fixture: fixture, records: StoredValue(saved))
-
-        let record = try await sending.send()
-
-        let kept = try #require(await sending.records.value)
-        #expect(kept.count == 200)
-        #expect(kept.first?.id == record.id)
-        #expect(kept.last?.id == "saved-198")
-        #expect(sending.store.records(for: sending.key).map(\.id) == kept.map(\.id))
-        _ = try await sending.settle(record)
-    }
-
     @Test(arguments: [
-        (GetSignatureStatuses.Response.status(.finalized), UInt64(500), TransactionRecord.Status.succeeded),
+        (GetSignatureStatuses.Response.status(.finalized), UInt64(500), TransactionOutcome.succeeded),
         (.status(.finalized, error: TransactionError(name: "InstructionError", details: nil)), 500, .failed),
         (.status(nil), 600, .dropped),
     ])
-    func `A settled watch saves its outcome`(status: GetSignatureStatuses.Response, height: UInt64,
-                                             expected: TransactionRecord.Status) async throws {
+    func `A settled record keeps its outcome and is no longer saved`(
+        status: GetSignatureStatuses.Response, height: UInt64, expected: TransactionOutcome
+    ) async throws {
         let sending = try LocalSending(statuses: [status], height: height)
         let record = try await sending.send()
 
         let settled = try await sending.settle(record)
 
         #expect(settled == expected)
-        let saved = try #require(await sending.records.value?.first)
-        #expect(saved.status == expected)
-        #expect(try #require(saved.settled) >= saved.created)
-        #expect(sending.store.record(record.id, for: sending.key) == saved)
+        let kept = try #require(sending.store.record(record.id, for: sending.key))
+        #expect(kept.outcome == expected)
+        #expect(kept.settled != nil)
+        #expect(await sending.pending.value == [])
     }
 
     @Test
-    func `The settling runs once after the outcome is saved`() async throws {
+    func `The settling runs once after the outcome is kept`() async throws {
         let sending = try LocalSending()
-        let settling = RecordingSettling(records: sending.records, store: sending.store, key: sending.key)
+        let settling = RecordingSettling(pending: sending.pending, store: sending.store, key: sending.key)
         let record = try await sending.send(settling: settling)
 
         _ = try await sending.settle(record)
         _ = try await sending.settle(record)
 
-        let expected = RecordingSettling.Call(signature: record.id, saved: .succeeded, settledCount: 0)
+        let expected = RecordingSettling.Call(outcome: .succeeded, saved: [], settledCount: 0)
         #expect(await settling.calls == [expected])
         #expect(sending.store.settledCount(for: sending.key) == 1)
     }
@@ -124,7 +119,7 @@ struct TransactionStoreTests {
         for await _ in sockets.openings { break }
 
         await #expect(throws: DeliveryError.self) { try await sending.store.watch(record.id, for: sending.key) }
-        #expect(await sending.records.value?.first?.status == .pending)
+        #expect(await sending.savedOnly(record))
         #expect(sending.store.settledCount(for: sending.key) == 0)
 
         #expect(try await sending.settle(record) == .succeeded)
@@ -144,7 +139,7 @@ struct TransactionStoreTests {
         gate.resume()
 
         #expect(try await sending.settle(record) == .succeeded)
-        #expect(await sending.records.value?.first?.status == .succeeded)
+        #expect(sending.store.record(record.id, for: sending.key)?.outcome == .succeeded)
     }
 
     @Test
@@ -166,7 +161,6 @@ struct TransactionStoreTests {
 
         await sending.sockets.waitUntilClosed()
         #expect(sending.store.records(for: sending.key).isEmpty)
-        #expect(await sending.records.value == nil)
         #expect(await sending.pending.value == nil)
         await #expect(throws: TransactionStoreError.missingRecord) {
             try await sending.store.watch(record.id, for: sending.key)
@@ -183,98 +177,58 @@ struct TransactionStoreTests {
 
         await sending.sockets.waitUntilClosed()
         #expect(sending.store.records(for: sending.key).isEmpty)
-        #expect(await sending.records.value == nil)
+        #expect(await sending.pending.value == [])
         await #expect(throws: TransactionStoreError.missingRecord) {
             try await sending.store.watch(record.id, for: sending.key)
         }
     }
 
     @Test
-    func `Erasing an account deletes its records on every network only`() async throws {
-        let fixture = try SigningFixture()
-        let other = UUID()
-        let mainnet = StoredValue([try TransactionRecord.fixture(LocalSending.payment(), signature: "mainnet",
-                                                                 account: fixture.account.id, network: .mainnet)])
-        let devnet = StoredValue([try TransactionRecord.fixture(LocalSending.payment(), signature: "devnet",
-                                                                account: fixture.account.id)])
-        let kept = StoredValue([try TransactionRecord.fixture(LocalSending.payment(), signature: "kept",
-                                                              account: other)])
-        let otherKey = TransactionRecord.Key(account: other, network: .devnet)
-        let sending = try LocalSending(fixture: fixture, records: devnet, otherRecords: [
-            TransactionRecord.Key(account: fixture.account.id, network: .mainnet): mainnet, otherKey: kept,
-        ])
-        await sending.store.load(sending.key)
-        await sending.store.load(otherKey)
+    func `Erasing an account forgets its records on every network only`() async throws {
+        let (erased, other) = (UUID(), UUID())
+        let kept = TransactionRecord.fixture(.payment, signature: "kept", account: other)
+        let pending = StoredValue([.fixture(.payment, signature: "mainnet", account: erased, network: .mainnet),
+                                   .fixture(.payment, signature: "devnet", account: erased), kept])
+        let store = TransactionStore.inMemory(pending)
 
-        try await sending.store.erase(account: fixture.account.id)
+        try await store.erase(account: erased)
 
-        #expect(await mainnet.value == nil)
-        #expect(await devnet.value == nil)
-        #expect(await kept.value?.map(\.id) == ["kept"])
-        #expect(sending.store.records(for: otherKey).map(\.id) == ["kept"])
+        #expect(await pending.value == [kept])
+        #expect(store.records(for: kept.key) == [kept])
+        for network in Network.allCases {
+            #expect(store.records(for: TransactionRecord.Key(account: erased, network: network)).isEmpty)
+        }
     }
 
     @Test
-    func `Recent payments list each recipient's latest succeeded payment`() async throws {
-        let (first, second) = (UUID(), UUID())
-        let (bruno, carla, dana) = try (Address("4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T"),
-                                        Address("9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"),
-                                        Address("8CW93AFYFKj2rKZRq3YjLesb4XbgtAiq8k2FgfruVZL5"))
-        let storages = try [
-            TransactionRecord.Key(account: first, network: .devnet): StoredValue<[TransactionRecord]>([
-                .fixture(LocalSending.payment(to: bruno), signature: "bruno-old", account: first, status: .succeeded,
-                         settled: 10),
-                .fixture(LocalSending.payment(to: carla), signature: "carla", account: first, status: .succeeded,
-                         settled: 30),
-                .fixture(LocalSending.payment(to: dana), signature: "dana-failed", account: first, status: .failed,
-                         settled: 60),
-                .fixture(.privateDeposit, signature: "deposit", account: first, status: .succeeded,
-                         settled: 70),
-            ]),
-            TransactionRecord.Key(account: second, network: .devnet): StoredValue<[TransactionRecord]>([
-                .fixture(LocalSending.payment(to: bruno), signature: "bruno-new", account: second, status: .succeeded,
-                         settled: 40),
-                .fixture(LocalSending.payment(to: dana), signature: "dana-pending", account: second),
-                .fixture(LocalSending.payment(to: dana), signature: "dana", account: second, status: .succeeded,
-                         settled: 20),
-            ]),
-        ]
-        let store = TransactionStore.inMemory(storages)
-        let keys = Array(storages.keys)
-        for key in keys { await store.load(key) }
+    func `Loading reads the saved pending records once`() async throws {
+        let record = TransactionRecord.fixture(.payment, signature: "saved", account: UUID())
+        let saved = StoredValue([record])
+        let store = TransactionStore.inMemory(saved)
+        #expect(store.records(for: record.key).isEmpty)
 
-        #expect(store.recentPayments(for: keys, limit: 10).map(\.id) == ["bruno-new", "carla", "dana"])
-        #expect(store.recentPayments(for: keys, limit: 2).map(\.id) == ["bruno-new", "carla"])
-    }
+        await store.load()
+        await store.load()
 
-    @Test
-    func `Loading reads a key's saved records`() async throws {
-        let account = UUID()
-        let key = TransactionRecord.Key(account: account, network: .devnet)
-        let saved = StoredValue([TransactionRecord.fixture(try LocalSending.payment(), signature: "saved",
-                                                           account: account)])
-        let store = TransactionStore.inMemory(saved) { _ in throw TransactionCoordinatorError.unsupportedNetwork }
-        #expect(store.phase(for: key) == .unloaded)
-
-        await store.load(key)
-        await store.load(key)
-
-        #expect(store.phase(for: key) == .loaded)
-        #expect(store.records(for: key).map(\.id) == ["saved"])
+        #expect(store.records(for: record.key) == [record])
         #expect(await saved.loads == 1)
     }
 
     @Test
-    func `Each key's records are kept in their own file`() async throws {
+    func `Pending records are kept in their file as version 1, replacing a file that can't be used`() async throws {
         let directory = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
         defer { try? FileManager.default.removeItem(at: directory) }
-        let account = UUID()
-        let record = TransactionRecord.fixture(try LocalSending.payment(), signature: "saved", account: account)
+        let record = TransactionRecord.fixture(.payment, signature: "saved", account: UUID())
+        let file = directory.appending(path: "pending.json")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try Data(#"[{"kind": "payment", "amount": 1000000, "signature": "old"}]"#.utf8).write(to: file)
+        let storage = TransactionStore.file(in: directory)
 
-        try await TransactionStore.files(in: directory)(record.key).save([record])
+        #expect(try await storage.load() == [])
+        try await storage.save([record])
 
-        let file = directory.appending(path: "devnet/\(account.uuidString).json")
-        #expect(try JSONDecoder().decode([TransactionRecord].self, from: Data(contentsOf: file)) == [record])
+        let coding = VersionedJSONCoding<[TransactionRecord]>(version: 1, unusable: .unreadable)
+        #expect(try coding.decode(Data(contentsOf: file)) == [record])
     }
 
     @Test
@@ -309,7 +263,7 @@ struct TransactionStoreTests {
     }
 
     private static func expectNothingSent(by sending: LocalSending) async {
-        #expect(await sending.records.value == nil)
+        #expect(await sending.pending.value == nil)
         #expect(sending.store.records(for: sending.key).isEmpty)
         #expect(await sending.sent.requests.isEmpty)
     }
@@ -317,25 +271,24 @@ struct TransactionStoreTests {
 
 private actor RecordingSettling: TransactionSettling {
     struct Call: Equatable {
-        let signature: String
-        let saved: TransactionRecord.Status?
+        let outcome: TransactionOutcome?
+        let saved: [TransactionRecord]?
         let settledCount: Int
     }
 
-    private let records: StoredValue<[TransactionRecord]>
+    private let pending: StoredValue<[TransactionRecord]>
     private let store: TransactionStore
     private let key: TransactionRecord.Key
     private(set) var calls: [Call] = []
 
-    init(records: StoredValue<[TransactionRecord]>, store: TransactionStore, key: TransactionRecord.Key) {
-        self.records = records
+    init(pending: StoredValue<[TransactionRecord]>, store: TransactionStore, key: TransactionRecord.Key) {
+        self.pending = pending
         self.store = store
         self.key = key
     }
 
     func settle(_ confirmation: widgets.Confirmation) async {
-        let signature = confirmation.submission.signature
-        let saved = await records.value?.first { $0.id == signature }?.status
-        calls.append(Call(signature: signature, saved: saved, settledCount: await store.settledCount(for: key)))
+        let outcome = await store.record(confirmation.submission.signature, for: key)?.outcome
+        calls.append(Call(outcome: outcome, saved: await pending.value, settledCount: await store.settledCount(for: key)))
     }
 }

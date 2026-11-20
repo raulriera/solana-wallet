@@ -88,7 +88,8 @@ struct PaymentReviewActionTests {
         let local = TransactionStore.inMemory { _ in
             try TransactionCoordinator(rpc: preparation.client, store: SigningRecoveryStore(recovery: fixture.recovery))
         }
-        let sender = PaymentSender(account: fixture.account, network: .devnet, transactions: transactions ?? local)
+        let sender = PaymentSender(account: fixture.account, network: .devnet, transactions: transactions ?? local,
+                                   recents: .inMemory())
         return PaymentReviewAction(sender: sender, payment: payment,
                                  recipient: PaymentRecipient(address: fixture.transfer.accounts[1].address, name: nil),
                                  context: context,

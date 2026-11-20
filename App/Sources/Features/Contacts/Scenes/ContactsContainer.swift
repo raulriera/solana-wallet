@@ -4,7 +4,7 @@ import Transactions
 /// Loads the addresses an account can pay and shows them in its content, with the sheet that enters a new one.
 struct ContactsContainer<Content: View>: View {
     @Environment(ContactStore.self) private var store
-    @Environment(TransactionStore.self) private var transactions
+    @Environment(RecentPaymentStore.self) private var recents
     @Binding var selection: Address?
     let lists: ContactLists
     @Bindable var contacts: ContactsModel
@@ -55,8 +55,8 @@ struct ContactsContainer<Content: View>: View {
             }
         }
         .animation(.default, value: isEmpty)
-        .task(id: Load(attempt: loadAttempt, keys: lists.keys)) {
-            await contacts.load(lists.keys, from: store, transactions: transactions)
+        .task(id: loadAttempt) {
+            await contacts.load(from: store, recents: recents)
         }
         .alert(error: $contacts.error)
         .environment(\.contactEntry, ContactEntryAction(lists: lists, entry: $entry))
@@ -76,11 +76,5 @@ struct ContactsContainer<Content: View>: View {
                 if selection == contact.address { selection = confirmation.address }
             }
         }
-    }
-
-    /// The identity of a read of the saved contacts and records.
-    private struct Load: Hashable {
-        let attempt: Int
-        let keys: [TransactionRecord.Key]
     }
 }

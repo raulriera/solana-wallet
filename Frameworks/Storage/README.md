@@ -9,7 +9,7 @@ import Storage
 
 let bookmarks: any ValueStoring<[String]> = FileItem(
     url: .applicationSupportDirectory.appending(path: "Bookmarks/list.json"),
-    coding: .json([String].self)
+    coding: .json([String].self, version: 1, unusable: .replaced(with: []))
 )
 try await bookmarks.update { $0 = ($0 ?? []) + ["https://example.com"] }
 

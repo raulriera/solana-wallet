@@ -399,7 +399,7 @@ struct PortfolioTests {
     }
 
     @Test
-    func `Older caches are not restored while offline`() async throws {
+    func `Caches of another version are not restored while offline`() async throws {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
         let key = CacheKey(owner: testWallet, network: .mainnet)
@@ -407,7 +407,7 @@ struct PortfolioTests {
         let file = try #require(FileManager.default.contentsOfDirectory(at: fixture.directory,
                                                                         includingPropertiesForKeys: nil).first)
         var envelope = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
-        envelope["version"] = 3
+        envelope["version"] = 2
         try JSONSerialization.data(withJSONObject: envelope).write(to: file)
         let http = AccountResponses { _ in throw URLError(.notConnectedToInternet) }
         let service = fixture.portfolio(rpc: http.client)

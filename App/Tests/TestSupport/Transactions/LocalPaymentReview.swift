@@ -16,7 +16,6 @@ struct LocalPaymentReview {
     let model: TransactionReviewModel<PaymentProposal>
     let account: widgets.Account
     let transactions: TransactionStore
-    let records: StoredValue<[TransactionRecord]>
     let preparation: HTTPResponses
     let sockets: SocketSequence
 
@@ -28,15 +27,14 @@ struct LocalPaymentReview {
         let local = try LocalTransactions(fixture: fixture, recovery: store, statuses: statuses, height: height,
                                           sockets: sockets, sent: sent)
         let coordinator = local.coordinator
-        let records = StoredValue<[TransactionRecord]>()
-        let transactions = TransactionStore.inMemory(records) { _ in coordinator }
+        let transactions = TransactionStore.inMemory { _ in coordinator }
         let proposal = PaymentProposal(
             asset: .nativeSOL, sent: TokenAmount(lamports: 1_000_000_000), value: nil, currencyCode: "USD",
-            recipient: PaymentRecipient(address: fixture.transfer.accounts[1].address, name: "Bruno"), warnings: [])
+            recipient: PaymentRecipient(address: fixture.transfer.accounts[1].address, name: "Bruno"), warnings: [],
+            recents: .inMemory())
         model = try TransactionReviewModel(proposal, from: fixture.account, on: .devnet, transactions: transactions)
         account = fixture.account
         self.transactions = transactions
-        self.records = records
         preparation = local.preparation
         self.sockets = sockets
     }

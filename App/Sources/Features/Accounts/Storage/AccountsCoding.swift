@@ -3,17 +3,20 @@ import Storage
 import Transactions
 import Wallet
 
-/// A coding that keeps accounts as a JSON list of their public fields and reads back only valid, distinct accounts.
+/// A coding that keeps accounts as a versioned JSON list of their public fields and reads back only valid, distinct
+/// accounts.
 nonisolated struct AccountsCoding: ValueCoding {
+    private let records: VersionedJSONCoding<[Record]> = .json([Record].self, version: 1, unusable: .unreadable)
+
     /// Creates a coding that keeps accounts as JSON.
     init() {}
 
     func encode(_ accounts: [Account]) throws -> Data {
-        try JSONEncoder().encode(accounts.map(Record.init))
+        try records.encode(accounts.map(Record.init))
     }
 
     func decode(_ data: Data) -> [Account]? {
-        guard let records = try? JSONDecoder().decode([Record].self, from: data),
+        guard let records = records.decode(data),
               let accounts = try? records.map({ try $0.account() }),
               accounts.indices.allSatisfy({ index in
                   !accounts[..<index].contains { $0.isDuplicate(of: accounts[index]) }
@@ -22,7 +25,7 @@ nonisolated struct AccountsCoding: ValueCoding {
     }
 
     /// The saved public fields of an account.
-    private struct Record: Codable {
+    private struct Record: Codable, Equatable, Sendable {
         let id: UUID
         let recoveryID: UUID
         let address: String

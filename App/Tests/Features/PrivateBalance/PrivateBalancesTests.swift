@@ -751,11 +751,10 @@ struct PrivateBalancesTests {
         let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])
         let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
         let balances = try await Self.balances(HTTPResponses.privateNotes(), keys: keys, notes: notes)
-        let failed = TransactionError(name: "InsufficientFundsForFee", details: nil)
 
         let status = try await balances.complete(
             PrivateBalanceFixtures.preparedDeposit(5_000, of: .nativeSOL, from: account),
-            with: PrivateBalanceFixtures.confirmation(.failed(failed))
+            with: PrivateBalanceFixtures.confirmation(.failed)
         )
 
         #expect(status == .balance(available: 0, pending: 0, of: .nativeSOL))

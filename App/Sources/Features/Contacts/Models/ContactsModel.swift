@@ -9,8 +9,6 @@ import Transactions
 @Observable
 final class ContactsModel {
     var error: ContactsError?
-    /// The number of recent payments the lists show.
-    nonisolated static let recentLimit = 10
     @ObservationIgnored private var derived: (source: Source, lists: ContactLists)?
 
     /// Returns the lists of the addresses an account can pay on a network.
@@ -20,47 +18,34 @@ final class ContactsModel {
     ///   - network: The network of the recent payments.
     ///   - wallet: The wallet's accounts.
     ///   - store: The store of contacts and favorites.
-    ///   - transactions: The store that records transactions.
+    ///   - recents: The store of recent payments.
     /// - Returns: The lists.
     func lists(for account: Account, on network: Network, in wallet: [Account], store: ContactStore,
-               transactions: TransactionStore) -> ContactLists {
-        let others = wallet.filter { $0.address != account.address }
-        let keys = ([account] + others).map { TransactionRecord.Key(account: $0.id, network: network) }
-        let phases = [store.phase] + keys.map(transactions.phase(for:))
-        let source = Source(keys: keys, accounts: others, addressBook: store.addressBook,
-                            records: keys.map(transactions.records(for:)), phases: phases)
+               recents: RecentPaymentStore) -> ContactLists {
+        let phases = [store.phase, recents.phase]
+        let source = Source(sendingAccount: account.address,
+                            accounts: wallet.filter { $0.address != account.address },
+                            addressBook: store.addressBook, payments: recents.payments(on: network), phases: phases)
         if let derived, derived.source == source {
             self.derived = (source, derived.lists)
             return derived.lists
         }
-        let payments = transactions.recentPayments(for: keys, limit: Self.recentLimit).compactMap(RecentPayment.init)
-        let phase: PersistentValuePhase = if phases.contains(.unreadable) {
-            .unreadable
-        } else if phases.allSatisfy({ $0 == .loaded }) {
-            .loaded
-        } else {
-            .loading
-        }
-        let lists = ContactLists(sendingAccount: account.address, accounts: others.map(Contact.init),
-                                 addressBook: source.addressBook, payments: payments, keys: keys, phase: phase)
+        let lists = ContactLists(sendingAccount: source.sendingAccount, accounts: source.accounts.map(Contact.init),
+                                 addressBook: source.addressBook, payments: source.payments,
+                                 phase: PersistentValuePhase(combining: phases))
         derived = (source, lists)
         return lists
     }
 
-    /// Reads the saved contacts, favorites, and records.
+    /// Reads the saved contacts, favorites, and recent payments.
     ///
     /// - Parameters:
-    ///   - keys: The keys of the records to read.
     ///   - store: The store of contacts and favorites.
-    ///   - transactions: The store that records transactions.
-    func load(_ keys: [TransactionRecord.Key], from store: ContactStore, transactions: TransactionStore) async {
+    ///   - recents: The store of recent payments.
+    func load(from store: ContactStore, recents: RecentPaymentStore) async {
         async let book: Void = store.load()
-        async let records: Void = withDiscardingTaskGroup { group in
-            for key in keys {
-                group.addTask { await transactions.load(key) }
-            }
-        }
-        _ = await (book, records)
+        async let payments: Void = recents.load()
+        _ = await (book, payments)
     }
 
     /// Saves a contact, replacing the saved contact with the same identifier.
@@ -111,11 +96,12 @@ final class ContactsModel {
 
     /// The values that the lists are derived from.
     private struct Source: Equatable {
-        let keys: [TransactionRecord.Key]
+        /// The address of the account that pays.
+        let sendingAccount: Address
         /// The wallet's other accounts.
         let accounts: [Account]
         let addressBook: AddressBook
-        let records: [[TransactionRecord]]
+        let payments: [RecentPayment]
         let phases: [PersistentValuePhase]
     }
 }

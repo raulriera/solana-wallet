@@ -31,16 +31,15 @@ struct AccountDeletionModelTests {
         let second = try widgets.Account.fixture(index: 1)
         let store = AccountStore.inMemory(StoredValue([first, second]))
         await store.load()
-        let records = Self.records(of: [first, second])
+        let pending = StoredValue(Self.records(of: [first, second]))
         let model = AccountDeletionModel()
 
         model.delete(second.id)
-        await model.run(model.attempt, store: store, transactions: .inMemory(records))
+        await model.run(model.attempt, store: store, transactions: .inMemory(pending))
 
-        for network in Network.allCases {
-            #expect(await records[TransactionRecord.Key(account: second.id, network: network)]?.value == nil)
-            #expect(await records[TransactionRecord.Key(account: first.id, network: network)]?.value?.count == 1)
-        }
+        let kept = try #require(await pending.value)
+        #expect(kept.count == Network.allCases.count)
+        #expect(kept.allSatisfy { $0.account == first.id })
     }
 
     @Test
@@ -66,28 +65,20 @@ struct AccountDeletionModelTests {
         let first = try widgets.Account.fixture(index: 0)
         let store = AccountStore.inMemory(StoredValue([first], failsSaving: true))
         await store.load()
-        let records = Self.records(of: [first])
+        let pending = StoredValue(Self.records(of: [first]))
         let model = AccountDeletionModel()
 
         model.delete(first.id)
-        await model.run(model.attempt, store: store, transactions: .inMemory(records))
+        await model.run(model.attempt, store: store, transactions: .inMemory(pending))
 
         #expect(model.error == .notDeleted)
         #expect(store.accounts == [first])
-        #expect(await records[TransactionRecord.Key(account: first.id, network: .devnet)]?.value?.count == 1)
+        #expect(await pending.value == Self.records(of: [first]))
     }
 
-    private static func records(of accounts: [widgets.Account])
-        -> [TransactionRecord.Key: StoredValue<[TransactionRecord]>] {
-        var records: [TransactionRecord.Key: StoredValue<[TransactionRecord]>] = [:]
-        for account in accounts {
-            for network in Network.allCases {
-                records[TransactionRecord.Key(account: account.id, network: network)] = StoredValue([
-                    .fixture(.payment(recipient: account.address, asset: .nativeSOL, amount: 1), account: account.id,
-                             network: network),
-                ])
-            }
+    private static func records(of accounts: [widgets.Account]) -> [TransactionRecord] {
+        accounts.flatMap { account in
+            Network.allCases.map { .fixture(.payment, account: account.id, network: $0) }
         }
-        return records
     }
 }

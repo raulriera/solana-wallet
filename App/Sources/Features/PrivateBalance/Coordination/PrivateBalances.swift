@@ -317,7 +317,7 @@ actor PrivateBalances: PrivateBalancing {
     ///   - generation: The ``generation`` when the completion started.
     /// - Returns: The balance afterward, or why it has none.
     /// - Throws: `CancellationError` if ``removeAll()`` ran after `generation`, or a storage error.
-    private func record(_ transaction: PreparedPrivateTransaction, outcome: Confirmation.Outcome, signature: String,
+    private func record(_ transaction: PreparedPrivateTransaction, outcome: TransactionOutcome, signature: String,
                         id: String, from generation: Int) async throws -> PrivateBalanceStatus {
         guard generation == self.generation else { throw CancellationError() }
         guard outcome == .succeeded else {

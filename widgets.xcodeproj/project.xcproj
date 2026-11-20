@@ -355,6 +355,8 @@
           "target-membership": [
             "widgets/frameworks",
             { "build-phase": "widgets/copy/Embed Frameworks", "code-sign-on-copy": true, "header-preservation": "remove-on-copy" },
+            "Portfolio/frameworks",
+            "PortfolioTests/frameworks",
             "widgetsTests/frameworks",
             "StorageTests/frameworks",
           ],
@@ -526,6 +528,7 @@
       "dependencies": [
         "Encoding",
         "RPC",
+        "Storage",
         "Transactions",
       ],
       "build-phases": [

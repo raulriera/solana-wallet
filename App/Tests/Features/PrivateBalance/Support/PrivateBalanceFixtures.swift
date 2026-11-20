@@ -49,8 +49,7 @@ enum PrivateBalanceFixtures {
                             viewingKey: Curve25519.KeyAgreement.PrivateKey())
     }
 
-    static func confirmation(_ outcome: widgets.Confirmation.Outcome,
-                             signature: String = "private") -> widgets.Confirmation {
+    static func confirmation(_ outcome: TransactionOutcome, signature: String = "private") -> widgets.Confirmation {
         widgets.Confirmation(submission: Submission(signature: signature, network: .devnet, lastValidBlockHeight: 1), slot: 5,
                              outcome: outcome)
     }

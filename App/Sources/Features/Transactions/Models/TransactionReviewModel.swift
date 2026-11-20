@@ -41,19 +41,16 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     private let coordinator: any TransactionCoordinating
     private let transactions: TransactionStore
 
-    /// The sent transaction's current status, or `nil` before it's sent.
-    var status: TransactionRecord.Status? {
-        guard let record else { return nil }
-        return transactions.record(record.id, for: record.key)?.status ?? record.status
-    }
-
     /// How the sent transaction settled, or `nil` before it's sent and while it's pending.
-    var outcome: TransactionOutcome? { status.flatMap(TransactionOutcome.init) }
+    var outcome: TransactionOutcome? {
+        guard let record else { return nil }
+        return transactions.record(record.id, for: record.key)?.outcome
+    }
 
     var submission: Submission? { record?.submission }
 
     /// Whether the transaction is being signed and sent, or waits to settle.
-    var isSending: Bool { attempt?.work == .send || status == .pending }
+    var isSending: Bool { attempt?.work == .send || (record != nil && outcome == nil) }
 
     var canApprove: Bool { attempt == nil && isProposed && record == nil }
 
