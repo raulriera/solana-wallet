@@ -8,11 +8,6 @@ nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable
     struct Key: Hashable, Codable, Sendable {
         let account: UUID
         let network: Network
-
-        /// The key's persisted field names.
-        private enum CodingKeys: String, CodingKey {
-            case account, network
-        }
     }
 
     /// What a transaction does.
@@ -70,11 +65,6 @@ nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable
         lastValidBlockHeight = submission.lastValidBlockHeight
         status = .pending
         self.created = created
-    }
-
-    /// The record's persisted field names.
-    private enum CodingKeys: String, CodingKey {
-        case account, network, kind, signature, lastValidBlockHeight, status, created, settled
     }
 }
 

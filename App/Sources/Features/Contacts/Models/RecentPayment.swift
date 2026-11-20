@@ -8,9 +8,4 @@ nonisolated struct RecentPayment: Identifiable, Hashable, Codable, Sendable {
     let date: Date
 
     var id: String { address.value }
-
-    /// The payment's persisted field names.
-    private enum CodingKeys: String, CodingKey {
-        case address, date
-    }
 }
