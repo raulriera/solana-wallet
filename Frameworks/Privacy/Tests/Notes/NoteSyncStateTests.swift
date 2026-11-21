@@ -282,10 +282,7 @@ struct NoteSyncStateTests {
     @Test
     func `A sync reads at most eight claimed spends, the oldest first, and a later sync reads the rest`() async throws {
         let counted = (0..<10).map { NoteFixtures.note(at: UInt8($0)) }
-        let state = try NoteSyncState(
-            position: nil, notes: counted, unconfirmedNotes: [], outputTreeID: nil, pending: [], localSpends: [],
-            claimedSpends: [], rejectedSpends: [], missingSpendReads: [:]
-        )
+        let state = try NoteFixtures.state(notes: counted)
         let spenders = counted.enumerated().map { index, note in
             spend(of: [note], signature: UInt8(40 + index), slot: UInt64(100 - index))
         }
@@ -303,10 +300,7 @@ struct NoteSyncStateTests {
     @Test
     func `Syncs to the end read each claimed spend once across their batches`() async throws {
         let (first, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
-        let held = try NoteSyncState(
-            position: nil, notes: first.notes, unconfirmedNotes: [], outputTreeID: nil, pending: [], localSpends: [],
-            claimedSpends: [], rejectedSpends: [], missingSpendReads: [:]
-        )
+        let held = try NoteFixtures.state(notes: first.notes)
         let spender = spend(of: first.notes)
         let indexer = Indexer(
             deposits: Array(repeating: foreignDeposit, count: 9), spends: [spender], depositsPerPage: 1,
@@ -573,10 +567,7 @@ struct NoteSyncStateTests {
     func `Recorded token spends keep their change pending in their token`() throws {
         let vector = try #require(try DepositNoteVectors.load().deposits.first)
         let token = try vector.transaction(signature: IndexerResponses.signature(9), mint: PrivateAsset.token(.usdc).mintBytes)
-        let held = try NoteSyncState(
-            position: nil, notes: notes(in: token), unconfirmedNotes: [], outputTreeID: nil, pending: [], localSpends: [],
-            claimedSpends: [], rejectedSpends: [], missingSpendReads: [:]
-        )
+        let held = try NoteFixtures.state(notes: notes(in: token))
 
         let state = try held.recording(privateSpend(of: held.notes, receiving: 5, asset: .token(.usdc)), signature: IndexerResponses.signature(8))
 
@@ -736,11 +727,9 @@ struct NoteSyncStateTests {
     @Test
     func `Pending amounts end when a kept note comes from their transaction`() async throws {
         let (synced, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
-        let pending = try NoteSyncState(
-            position: synced.position, notes: synced.notes, unconfirmedNotes: [], outputTreeID: nil,
-            pending: [PendingAmount(signature: deposit.signature, asset: .nativeSOL, amount: 1_000_000)],
-            localSpends: [],
-            claimedSpends: [], rejectedSpends: [], missingSpendReads: [:]
+        let pending = try NoteFixtures.state(
+            position: synced.position, notes: synced.notes,
+            pending: [PendingAmount(signature: deposit.signature, asset: .nativeSOL, amount: 1_000_000)]
         )
 
         let (state, _) = try await sync(pending, with: Indexer())
@@ -760,10 +749,7 @@ struct NoteSyncStateTests {
     func `Token notes count only toward their own token`() throws {
         let vector = try #require(try DepositNoteVectors.load().deposits.first)
         let token = try vector.transaction(signature: IndexerResponses.signature(9), mint: PrivateAsset.token(.usdc).mintBytes)
-        let state = try NoteSyncState(
-            position: nil, notes: notes(in: deposit) + notes(in: token), unconfirmedNotes: [], outputTreeID: nil, pending: [],
-            localSpends: [], claimedSpends: [], rejectedSpends: [], missingSpendReads: [:]
-        )
+        let state = try NoteFixtures.state(notes: notes(in: deposit) + notes(in: token))
 
         #expect(state.spendableAmount(of: .nativeSOL) == (try notes(in: deposit).reduce(0) { $0 + $1.amount }))
         #expect(state.spendableAmount(of: .token(.usdc)) == (try notes(in: token).reduce(0) { $0 + $1.amount }))
@@ -788,14 +774,9 @@ struct NoteSyncStateTests {
     func `Pending amounts change the inputs only above the smallest of the largest notes`(
         amounts: [UInt64], pendingAmounts: [UInt64], changesInputs: Bool
     ) throws {
-        let notes = try amounts.enumerated().map { leaf, amount in
-            ReceivedNote(utxo: try PlanFixtures.utxo(amount: amount, asset: .nativeSOL), leafIndex: UInt64(leaf),
-                         signature: IndexerResponses.signature(1), slot: 1, nullifier: Poseidon.Element(UInt64(leaf)))
-        }
-        let state = try NoteSyncState(
-            position: nil, notes: notes, unconfirmedNotes: [], outputTreeID: nil,
-            pending: pendingAmounts.map { PendingAmount(signature: IndexerResponses.signature(2), asset: .nativeSOL, amount: $0) },
-            localSpends: [], claimedSpends: [], rejectedSpends: [], missingSpendReads: [:]
+        let state = try NoteFixtures.state(
+            notes: NoteFixtures.notes([(0, amounts)], of: .nativeSOL),
+            pending: pendingAmounts.map { PendingAmount(signature: IndexerResponses.signature(2), asset: .nativeSOL, amount: $0) }
         )
 
         #expect(state.pendingAmountChangesInputs(of: .nativeSOL) == changesInputs)
@@ -807,10 +788,7 @@ struct NoteSyncStateTests {
         let token = try #require(try DepositNoteVectors.load().deposits.first)
             .transaction(signature: IndexerResponses.signature(9), mint: PrivateAsset.token(.usdc).mintBytes)
 
-        let state = try NoteSyncState(
-            position: nil, notes: largest.notes + notes(in: token), unconfirmedNotes: [], outputTreeID: nil, pending: [],
-            localSpends: [], claimedSpends: [], rejectedSpends: [], missingSpendReads: [:]
-        )
+        let state = try NoteFixtures.state(notes: largest.notes + notes(in: token))
 
         #expect(state.spendableAmount(of: .nativeSOL) == largest.spendableAmount(of: .nativeSOL))
     }
@@ -907,10 +885,7 @@ struct NoteSyncStateTests {
     }
 
     private func largestState() throws -> NoteSyncState {
-        try NoteSyncState(
-            position: nil, notes: notes(in: largestDeposit), unconfirmedNotes: [], outputTreeID: nil, pending: [], localSpends: [],
-            claimedSpends: [], rejectedSpends: [], missingSpendReads: [:]
-        )
+        try NoteFixtures.state(notes: notes(in: largestDeposit))
     }
 
     private func notes(in transaction: ShieldedTransaction) throws -> [ReceivedNote] {

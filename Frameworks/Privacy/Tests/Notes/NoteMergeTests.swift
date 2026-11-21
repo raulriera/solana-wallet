@@ -44,14 +44,14 @@ struct NoteMergeTests {
     func `Merges total the 40 largest notes of the one or two trees that hold the most`(
         trees: [(UInt16, [UInt64])], amount: UInt64
     ) throws {
-        #expect(try NoteMerge.amount(merging: notes(trees)) == amount)
+        #expect(try NoteMerge.amount(merging: NoteFixtures.notes(trees, of: .nativeSOL)) == amount)
     }
 
     @Test(arguments: counts)
     func `Merges count until one choice of trees covers the amount within 40 notes`(
         trees: [(UInt16, [UInt64])], outputTreeID: UInt16, amount: UInt64, merges: Int
     ) throws {
-        let state = try Self.state(of: notes(trees), writingTo: outputTreeID)
+        let state = try NoteFixtures.state(notes: NoteFixtures.notes(trees, of: .nativeSOL), outputTreeID: outputTreeID)
 
         #expect(NoteMerge.count(covering: amount, of: .nativeSOL, in: state) == merges)
     }
@@ -70,7 +70,8 @@ struct NoteMergeTests {
 
     @Test
     func `Accounts before a sync reports a tree count no merge`() throws {
-        let state = try Self.state(of: notes([(0, Array(repeating: 1, count: 41))]), writingTo: nil)
+        let notes = try NoteFixtures.notes([(0, Array(repeating: 1, count: 41))], of: .nativeSOL)
+        let state = try NoteFixtures.state(notes: notes, outputTreeID: nil)
 
         #expect(NoteMerge.count(covering: 41, of: .nativeSOL, in: state) == 0)
     }
@@ -84,7 +85,7 @@ struct NoteMergeTests {
 
     @Test
     func `Merges transfer the 40 largest notes to the sender as one note`() async throws {
-        let notes = try notes([(0, Array(repeating: 1, count: 41))])
+        let notes = try NoteFixtures.notes([(0, Array(repeating: 1, count: 41))], of: .nativeSOL)
         let selected = Array(notes.prefix(40))
         var planGenerator = SeededGenerator(seed: 7)
         let plan = try TransactPlan(
@@ -96,11 +97,11 @@ struct NoteMergeTests {
         let context = TreeContext(
             utxoTreeRootIndex: IndexedProofs.utxoRootIndex, nullifierTreeRootIndex: IndexedProofs.nullifierRootIndex
         )
-        let transport = try Self.transport()
+        let transport = try NoteFixtures.spendTransport()
         var mergeGenerator = SeededGenerator(seed: 7)
 
         let result = try await NoteMerge(
-            covering: 41, of: .nativeSOL, in: try Self.state(of: notes), from: sender,
+            covering: 41, of: .nativeSOL, in: try NoteFixtures.state(notes: notes, outputTreeID: 0), from: sender,
             rpc: SolanaRPC.devnet(transport: transport), prover: StubProver.zolana(transport: transport),
             using: &mergeGenerator
         ).spend
@@ -113,13 +114,13 @@ struct NoteMergeTests {
 
     @Test
     func `Merges leave out a note whose nullifier is queued and take the next largest`() async throws {
-        let notes = try notes([(0, [5] + Array(repeating: 1, count: 41))])
+        let notes = try NoteFixtures.notes([(0, [5] + Array(repeating: 1, count: 41))], of: .nativeSOL)
         let queued = try ShieldedPool.nullifierAccount(tree: ShieldedPool.tree(id: 0), nullifier: notes[0].nullifier).value
-        let transport = try Self.transport(queued: [queued])
+        let transport = try NoteFixtures.spendTransport(queued: [queued])
         var generator = SeededGenerator(seed: 7)
 
         let result = try await NoteMerge(
-            covering: 46, of: .nativeSOL, in: try Self.state(of: notes), from: sender,
+            covering: 46, of: .nativeSOL, in: try NoteFixtures.state(notes: notes, outputTreeID: 0), from: sender,
             rpc: SolanaRPC.devnet(transport: transport), prover: StubProver.zolana(transport: transport),
             using: &generator
         ).spend
@@ -131,52 +132,17 @@ struct NoteMergeTests {
 
     @Test
     func `Merges report one following transaction when queued notes would cover the amount`() async throws {
-        let notes = try notes([(0, [10] + Array(repeating: 1, count: 41))])
+        let notes = try NoteFixtures.notes([(0, [10] + Array(repeating: 1, count: 41))], of: .nativeSOL)
         let queued = try ShieldedPool.nullifierAccount(tree: ShieldedPool.tree(id: 0), nullifier: notes[0].nullifier).value
-        let transport = try Self.transport(queued: [queued])
+        let transport = try NoteFixtures.spendTransport(queued: [queued])
         var generator = SeededGenerator(seed: 7)
 
         let merge = try await NoteMerge(
-            covering: 41, of: .nativeSOL, in: try Self.state(of: notes), from: sender,
+            covering: 41, of: .nativeSOL, in: try NoteFixtures.state(notes: notes, outputTreeID: 0), from: sender,
             rpc: SolanaRPC.devnet(transport: transport), prover: StubProver.zolana(transport: transport),
             using: &generator
         )
 
         #expect(merge.following == 1)
-    }
-
-    private static func state(
-        of notes: [ReceivedNote],
-        writingTo outputTreeID: UInt16? = 0
-    ) throws -> NoteSyncState {
-        try NoteSyncState(
-            position: nil,
-            notes: notes,
-            unconfirmedNotes: [],
-            outputTreeID: outputTreeID,
-            pending: [],
-            localSpends: [],
-            claimedSpends: [],
-            rejectedSpends: [],
-            missingSpendReads: [:]
-        )
-    }
-
-    private static func transport(queued: Set<String> = []) throws -> StubTransport {
-        let prover = try IndexedProofs.prover()
-        return StubTransport { request in
-            try prover.respond(to: request) ?? IndexerResponses.spendReads(answering: request, queued: queued)
-        }
-    }
-
-    private func notes(_ trees: [(tree: UInt16, amounts: [UInt64])]) throws -> [ReceivedNote] {
-        let entries = trees.flatMap { tree, amounts in amounts.map { (tree: tree, amount: $0) } }
-        return try entries.enumerated().map { leaf, note in
-            let utxo = try PlanFixtures.utxo(amount: note.amount, treeID: note.tree, blindingByte: UInt8(leaf + 1), asset: .nativeSOL)
-            return ReceivedNote(
-                utxo: utxo, leafIndex: UInt64(leaf), signature: IndexerResponses.signature(1), slot: 1,
-                nullifier: utxo.nullifier(using: sender.nullifierKey)
-            )
-        }
     }
 }

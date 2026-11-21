@@ -60,11 +60,8 @@ struct NoteSyncStateSpendTests {
 
     @Test(arguments: spends)
     func `Spends prove a plan of the selected notes`(_ spend: Spend) async throws {
-        let notes = try spend.notes.enumerated().map { try note($1, leaf: UInt64($0), asset: spend.asset) }
-        let state = try NoteSyncState(
-            position: nil, notes: notes, unconfirmedNotes: [], outputTreeID: 0, pending: [], localSpends: [],
-            claimedSpends: [], rejectedSpends: [], missingSpendReads: [:]
-        )
+        let notes = try NoteFixtures.notes([(0, spend.notes)], of: spend.asset)
+        let state = try NoteFixtures.state(notes: notes, outputTreeID: 0)
         let destination = try destination(spend.destination)
         let selected = spend.selected.map { notes[$0] }
         var planGenerator = SeededGenerator(seed: 7)
@@ -82,7 +79,7 @@ struct NoteSyncStateSpendTests {
         let context = TreeContext(
             utxoTreeRootIndex: IndexedProofs.utxoRootIndex, nullifierTreeRootIndex: IndexedProofs.nullifierRootIndex
         )
-        let transport = try Self.transport()
+        let transport = try NoteFixtures.spendTransport()
         var spendGenerator = SeededGenerator(seed: 7)
 
         let result = try await state.spend(
@@ -105,7 +102,7 @@ struct NoteSyncStateSpendTests {
 
     @Test
     func `Spends name the tree of their selected notes and their output tree`() async throws {
-        let notes = [try note(3, leaf: 0, asset: .nativeSOL), try note(4, leaf: 1, asset: .nativeSOL), try note(10, leaf: 2, treeID: 2, asset: .nativeSOL)]
+        let notes = try NoteFixtures.notes([(0, [3, 4]), (2, [10])], of: .nativeSOL)
 
         let result = try await spend(9, of: notes)
 
@@ -116,13 +113,10 @@ struct NoteSyncStateSpendTests {
     @Test
     func `Spends leave out notes whose nullifiers are already queued`() async throws {
         let recipient = try TransferVectors.recipient()
-        let notes = try [10, 5].enumerated().map { try note($1, leaf: UInt64($0), asset: .nativeSOL) }
-        let state = try NoteSyncState(
-            position: nil, notes: notes, unconfirmedNotes: [], outputTreeID: 0, pending: [], localSpends: [],
-            claimedSpends: [], rejectedSpends: [], missingSpendReads: [:]
-        )
+        let notes = try NoteFixtures.notes([(0, [10, 5])], of: .nativeSOL)
+        let state = try NoteFixtures.state(notes: notes, outputTreeID: 0)
         let queued = try ShieldedPool.nullifierAccount(tree: ShieldedPool.tree(id: 0), nullifier: notes[0].nullifier).value
-        let transport = try Self.transport(queued: [queued])
+        let transport = try NoteFixtures.spendTransport(queued: [queued])
 
         let result = try await state.spend(
             4, of: .nativeSOL, to: .transfer(recipient), from: sender, rpc: SolanaRPC.devnet(transport: transport), prover: Self.prover(transport)
@@ -135,12 +129,9 @@ struct NoteSyncStateSpendTests {
     @Test
     func `Spends leave out notes that an unsettled spend claim names`() async throws {
         let recipient = try TransferVectors.recipient()
-        let notes = try [10, 5].enumerated().map { try note($1, leaf: UInt64($0), asset: .nativeSOL) }
-        let state = try NoteSyncState(
-            position: nil, notes: notes, unconfirmedNotes: [], outputTreeID: 0, pending: [], localSpends: [],
-            claimedSpends: [notes[0].nullifier.bigEndianBytes], rejectedSpends: [], missingSpendReads: [:]
-        )
-        let transport = try Self.transport()
+        let notes = try NoteFixtures.notes([(0, [10, 5])], of: .nativeSOL)
+        let state = try NoteFixtures.state(notes: notes, outputTreeID: 0, claimedSpends: [notes[0].nullifier.bigEndianBytes])
+        let transport = try NoteFixtures.spendTransport()
 
         let result = try await state.spend(
             4, of: .nativeSOL, to: .transfer(recipient), from: sender, rpc: SolanaRPC.devnet(transport: transport), prover: Self.prover(transport)
@@ -154,11 +145,8 @@ struct NoteSyncStateSpendTests {
     @Test
     func `Spends of only queued notes are insufficient`() async throws {
         let recipient = try TransferVectors.recipient()
-        let notes = [try note(10, leaf: 0, asset: .nativeSOL)]
-        let state = try NoteSyncState(
-            position: nil, notes: notes, unconfirmedNotes: [], outputTreeID: 0, pending: [], localSpends: [],
-            claimedSpends: [], rejectedSpends: [], missingSpendReads: [:]
-        )
+        let notes = try NoteFixtures.notes([(0, [10])], of: .nativeSOL)
+        let state = try NoteFixtures.state(notes: notes, outputTreeID: 0)
         let queued = try ShieldedPool.nullifierAccount(tree: ShieldedPool.tree(id: 0), nullifier: notes[0].nullifier).value
         let transport = StubTransport { request in try IndexerResponses.spendReads(answering: request, queued: [queued]) }
 
@@ -176,8 +164,7 @@ struct NoteSyncStateSpendTests {
     ])
     func `Invalid amounts send no request`(lamports: UInt64, destination: Spend.Destination) async throws {
         let transport = StubTransport { _ in throw CancellationError() }
-        let state = try NoteSyncState(position: nil, notes: [try note(10, leaf: 0, asset: .nativeSOL)], unconfirmedNotes: [], outputTreeID: 0, pending: [],
-                                      localSpends: [], claimedSpends: [], rejectedSpends: [], missingSpendReads: [:])
+        let state = try NoteFixtures.state(notes: NoteFixtures.notes([(0, [10])], of: .nativeSOL), outputTreeID: 0)
         let destination = try self.destination(destination)
 
         await #expect(throws: ValidationError.invalidAmount) {
@@ -197,11 +184,9 @@ struct NoteSyncStateSpendTests {
         error: PrivateSpend.ValidationError
     ) async throws {
         let transport = StubTransport { _ in throw CancellationError() }
-        let state = try NoteSyncState(
-            position: nil, notes: notes.enumerated().map { try note($1, leaf: UInt64($0), asset: .nativeSOL) }, unconfirmedNotes: [],
-            outputTreeID: outputTreeID,
-            pending: pendingLamports.map { PendingAmount(signature: IndexerResponses.signature(1), asset: .nativeSOL, amount: $0) }, localSpends: [],
-            claimedSpends: [], rejectedSpends: [], missingSpendReads: [:]
+        let state = try NoteFixtures.state(
+            notes: NoteFixtures.notes([(0, notes)], of: .nativeSOL), outputTreeID: outputTreeID,
+            pending: pendingLamports.map { PendingAmount(signature: IndexerResponses.signature(1), asset: .nativeSOL, amount: $0) }
         )
         let destination = try self.destination(destination)
 
@@ -215,8 +200,7 @@ struct NoteSyncStateSpendTests {
     @Test
     func `Unconfirmed notes can't be spent`() async throws {
         let transport = StubTransport { _ in throw CancellationError() }
-        let state = try NoteSyncState(position: nil, notes: [], unconfirmedNotes: [try note(10, leaf: 0, asset: .nativeSOL)], outputTreeID: 0, pending: [],
-                                      localSpends: [], claimedSpends: [], rejectedSpends: [], missingSpendReads: [:])
+        let state = try NoteFixtures.state(unconfirmedNotes: NoteFixtures.notes([(0, [10])], of: .nativeSOL), outputTreeID: 0)
 
         await #expect(throws: PrivateSpend.ValidationError.insufficientFunds) {
             try await state.spend(4, of: .nativeSOL, to: .transfer(try TransferVectors.recipient()), from: sender, rpc: SolanaRPC.devnet(transport: transport),
@@ -227,24 +211,12 @@ struct NoteSyncStateSpendTests {
     }
 
     private func spend(_ lamports: UInt64, of notes: [ReceivedNote]) async throws -> PrivateSpend {
-        let state = try NoteSyncState(
-            position: nil, notes: notes, unconfirmedNotes: [], outputTreeID: 0, pending: [], localSpends: [],
-            claimedSpends: [], rejectedSpends: [], missingSpendReads: [:]
-        )
-        let transport = try Self.transport()
+        let state = try NoteFixtures.state(notes: notes, outputTreeID: 0)
+        let transport = try NoteFixtures.spendTransport()
         var generator = SeededGenerator(seed: 7)
         return try await state.spend(
             lamports, of: .nativeSOL, to: .transfer(try TransferVectors.recipient()), from: sender, rpc: SolanaRPC.devnet(transport: transport),
             prover: Self.prover(transport), using: &generator
-        )
-    }
-
-    private func note(
-        _ amount: UInt64, leaf: UInt64, treeID: UInt16 = 0, asset: PrivateAsset
-    ) throws -> ReceivedNote {
-        let utxo = try PlanFixtures.utxo(amount: amount, treeID: treeID, blindingByte: 0xa1 + UInt8(leaf), asset: asset)
-        return ReceivedNote(
-            utxo: utxo, leafIndex: leaf, signature: IndexerResponses.signature(1), slot: 1, nullifier: utxo.nullifier(using: sender.nullifierKey)
         )
     }
 
@@ -278,13 +250,6 @@ struct NoteSyncStateSpendTests {
             try AssociatedTokenProgram.createIdempotent(owner: owner, mint: token.mint, program: .token,
                                                         payer: sender.signingAddress)
         )]
-    }
-
-    private static func transport(queued: Set<String> = []) throws -> StubTransport {
-        let prover = try IndexedProofs.prover()
-        return StubTransport { request in
-            try prover.respond(to: request) ?? IndexerResponses.spendReads(answering: request, queued: queued)
-        }
     }
 
     private static func prover(_ transport: StubTransport) -> Zolana {
