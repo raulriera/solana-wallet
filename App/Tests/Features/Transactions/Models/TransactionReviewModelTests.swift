@@ -194,6 +194,21 @@ struct TransactionReviewModelTests {
     }
 
     @Test
+    func `A send ends before a transaction that needs more transactions than the person approved`() async throws {
+        let review = try LocalSteppedReview(preliminaryCount: 2, reportedFollowing: 1, statuses: [.status(.finalized)])
+        let model = review.model
+        try await model.runReview()
+
+        model.approve()
+        await model.run(model.attempt)
+
+        #expect(model.record == nil)
+        #expect(model.error == .notSent)
+        #expect(await review.sent.requests.count == 1)
+        await review.sockets.waitUntilClosed()
+    }
+
+    @Test
     func `A dropped transaction whose preparation the proposal rejects is prepared again`() async throws {
         let review = try LocalSteppedReview(preliminaryCount: .max,
                                             failingSimulations: [1: SendError.preparationFailed],

@@ -17,6 +17,7 @@ struct SteppedProposal: TransactionProposal {
 
     let payment: PaymentProposal
     let preliminaryCount: Int
+    let reportedFollowing: Int?
     let failingSimulations: [Int: any Swift.Error]
     let simulations = Simulations()
 
@@ -32,8 +33,10 @@ struct SteppedProposal: TransactionProposal {
         defer { simulations.count += 1 }
         if let error = failingSimulations[simulations.count] { throw error }
         let proposed = try await payment.simulate((), with: coordinator, from: account)
+        let following = simulations.count < preliminaryCount
+            ? reportedFollowing ?? preliminaryCount - simulations.count : 0
         return ProposedTransaction(simulation: proposed.simulation, review: proposed.review, kind: proposed.kind,
-                                   settling: proposed.settling, isPreliminary: simulations.count < preliminaryCount)
+                                   settling: proposed.settling, followingTransactions: following)
     }
 }
 
@@ -44,8 +47,8 @@ struct LocalSteppedReview {
     let sent = HTTPResponses.sending()
     let sockets = SocketSequence()
 
-    init(preliminaryCount: Int, failingSimulations: [Int: any Swift.Error] = [:], statuses: [GetSignatureStatuses.Response],
-         height: UInt64 = 500) throws {
+    init(preliminaryCount: Int, reportedFollowing: Int? = nil, failingSimulations: [Int: any Swift.Error] = [:],
+         statuses: [GetSignatureStatuses.Response], height: UInt64 = 500) throws {
         var fixture = try SigningFixture()
         fixture.simulation = SimulateTransaction.Response(context: Context(slot: 402), value: LocalPaymentReview.success)
         recovery = SigningRecoveryStore(recovery: fixture.recovery)
@@ -56,7 +59,8 @@ struct LocalSteppedReview {
             recipient: PaymentRecipient(address: fixture.transfer.accounts[1].address, name: "Bruno"), warnings: [],
             recents: .inMemory())
         model = try TransactionReviewModel(
-            SteppedProposal(payment: payment, preliminaryCount: preliminaryCount, failingSimulations: failingSimulations),
+            SteppedProposal(payment: payment, preliminaryCount: preliminaryCount, reportedFollowing: reportedFollowing,
+                            failingSimulations: failingSimulations),
             from: fixture.account, on: .devnet,
             transactions: TransactionStore.inMemory { _ in coordinator }
         )

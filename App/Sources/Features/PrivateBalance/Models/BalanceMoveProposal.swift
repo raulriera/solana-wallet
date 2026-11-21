@@ -111,7 +111,7 @@ struct BalanceMoveProposal: TransactionProposal {
         let movedLamports = privateAsset.lamports(moving: sent.amount)
         let review: Review
         let kind: TransactionRecord.Kind
-        var isPreliminary = false
+        var followingTransactions = 0
         switch preparation.effect {
         case .deposit:
             let registrationFee = preparation.registers
@@ -154,13 +154,13 @@ struct BalanceMoveProposal: TransactionProposal {
                             privacyFee: (privacyFee * transactions).nonZero,
                             pendingChange: merge.receivedAmount.nonZero, accountDeposit: nil)
             kind = if case .toRecipient = direction { .privatePayment } else { .privateWithdrawal }
-            isPreliminary = true
+            followingTransactions = following
         case .createCode, .redeem:
             throw PrivateBalanceError.preparationFailed
         }
         return ProposedTransaction(simulation: simulation, review: review, kind: kind,
                                    settling: PrivateBalanceSettlement(balances: balances, transaction: transaction),
-                                   isPreliminary: isPreliminary)
+                                   followingTransactions: followingTransactions)
     }
 
     /// Returns what the account's public SOL pays in a simulation beyond the moved SOL and the network fee.

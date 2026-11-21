@@ -205,7 +205,7 @@ struct BalanceMoveProposalTests {
         let proposed = try await proposal.simulate(merge, with: send.transactions.coordinator(for: .devnet),
                                                    from: send.account)
 
-        #expect(proposed.isPreliminary)
+        #expect(proposed.followingTransactions == 2)
         #expect(proposed.review == BalanceMoveProposal.Review(
             networkFee: 3 * LocalBalanceMove.networkFee, registrationFee: nil, privacyFee: 9_000,
             pendingChange: LocalBalanceMove.privateAmount - LocalBalanceMove.amount, accountDeposit: nil

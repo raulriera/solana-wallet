@@ -198,12 +198,14 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     ///   - first: The approved simulation of the first preliminary transaction.
     ///   - coordinator: The coordinator whose signatures share one authentication.
     /// - Returns: The record of the proposal's own transaction.
-    /// - Throws: The proposal's not-sent error if a preliminary transaction didn't succeed or the send was stopped,
+    /// - Throws: The proposal's not-sent error if a preliminary transaction didn't succeed, the send was stopped, or
+    ///   the next transaction needs more transactions than the person approved with the first one,
     ///   `CancellationError` if the person cancels authentication, or a preparation, signing, or storage error.
     private func sendInSteps(startingWith first: ProposedTransaction<Proposal.Review>,
                              using coordinator: any TransactionCoordinating) async throws -> TransactionRecord {
         var proposed = first
         var resends = 0
+        var approvedTransactions = first.followingTransactions
         while true {
             let sent = try await transactions.send(proposed.simulation, as: proposed.kind, from: account,
                                                    settling: proposed.settling, using: coordinator)
@@ -211,6 +213,7 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
             case .succeeded? where proposed.isPreliminary:
                 resends = 0
                 preparation = nil
+                approvedTransactions -= 1
             case .dropped? where resends < Self.maximumResends: resends += 1
             case .succeeded?, .dropped?, .failed?, nil:
                 guard !proposed.isPreliminary else { throw Proposal.Error.notSent }
@@ -219,7 +222,9 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
             guard !isStopping else { throw Proposal.Error.notSent }
             try Task.checkCancellation()
             proposed = try await nextProposed()
-            guard !isStopping else { throw Proposal.Error.notSent }
+            guard !isStopping, proposed.followingTransactions <= approvedTransactions else {
+                throw Proposal.Error.notSent
+            }
         }
     }
 
