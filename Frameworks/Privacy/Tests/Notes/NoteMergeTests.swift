@@ -26,9 +26,12 @@ struct NoteMergeTests {
                 (1, Array(repeating: 3, count: 25) + Array(repeating: 1, count: 25)),
                 (2, Array(repeating: 2, count: 25)),
             ],
-            0, 150, 1
+            0, 150, 2
         ),
         ((0...2).map { ($0, Array(repeating: 10, count: 14) + Array(repeating: 1, count: 60)) }, 0, 400, 1),
+        ([(0, [4]), (1, [4]), (2, [4])], 0, 10, 1),
+        ([(1, [4]), (2, [4]), (3, [4])], 0, 10, 1),
+        ([(0, [4]), (1, [4]), (2, [4]), (3, [4])], 0, 14, 2),
     ]
 
     private let sender: ShieldedAccount
@@ -51,6 +54,18 @@ struct NoteMergeTests {
         let state = try Self.state(of: notes(trees), writingTo: outputTreeID)
 
         #expect(NoteMerge.count(covering: amount, of: .nativeSOL, in: state) == merges)
+    }
+
+    @Test
+    func `Merges of notes in many trees end with a spend that one transaction covers`() throws {
+        let notes = (1...5).flatMap { tree in
+            Array(repeating: NoteMerge.SimulatedNote(amount: 1, treeID: UInt16(tree)), count: 30)
+        }
+
+        let merged = NoteMerge.simulatedMerges(of: notes, covering: 150, writingTo: 0)
+
+        #expect(merged.count == 4)
+        #expect(throws: Never.self) { try NoteSelection.notes(covering: 150, from: merged.notes, writingTo: 0) }
     }
 
     @Test

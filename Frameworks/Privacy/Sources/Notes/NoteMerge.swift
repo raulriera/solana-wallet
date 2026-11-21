@@ -58,33 +58,49 @@ public enum NoteMerge {
 
     /// Returns the number of merges that an account needs before one transaction covers an amount of an asset.
     ///
-    /// The count follows the selection of a spend and of each merge: while no choice of trees covers the amount
-    /// within one transaction's inputs, it merges the notes that ``spend(of:in:from:rpc:prover:)`` merges into one
-    /// note in the output tree. It reads no nullifier, so it counts notes whose nullifiers are queued, and is an
-    /// estimate for them.
+    /// The count follows the selection of a spend and of each merge: while the notes cover the amount but no choice of
+    /// trees covers it within one transaction's inputs, it merges the notes that ``spend(of:in:from:rpc:prover:)``
+    /// merges into one note in the output tree. It reads no nullifier, so it counts notes whose nullifiers are queued,
+    /// and is an estimate for them.
     ///
     /// - Parameters:
     ///   - amount: The amount to cover, in the asset's smallest unit.
     ///   - asset: The asset to cover the amount with.
     ///   - state: The account's notes.
-    /// - Returns: The number of merges, which is zero if one transaction's inputs cover the amount, if no choice of
-    ///   trees covers it, or before a sync reports a tree. The count stops when the merges leave no choice of trees
-    ///   that covers the amount.
+    /// - Returns: The number of merges, which is zero if one transaction's inputs cover the amount, if the notes don't
+    ///   cover it, or before a sync reports a tree.
     public static func count(covering amount: UInt64, of asset: PrivateAsset, in state: NoteSyncState) -> Int {
         guard let outputTreeID = state.outputTreeID else { return 0 }
-        var notes = state.notes(of: asset).map { SimulatedNote(amount: $0.amount, treeID: $0.treeID) }
-        var merges = 0
+        let notes = state.notes(of: asset).map { SimulatedNote(amount: $0.amount, treeID: $0.treeID) }
+        return simulatedMerges(of: notes, covering: amount, writingTo: outputTreeID).count
+    }
+
+    /// Simulates the merges of notes until one transaction covers an amount.
+    ///
+    /// - Parameters:
+    ///   - notes: The unspent notes of one asset.
+    ///   - amount: The amount to cover, in the asset's smallest unit.
+    ///   - outputTreeID: The ID of the tree that receives each merged note.
+    /// - Returns: The notes after the merges, and the number of merges, which is zero if one transaction's inputs
+    ///   cover the amount or if the notes don't cover it.
+    static func simulatedMerges(
+        of notes: [SimulatedNote],
+        covering amount: UInt64,
+        writingTo outputTreeID: UInt16
+    ) -> (notes: [SimulatedNote], count: Int) {
+        var notes = notes
+        var count = 0
         while true {
             do {
                 _ = try NoteSelection.notes(covering: amount, from: notes, writingTo: outputTreeID)
-                return merges
+                return (notes, count)
             } catch PrivateSpend.ValidationError.tooManyNotes {
-                guard let merged = try? Self.notes(merging: notes, writingTo: outputTreeID) else { return merges }
+                guard let merged = try? Self.notes(merging: notes, writingTo: outputTreeID) else { return (notes, count) }
                 notes.remove(contentsOf: merged)
                 notes.append(SimulatedNote(amount: merged.reduce(0) { $0 + $1.amount }, treeID: outputTreeID))
-                merges += 1
+                count += 1
             } catch {
-                return merges
+                return (notes, count)
             }
         }
     }
@@ -118,7 +134,7 @@ public enum NoteMerge {
     }
 
     /// A note that a count of merges simulates, by the amount and tree that the count reads.
-    private struct SimulatedNote: SelectableNote {
+    struct SimulatedNote: SelectableNote {
         let amount: UInt64
 
         let treeID: UInt16

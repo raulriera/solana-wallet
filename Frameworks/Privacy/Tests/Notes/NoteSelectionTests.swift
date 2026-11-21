@@ -29,16 +29,22 @@ struct NoteSelectionTests {
         #expect(selected.map(\.leafIndex) == leafIndexes)
     }
 
-    @Test
-    func `Spends that need more than 40 notes are rejected`() throws {
-        let notes = try Self.notes((0, Array(repeating: 1, count: 41)))
+    @Test(arguments: [
+        ([(0, Array(repeating: 1, count: 41))], 41),
+        ([(0, [4]), (1, [4]), (2, [4])], 10),
+        ([(0, [5]), (1, [3, 3]), (2, [6])], 17),
+    ] as [([(UInt16, [UInt64])], UInt64)])
+    func `Covered amounts that need more than 40 notes or 2 trees are rejected as too many notes`(
+        trees: [(UInt16, [UInt64])], amount: UInt64
+    ) throws {
+        let notes = try Self.notes(trees)
 
         #expect(throws: PrivateSpend.ValidationError.tooManyNotes) {
-            try NoteSelection.notes(covering: 41, from: notes, writingTo: 0)
+            try NoteSelection.notes(covering: amount, from: notes, writingTo: 0)
         }
     }
 
-    @Test(arguments: [[], [(0, [1, 2])], [(0, [4]), (1, [4]), (2, [4])]] as [[(UInt16, [UInt64])]])
+    @Test(arguments: [[], [(0, [1, 2])], [(0, [3]), (1, [3]), (2, [3])]] as [[(UInt16, [UInt64])]])
     func `Uncovered amounts are rejected`(trees: [(UInt16, [UInt64])]) throws {
         let notes = try Self.notes(trees)
 

@@ -22,19 +22,20 @@ enum NoteSelection {
     /// - Returns: The chosen notes, largest first, that cover the amount within one transaction's inputs and write
     ///   the fewest trees with the output tree; of those, the fewest notes from the fewest trees, with ties going to
     ///   the lower trees.
-    /// - Throws: ``PrivateSpend/ValidationError/tooManyNotes`` if covering the amount needs more notes than one
-    ///   transaction spends, or ``PrivateSpend/ValidationError/insufficientFunds`` if the trees that one transaction
-    ///   spends from don't cover it.
+    /// - Throws: ``PrivateSpend/ValidationError/tooManyNotes`` if the notes cover the amount but no choice of trees
+    ///   covers it within one transaction's inputs, or ``PrivateSpend/ValidationError/insufficientFunds`` if the notes
+    ///   don't cover it.
     static func notes<Note: SelectableNote>(
         covering amount: UInt64,
         from notes: [Note],
         writingTo outputTreeID: UInt16
     ) throws -> [Note] {
         let candidates = treeChoices(of: notes).compactMap { covering(amount, from: $0) }
-        guard !candidates.isEmpty else { throw PrivateSpend.ValidationError.insufficientFunds }
-        let ranked = candidates.sorted { rank(of: $0, writingTo: outputTreeID) < rank(of: $1, writingTo: outputTreeID) }
-        guard let best = ranked.first(where: { $0.count <= TransactPlan.maximumInputs }) else {
-            throw PrivateSpend.ValidationError.tooManyNotes
+            .filter { $0.count <= TransactPlan.maximumInputs }
+        let best = candidates.min { rank(of: $0, writingTo: outputTreeID) < rank(of: $1, writingTo: outputTreeID) }
+        guard let best else {
+            let total = notes.reduce(0) { $0 + $1.amount }
+            throw total >= amount ? PrivateSpend.ValidationError.tooManyNotes : .insufficientFunds
         }
         return best
     }

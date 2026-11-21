@@ -19,9 +19,10 @@ public struct PrivateSpend: Sendable, Redacted {
 
     /// A spend that can't be built.
     public enum ValidationError: Error, Equatable {
-        /// The trees that one transaction spends from don't hold enough unspent notes of the asset for the spend.
+        /// The unspent notes of the asset don't cover the spend.
         case insufficientFunds
-        /// The spend needs more than the 40 notes that one transaction spends.
+        /// The unspent notes of the asset cover the spend, but not within one transaction, which spends at most 40
+        /// notes from at most 2 trees.
         case tooManyNotes
         case noOutputTree
     }
