@@ -26,6 +26,14 @@ struct NoteMergeTests {
         #expect(try NoteMerge.amount(merging: notes(trees)) == amount)
     }
 
+    @Test(arguments: [(40, 0), (41, 1), (79, 1), (80, 2), (120, 3)])
+    func `Amounts need one merge for every 39 notes beyond the 40 of one transaction`(noteCount: Int, merges: Int)
+        throws {
+        let notes = try notes([(0, Array(repeating: 1, count: noteCount))])
+
+        #expect(NoteMerge.count(covering: UInt64(noteCount), with: notes) == merges)
+    }
+
     @Test
     func `Accounts without notes have nothing to merge`() {
         #expect(throws: PrivateSpend.ValidationError.insufficientFunds) {

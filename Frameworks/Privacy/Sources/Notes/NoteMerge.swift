@@ -49,6 +49,34 @@ public enum NoteMerge {
                                      prover: prover, using: &generator)
     }
 
+    /// Returns the number of merges that an account needs before one transaction covers an amount of an asset.
+    ///
+    /// - Parameters:
+    ///   - amount: The amount to cover, in the asset's smallest unit.
+    ///   - asset: The asset to cover the amount with.
+    ///   - state: The account's notes.
+    /// - Returns: The number of merges, which is zero if one transaction's inputs cover the amount. The count takes
+    ///   the largest notes first and doesn't consider their trees.
+    public static func count(covering amount: UInt64, of asset: PrivateAsset, in state: NoteSyncState) -> Int {
+        count(covering: amount, with: state.notes(of: asset))
+    }
+
+    /// Returns the number of merges that notes need before one transaction covers an amount.
+    ///
+    /// - Parameters:
+    ///   - amount: The amount to cover, in the asset's smallest unit.
+    ///   - notes: The unspent notes of one asset.
+    /// - Returns: The number of merges, where each merge turns one transaction's inputs into one note.
+    static func count(covering amount: UInt64, with notes: [ReceivedNote]) -> Int {
+        var total: UInt64 = 0
+        let needed = notes.map(\.amount).sorted(by: >).prefix { note in
+            defer { total += note }
+            return total < amount
+        }.count
+        let inputs = TransactPlan.maximumInputs
+        return needed <= inputs ? 0 : 1 + (needed - inputs - 1) / (inputs - 1)
+    }
+
     /// Returns the most that one transaction spends from notes, which is the amount of one merge.
     ///
     /// - Parameter notes: The unspent notes of one asset.

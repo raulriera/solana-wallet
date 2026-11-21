@@ -191,6 +191,23 @@ struct BalanceMoveProposalTests {
         #expect(model.error == nil)
     }
 
+    @Test
+    func `A transaction that others follow is preliminary and shows the fees of all of them`() async throws {
+        let send = try await LocalBalanceMove.send(of: .nativeSOL, privacyFee: 3_000)
+        let proposal = send.model.proposal
+        var prepared = try await proposal.prepare(from: send.account, on: .devnet)
+        prepared.followingTransactions = 2
+
+        let proposed = try await proposal.simulate(prepared, with: send.transactions.coordinator(for: .devnet),
+                                                   from: send.account)
+
+        #expect(proposed.isPreliminary)
+        #expect(proposed.review == BalanceMoveProposal.Review(
+            networkFee: 3 * LocalBalanceMove.networkFee, registrationFee: nil, privacyFee: 9_000,
+            pendingChange: LocalBalanceMove.privateAmount - LocalBalanceMove.amount, accountDeposit: nil
+        ))
+    }
+
     @Test(arguments: [false, true])
     func `A send checks the recipient against the person's history`(paid: Bool) throws {
         let recipient = PaymentRecipient(address: try SigningFixture().transfer.accounts[1].address, name: nil)

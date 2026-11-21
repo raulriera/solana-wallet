@@ -26,6 +26,9 @@ nonisolated struct PreparedPrivateTransaction: Sendable, Redacted {
     let registers: Bool
     /// The accounts that sign, in signing order, where the first pays.
     let authorities: [Authority]
+    /// The number of transactions that the request still needs after this one succeeds, which is zero unless this
+    /// transaction is a merge of the account's notes.
+    var followingTransactions = 0
 
     /// Returns the transaction with a redeem or take-back's network fee charged to its trailing deposit.
     ///

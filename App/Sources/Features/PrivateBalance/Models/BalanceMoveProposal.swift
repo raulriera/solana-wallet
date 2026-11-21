@@ -58,11 +58,12 @@ struct BalanceMoveProposal: TransactionProposal {
 
     /// The move's costs and pending change.
     nonisolated struct Review: Equatable, Sendable {
-        /// The network fee with any service tip, in lamports.
+        /// The network fee with any service tip, in lamports, of every transaction that the move needs.
         let networkFee: UInt64
         /// The fee of the account's first registration, in lamports, or `nil` when it's registered.
         let registrationFee: UInt64?
-        /// The pool's fee for the trees that the spend writes, in lamports, or `nil` when there's none.
+        /// The pool's fee for the trees that the spend writes, in lamports, of every transaction that the move
+        /// needs, or `nil` when there's none.
         let privacyFee: UInt64?
         /// The change returned to the private balance, in the asset's smallest unit, or `nil` when there's none.
         let pendingChange: UInt64?
@@ -127,7 +128,7 @@ struct BalanceMoveProposal: TransactionProposal {
                 receivedLamports = 0
                 kind = .privatePayment
             case .toPrivate, .toPublic:
-                receivedLamports = movedLamports
+                receivedLamports = preparation.followingTransactions > 0 ? 0 : movedLamports
                 kind = .privateWithdrawal
             }
             let privacyFee = try otherFee(
@@ -137,10 +138,11 @@ struct BalanceMoveProposal: TransactionProposal {
                 receiving: receivedLamports,
                 networkFee: networkFee
             )
+            let transactions = UInt64(preparation.followingTransactions) + 1
             review = Review(
-                networkFee: networkFee,
+                networkFee: networkFee * transactions,
                 registrationFee: nil,
-                privacyFee: privacyFee.nonZero,
+                privacyFee: (privacyFee * transactions).nonZero,
                 pendingChange: spend.receivedAmount.nonZero,
                 accountDeposit: accountDeposit
             )
@@ -148,7 +150,8 @@ struct BalanceMoveProposal: TransactionProposal {
             throw PrivateBalanceError.preparationFailed
         }
         return ProposedTransaction(simulation: simulation, review: review, kind: kind,
-                                   settling: PrivateBalanceSettlement(balances: balances, transaction: transaction))
+                                   settling: PrivateBalanceSettlement(balances: balances, transaction: transaction),
+                                   isPreliminary: preparation.followingTransactions > 0)
     }
 
     /// Returns what the account's public SOL pays in a simulation beyond the moved SOL and the network fee.
