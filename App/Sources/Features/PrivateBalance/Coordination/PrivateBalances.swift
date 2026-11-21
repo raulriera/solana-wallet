@@ -37,6 +37,13 @@ actor PrivateBalances: PrivateBalancing {
     let notes: any ValueStoring<Notes>
     let codes: any ValueStoring<Codes>
     private let makeClient: @Sendable (Network) -> Client
+    private let clock: any Clock<Duration>
+
+    /// How long a send or withdrawal waits before it reads a pending amount again.
+    private static let pendingInterval = Duration.seconds(3)
+
+    /// The most times that a send or withdrawal waits for a pending amount.
+    private static let maximumPendingWaits = 20
     private var clients: [Network: Client] = [:]
     private var syncs: [String: Task<SyncOutcome, any Error>] = [:]
     /// The latest outcome recording of each notes entry.
@@ -56,9 +63,12 @@ actor PrivateBalances: PrivateBalancing {
     ///   - keys: Device-only storage for each account's keys.
     ///   - notes: Device-only storage for each account's notes on each network.
     ///   - codes: Device-only storage for each account's redeem codes on each network.
+    ///   - clock: The clock that times the waits for a pending amount.
     ///   - client: Creates a network's client.
     init(recovery: any RecoveryStoring, wallet: any PrivateBalanceKeyDeriving, keys: any ValueStoring<Keys>,
-         notes: any ValueStoring<Notes>, codes: any ValueStoring<Codes>, client: @escaping @Sendable (Network) -> Client) {
+         notes: any ValueStoring<Notes>, codes: any ValueStoring<Codes>,
+         clock: any Clock<Duration> = ContinuousClock(), client: @escaping @Sendable (Network) -> Client) {
+        self.clock = clock
         self.recovery = recovery
         self.wallet = wallet
         self.keys = keys
@@ -140,7 +150,7 @@ actor PrivateBalances: PrivateBalancing {
         do {
             let client = try await client(for: network)
             switch request {
-            case .deposit, .send, .withdraw, .merge:
+            case .deposit, .send, .withdraw:
                 return try await preparedTransfer(request, from: account, on: network, client: client)
             case .createCode(let lamports):
                 return try await preparedCode(holding: lamports, from: account, on: network, client: client)
@@ -201,10 +211,14 @@ actor PrivateBalances: PrivateBalancing {
         return client
     }
 
-    /// Builds a deposit, send, withdrawal, or merge after the shared sync of the account's notes.
+    /// Builds a deposit, send, or withdrawal after the shared sync of the account's notes, or the merge that a send
+    /// or withdrawal of too many notes needs first.
+    ///
+    /// A send or withdrawal that the spendable notes can't make waits while an amount of the asset is pending,
+    /// such as an earlier merge's note, so that it never merges the same notes again.
     ///
     /// - Parameters:
-    ///   - request: The deposit, send, withdrawal, or merge.
+    ///   - request: The deposit, send, or withdrawal.
     ///   - account: The account that signs and pays.
     ///   - network: The network of the account's private balance.
     ///   - client: The network's client.
@@ -212,7 +226,7 @@ actor PrivateBalances: PrivateBalancing {
     /// - Throws: A ``PrivateBalanceError``, or a validation, storage, provider, proof, or cancellation error.
     private func preparedTransfer(_ request: PrivateTransactionRequest, from account: Account, on network: Network,
                                   client: Client) async throws -> PreparedPrivateTransaction {
-        let outcome: SyncOutcome
+        var outcome: SyncOutcome
         var recipient: Recipient?
         if case .send(_, _, let destination) = request {
             async let synced = sharedSync(of: account, on: network)
@@ -223,35 +237,74 @@ actor PrivateBalances: PrivateBalancing {
         } else {
             outcome = try await sharedSync(of: account, on: network)
         }
-        let (shielded, state, registers) = try await notes(after: outcome, for: request, client: client)
-        let instructions: [Instruction]
-        let effect: PreparedPrivateTransaction.Effect
-        switch request {
-        case .deposit(let amount, let asset):
-            guard let treeID = state.outputTreeID else { throw PrivateBalanceError.unavailable }
-            let deposit = try ShieldedPool.deposit(amount, of: asset, from: account.address, to: shielded.recipient, treeID: treeID)
-            instructions = (registers ? [try shielded.register(paidBy: account.address)] : []) + [deposit]
-            effect = .deposit(amount, of: asset)
-        case .send(let amount, let asset, _), .withdraw(let amount, let asset, _):
-            let destination: PrivateSpend.Destination =
-                if case .withdraw(_, _, let owner) = request {
-                    .withdrawal(owner)
-                } else if let recipient {
-                    .transfer(recipient)
-                } else {
-                    throw PrivateBalanceError.recipientUnregistered
+        var waits = 0
+        while true {
+            let (shielded, state, registers) = try await notes(after: outcome, for: request, client: client)
+            let instructions: [Instruction]
+            let effect: PreparedPrivateTransaction.Effect
+            var followingTransactions = 0
+            switch request {
+            case .deposit(let amount, let asset):
+                guard let treeID = state.outputTreeID else { throw PrivateBalanceError.unavailable }
+                let deposit = try ShieldedPool.deposit(amount, of: asset, from: account.address, to: shielded.recipient, treeID: treeID)
+                instructions = (registers ? [try shielded.register(paidBy: account.address)] : []) + [deposit]
+                effect = .deposit(amount, of: asset)
+            case .send(let amount, let asset, _), .withdraw(let amount, let asset, _):
+                let destination: PrivateSpend.Destination =
+                    if case .withdraw(_, _, let owner) = request {
+                        .withdrawal(owner)
+                    } else if let recipient {
+                        .transfer(recipient)
+                    } else {
+                        throw PrivateBalanceError.recipientUnregistered
+                    }
+                let spend: PrivateSpend
+                do {
+                    spend = try await state.spend(amount, of: asset, to: destination, from: shielded, rpc: client,
+                                                  prover: client)
+                } catch let error as PrivateSpend.ValidationError {
+                    if waits < Self.maximumPendingWaits,
+                       Self.awaitsPending(after: error, spending: amount, of: asset, in: state) {
+                        waits += 1
+                        try await clock.sleep(for: Self.pendingInterval)
+                        outcome = try await sharedSync(of: account, on: network)
+                        continue
+                    }
+                    guard error == .tooManyNotes else { throw error }
+                    spend = try await NoteMerge.spend(of: asset, in: state, from: shielded, rpc: client,
+                                                      prover: client)
+                    followingTransactions = NoteMerge.count(covering: amount, of: asset, in: state)
                 }
-            let spend = try await state.spend(amount, of: asset, to: destination, from: shielded, rpc: client,
-                                              prover: client)
-            (instructions, effect) = (spend.instructions, .spend(spend))
-        case .merge(let asset):
-            let spend = try await NoteMerge.spend(of: asset, in: state, from: shielded, rpc: client, prover: client)
-            (instructions, effect) = (spend.instructions, .spend(spend))
-        case .createCode, .redeem, .takeBack:
-            throw Transactions.ValidationError.invalidTransaction
+                (instructions, effect) = (spend.instructions, .spend(spend))
+            case .createCode, .redeem, .takeBack:
+                throw Transactions.ValidationError.invalidTransaction
+            }
+            var prepared = PreparedPrivateTransaction(instructions: instructions, account: account, network: network,
+                                                      effect: effect, registers: registers,
+                                                      authorities: [.account(account)])
+            prepared.followingTransactions = followingTransactions
+            return prepared
         }
-        return PreparedPrivateTransaction(instructions: instructions, account: account, network: network, effect: effect,
-                                          registers: registers, authorities: [.account(account)])
+    }
+
+    /// Returns whether a spend that the spendable notes can't make waits for the asset's pending amount.
+    ///
+    /// - Parameters:
+    ///   - error: Why the spend can't be made.
+    ///   - amount: The amount to spend, in the asset's smallest unit.
+    ///   - asset: The asset to spend.
+    ///   - state: The account's notes.
+    /// - Returns: `true` while an amount of the asset is pending and the spend needs too many notes, or the
+    ///   spendable and pending amounts together cover it.
+    private static func awaitsPending(after error: PrivateSpend.ValidationError, spending amount: UInt64,
+                                      of asset: PrivateAsset, in state: NoteSyncState) -> Bool {
+        let pending = state.pendingAmount(of: asset)
+        guard pending > 0 else { return false }
+        return switch error {
+        case .tooManyNotes: true
+        case .insufficientFunds: state.spendableAmount(of: asset) + pending >= amount
+        case .noOutputTree: false
+        }
     }
 
     /// Reads an account's registration where the selected provider can read it.

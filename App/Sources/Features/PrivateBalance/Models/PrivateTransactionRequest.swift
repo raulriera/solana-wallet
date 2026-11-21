@@ -9,8 +9,6 @@ nonisolated enum PrivateTransactionRequest: Equatable, Sendable {
     case send(UInt64, of: PrivateAsset, to: Address)
     /// Moves an amount of a private asset, in its smallest unit, to an owner's public balance.
     case withdraw(UInt64, of: PrivateAsset, to: Address)
-    /// Merges the largest notes of a private asset into one note, so that a later spend needs fewer notes.
-    case merge(PrivateAsset)
     /// Moves private SOL, in lamports, into a new redeem code, plus the public SOL that redeeming it costs.
     case createCode(UInt64)
     /// Sweeps a redeem code's SOL into the account's private balance.

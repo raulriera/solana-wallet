@@ -846,22 +846,8 @@ struct PrivateBalancesTests {
     }
 
     @Test
-    func `Preparing a spend of too many notes is rejected`() async throws {
-        let sender = try await Self.fundedAccount(amount: 1, of: .nativeSOL)
-        let shielded = try await PrivateBalanceFixtures.keys(for: sender.account).shieldedAccount(for: sender.account.address)
-        let deposits = try (1...41).map { try PrivateBalanceFixtures.deposit(1, to: shielded, leafIndex: UInt64($0), of: .nativeSOL) }
-        let responses = HTTPResponses.privateNotes(deposits: deposits, outputTreeID: 1,
-                                                   prover: try IndexedProofs.prover())
-
-        await #expect(throws: PrivateBalanceError.tooManyNotes) {
-            try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
-                .prepare(.withdraw(41, of: .nativeSOL, to: sender.account.address), from: sender.account, on: .devnet)
-        }
-        #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 0)
-    }
-
-    @Test
-    func `Preparing a merge proves a transfer of the 40 largest notes to the account itself`() async throws {
+    func `A spend of too many notes prepares a merge of the 40 largest that another transaction follows`()
+        async throws {
         let sender = try await Self.fundedAccount(amount: 1, of: .nativeSOL)
         let shielded = try await PrivateBalanceFixtures.keys(for: sender.account).shieldedAccount(for: sender.account.address)
         let deposits = try (1...41).map { try PrivateBalanceFixtures.deposit(1, to: shielded, leafIndex: UInt64($0), of: .nativeSOL) }
@@ -870,10 +856,12 @@ struct PrivateBalancesTests {
                                                    prover: try IndexedProofs.prover())
         let balances = try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
 
-        let prepared = try await balances.prepare(.merge(.nativeSOL), from: sender.account, on: .devnet)
+        let prepared = try await balances.prepare(.withdraw(41, of: .nativeSOL, to: sender.account.address),
+                                                  from: sender.account, on: .devnet)
 
         let spend = try #require(prepared.effect.spend)
         #expect(prepared.instructions == spend.instructions)
+        #expect(prepared.followingTransactions == 1)
         #expect(spend.amount == 40)
         #expect(spend.receivedAmount == 40)
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 1)
@@ -881,15 +869,39 @@ struct PrivateBalancesTests {
             == .balance(available: 1, pending: 40, of: .nativeSOL))
     }
 
+    @Test
+    func `A spend that a pending amount would cover waits for it 20 times before it's insufficient`() async throws {
+        let sender = try await Self.fundedAccount(amount: 1, of: .nativeSOL)
+        let shielded = try await PrivateBalanceFixtures.keys(for: sender.account).shieldedAccount(for: sender.account.address)
+        let deposits = try (1...41).map { try PrivateBalanceFixtures.deposit(1, to: shielded, leafIndex: UInt64($0), of: .nativeSOL) }
+        let unqueued = AccountReplies.accounts(Array(repeating: nil, count: 40))
+        let responses = HTTPResponses.privateNotes(registry: [unqueued], deposits: deposits, outputTreeID: 1,
+                                                   prover: try IndexedProofs.prover())
+        let clock = ManualClock()
+        let balances = try await Self.balances(responses, keys: sender.keys, notes: sender.notes, clock: clock)
+        let account = sender.account
+        let request = PrivateTransactionRequest.withdraw(41, of: .nativeSOL, to: account.address)
+        let merge = try await balances.prepare(request, from: account, on: .devnet)
+        _ = try await balances.complete(merge, with: PrivateBalanceFixtures.confirmation(.succeeded))
+        var waits = clock.waits.makeAsyncIterator()
+
+        let spend = Task { try await balances.prepare(request, from: account, on: .devnet) }
+        let advanced = try await clock.advanceWaits(&waits, count: 20)
+
+        await #expect(throws: PrivateBalanceError.insufficientBalance) { try await spend.value }
+        #expect(advanced == Array(repeating: .seconds(3), count: 20))
+        #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 1)
+    }
+
     @MainActor
     private static func balances(
         _ responses: HTTPResponses, provider: RPCSettings.Provider = .helius,
         recovery: SecurityRecoveryStore? = nil, keys: StoredValue<PrivateBalances.Keys> = StoredValue(),
-        notes: StoredValue<PrivateBalances.Notes> = StoredValue()
+        notes: StoredValue<PrivateBalances.Notes> = StoredValue(), clock: any Clock<Duration> = ContinuousClock()
     ) throws -> PrivateBalances {
         PrivateBalances.inMemory(keys: keys, notes: notes,
-                                 recovery: try recovery ?? PrivateBalanceFixtures.recoveryStore(), responses: responses,
-                                 provider: provider)
+                                 recovery: try recovery ?? PrivateBalanceFixtures.recoveryStore(), clock: clock,
+                                 responses: responses, provider: provider)
     }
 
     private static func registeredAccount(index: UInt32, amount: UInt64, of asset: PrivateAsset) async throws
