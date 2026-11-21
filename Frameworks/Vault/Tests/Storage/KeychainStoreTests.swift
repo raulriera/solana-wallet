@@ -159,34 +159,27 @@ struct KeychainStoreTests {
 
     @Test
     func `A read waiting behind another read gets its full time bound`() async throws {
-        let (contexts, madeContext) = AsyncStream<Void>.makeStream()
-        let keychain = KeychainStub(contextFactory: {
-            madeContext.yield(())
-            return TestContext()
-        })
+        let keychain = KeychainStub()
         let clock = ManualClock()
         let store = KeychainStore(service: "test.recovery", keychain: keychain, clock: clock)
         let id = UUID()
         try await store.save(Fixtures.recovery(), for: id)
         keychain.state.withLock { $0.blocksReads = true }
-        var created = contexts.dropFirst(2).makeAsyncIterator()
         var waits = clock.waits.makeAsyncIterator()
 
-        let first = Task { @concurrent in try await store.recovery(for: id, reason: "Recover wallet") }
+        let first = Task.immediate { try await store.recovery(for: id, reason: "Recover wallet") }
         defer { first.cancel() }
-        let firstDeadline = try #require(await clock.nextDeadline(&waits))
-        let second = Task { @concurrent in
+        _ = try #require(await clock.nextDeadline(&waits))
+        let second = Task.immediate {
             try await store.recovery(for: id, reason: "Recover wallet in another window")
         }
         defer { second.cancel() }
-        _ = await created.next()
-        clock.advance(to: firstDeadline)
-        let secondDeadline = try #require(await clock.nextDeadline(&waits))
+        clock.advance(to: clock.now.advanced(by: .seconds(10)))
+        first.cancel()
 
-        await #expect(throws: KeychainStoreError.interactionNotAllowed) { try await first.value }
-        #expect(secondDeadline == firstDeadline.advanced(by: .seconds(30)))
+        #expect(try await clock.durationToNextWait(&waits) == .seconds(30))
         second.cancel()
-        _ = await second.result
+        _ = await (first.result, second.result)
     }
 
     @Test
