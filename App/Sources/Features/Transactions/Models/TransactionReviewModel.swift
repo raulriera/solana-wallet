@@ -133,7 +133,8 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
         }
     }
 
-    /// Stops a send before its next transaction, when the transaction that was sent has an outcome.
+    /// Stops a send before it sends its next transaction: the send ends when the transaction that was sent has an
+    /// outcome, or when the next transaction is prepared.
     func stopSending() {
         guard attempt?.work == .send else { return }
         isStopping = true
@@ -217,6 +218,7 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
             guard !isStopping else { throw Proposal.Error.notSent }
             try Task.checkCancellation()
             proposed = try await nextProposed()
+            guard !isStopping else { throw Proposal.Error.notSent }
         }
     }
 

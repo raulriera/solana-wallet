@@ -9,6 +9,7 @@ struct SteppedProposal: TransactionProposal {
     final class Simulations {
         var count = 0
         var prepareCount = 0
+        var onPrepare: (@MainActor () -> Void)?
     }
 
     typealias Review = PaymentProposal.Review
@@ -23,6 +24,7 @@ struct SteppedProposal: TransactionProposal {
 
     func prepare(from account: widgets.Account, on network: Network) async throws {
         simulations.prepareCount += 1
+        simulations.onPrepare?()
     }
 
     func simulate(_ preparation: Void, with coordinator: any TransactionCoordinating, from account: widgets.Account)

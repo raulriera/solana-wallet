@@ -209,6 +209,23 @@ struct TransactionReviewModelTests {
     }
 
     @Test
+    func `Stopping a send while it prepares its next transaction ends it before that transaction`() async throws {
+        let review = try LocalSteppedReview(preliminaryCount: 1, statuses: [.status(.finalized)])
+        let model = review.model
+        try await model.runReview()
+        model.proposal.simulations.onPrepare = { [weak model] in model?.stopSending() }
+
+        model.approve()
+        await model.run(model.attempt)
+
+        #expect(model.record == nil)
+        #expect(model.error == .notSent)
+        #expect(model.proposal.simulations.prepareCount == 2)
+        #expect(await review.sent.requests.count == 1)
+        await review.sockets.waitUntilClosed()
+    }
+
+    @Test
     func `A failed transaction shows its outcome`() async throws {
         let failure = TransactionError(name: "InstructionError",
                                        details: .array([.integer(0), .object(["Custom": .integer(1)])]))
