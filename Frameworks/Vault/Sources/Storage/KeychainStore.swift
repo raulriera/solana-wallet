@@ -141,8 +141,7 @@ public struct KeychainStore: RecoveryStoring {
                 }
                 queue.async {
                     let timer = timeout.map { timeout in
-                        Task { @concurrent in
-                            try await clock.sleep(for: timeout)
+                        clock.task(after: timeout) {
                             authentication.timeOut()
                             do { try authentication.checkRunning() } catch { resume(.failure(error)) }
                         }
@@ -177,6 +176,22 @@ public struct KeychainStore: RecoveryStoring {
         case errSecAuthFailed: throw KeychainStoreError.authenticationFailed
         case errSecInteractionNotAllowed: throw KeychainStoreError.interactionNotAllowed
         default: throw KeychainStoreError.keychain(status: status)
+        }
+    }
+}
+
+private extension Clock {
+    /// Starts a task that runs an action when a duration has passed, counted from the moment of this call.
+    ///
+    /// - Parameters:
+    ///   - duration: The time to wait before the action.
+    ///   - action: The work to run when the time has passed.
+    /// - Returns: The task, which runs no action if it's cancelled first.
+    func task(after duration: Duration, _ action: @escaping @Sendable () -> Void) -> Task<Void, any Error> {
+        let deadline = now.advanced(by: duration)
+        return Task { @concurrent in
+            try await sleep(until: deadline, tolerance: nil)
+            action()
         }
     }
 }
