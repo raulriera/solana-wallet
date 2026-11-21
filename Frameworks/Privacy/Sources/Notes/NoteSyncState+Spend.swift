@@ -16,8 +16,9 @@ extension NoteSyncState {
     /// - Returns: The proved spend.
     /// - Throws: ``PrivateSpend/ValidationError/noOutputTree`` before a sync reports a tree,
     ///   ``Transactions/ValidationError/invalidAmount`` for a zero or overflowing amount,
-    ///   ``PrivateSpend/ValidationError/insufficientFunds`` or ``PrivateSpend/ValidationError/tooManyNotes``
-    ///   if the notes can't cover the amount, or an error from the client, the prover, or a proof check.
+    ///   ``PrivateSpend/ValidationError/insufficientFunds`` if the notes don't cover the amount,
+    ///   ``PrivateSpend/ValidationError/tooManyNotes`` if they cover it but not within one transaction, or an error
+    ///   from the destination's accounts, the plan, the client, the prover, or a proof check.
     @concurrent
     public func spend(
         _ amount: UInt64,
@@ -54,57 +55,13 @@ extension NoteSyncState {
         using generator: inout some RandomNumberGenerator
     ) async throws -> PrivateSpend {
         guard let outputTreeID else { throw PrivateSpend.ValidationError.noOutputTree }
-        let (transfer, withdrawal, openings) = try destination.parts(moving: amount, of: asset,
-                                                                     paidBy: account.signingAddress)
-        let covered = try TransactPlan.spentAmount(transfer: transfer, withdrawal: withdrawal, of: asset)
+        let parts = try destination.parts(moving: amount, of: asset, paidBy: account.signingAddress)
+        let covered = try TransactPlan.spentAmount(transfer: parts.transfer, withdrawal: parts.withdrawal, of: asset)
         let selected = try await unqueuedNotes(of: asset, using: rpc) { available in
             try NoteSelection.notes(covering: covered, from: available, writingTo: outputTreeID)
         }
-        return try await spend(selected, moving: amount, of: asset, transfer: transfer, withdrawal: withdrawal,
-                               openings: openings, writingTo: outputTreeID, from: account, prover: prover,
-                               using: &generator)
-    }
-
-    /// Spends chosen notes into a private transfer, a public withdrawal, or both, and proves the spend.
-    ///
-    /// - Parameters:
-    ///   - notes: The notes to spend, whose nullifiers aren't queued.
-    ///   - amount: The amount that the spend moves, in the asset's smallest unit.
-    ///   - asset: The asset to spend.
-    ///   - transfer: The private transfer, or `nil` for none.
-    ///   - withdrawal: The public withdrawal, or `nil` for none.
-    ///   - openings: The accounts that the spend opens, each with the instruction that opens it.
-    ///   - outputTreeID: The ID of the tree that receives the spend's outputs.
-    ///   - account: The account of this state.
-    ///   - prover: The prover of the account's network.
-    ///   - generator: The source of the padding, blindings, and salt.
-    /// - Returns: The proved spend.
-    /// - Throws: An error from the plan, the prover, or a proof check.
-    func spend(
-        _ notes: [ReceivedNote],
-        moving amount: UInt64,
-        of asset: PrivateAsset,
-        transfer: TransactPlan.Transfer?,
-        withdrawal: ExternalData.Withdrawal?,
-        openings: [(account: Address, instruction: Instruction)],
-        writingTo outputTreeID: UInt16,
-        from account: ShieldedAccount,
-        prover: some ProofProviding,
-        using generator: inout some RandomNumberGenerator
-    ) async throws -> PrivateSpend {
-        let plan = try TransactPlan(
-            spending: notes.map(\.utxo), of: asset, sender: account, transfer: transfer, withdrawal: withdrawal,
-            outputTreeID: outputTreeID, using: &generator
-        )
-        let sender = try account.recipient.owner
-        let receivedAmount = plan.outputs.filter { $0.owner?.owner == sender }.reduce(0) { $0 + ($1.utxo?.amount ?? 0) }
-        return PrivateSpend(
-            openings: openings,
-            instruction: try await plan.instruction(nullifierKey: account.nullifierKey, prover: prover),
-            amount: amount, receivedAmount: receivedAmount,
-            treeIDs: TransactPlan.writtenTreeIDs(inputs: plan.inputTreeIDs, output: plan.outputTreeID),
-            nullifiers: notes.map(\.nullifier), asset: asset
-        )
+        return try await PrivateSpend(spending: selected, moving: amount, of: asset, parts: parts,
+                                      writingTo: outputTreeID, from: account, prover: prover, using: &generator)
     }
 
     /// Selects notes of an asset, leaving out notes whose nullifiers the program already queued.

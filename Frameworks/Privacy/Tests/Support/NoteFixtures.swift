@@ -1,5 +1,6 @@
 import ModularArithmetic
 import RPC
+import Transactions
 @testable import Privacy
 
 enum NoteFixtures {
@@ -42,8 +43,11 @@ enum NoteFixtures {
         )
     }
 
-    static func spendTransport(queued: Set<String> = []) throws -> StubTransport {
+    static func spendTransport(queued: [ReceivedNote] = []) throws -> StubTransport {
         let prover = try IndexedProofs.prover()
+        let queued = Set(try queued.map {
+            try ShieldedPool.nullifierAccount(tree: ShieldedPool.tree(id: $0.treeID), nullifier: $0.nullifier).value
+        })
         return StubTransport { request in
             try prover.respond(to: request) ?? IndexerResponses.spendReads(answering: request, queued: queued)
         }

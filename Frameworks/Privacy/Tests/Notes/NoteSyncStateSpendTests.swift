@@ -115,8 +115,7 @@ struct NoteSyncStateSpendTests {
         let recipient = try TransferVectors.recipient()
         let notes = try NoteFixtures.notes([(0, [10, 5])], of: .nativeSOL)
         let state = try NoteFixtures.state(notes: notes, outputTreeID: 0)
-        let queued = try ShieldedPool.nullifierAccount(tree: ShieldedPool.tree(id: 0), nullifier: notes[0].nullifier).value
-        let transport = try NoteFixtures.spendTransport(queued: [queued])
+        let transport = try NoteFixtures.spendTransport(queued: [notes[0]])
 
         let result = try await state.spend(
             4, of: .nativeSOL, to: .transfer(recipient), from: sender, rpc: SolanaRPC.devnet(transport: transport), prover: Self.prover(transport)
@@ -147,8 +146,7 @@ struct NoteSyncStateSpendTests {
         let recipient = try TransferVectors.recipient()
         let notes = try NoteFixtures.notes([(0, [10])], of: .nativeSOL)
         let state = try NoteFixtures.state(notes: notes, outputTreeID: 0)
-        let queued = try ShieldedPool.nullifierAccount(tree: ShieldedPool.tree(id: 0), nullifier: notes[0].nullifier).value
-        let transport = StubTransport { request in try IndexerResponses.spendReads(answering: request, queued: [queued]) }
+        let transport = try NoteFixtures.spendTransport(queued: [notes[0]])
 
         await #expect(throws: PrivateSpend.ValidationError.insufficientFunds) {
             try await state.spend(4, of: .nativeSOL, to: .transfer(recipient), from: sender,

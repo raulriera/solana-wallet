@@ -766,17 +766,18 @@ struct NoteSyncStateTests {
     }
 
     @Test(arguments: [
-        (Array(repeating: UInt64(1), count: 41), [UInt64(2)], true),
-        (Array(repeating: 1, count: 41), [1], false),
-        ([1], [1], true),
-        (Array(repeating: 1, count: 41), [], false),
+        (Array(repeating: UInt64(1), count: 41), [UInt64(2)], PrivateAsset.nativeSOL, true),
+        (Array(repeating: 1, count: 41), [1], .nativeSOL, false),
+        ([1], [1], .nativeSOL, true),
+        (Array(repeating: 1, count: 41), [], .nativeSOL, false),
+        (Array(repeating: 1, count: 41), [2], .token(.usdc), false),
     ])
     func `Pending amounts change the inputs only above the smallest of the largest notes`(
-        amounts: [UInt64], pendingAmounts: [UInt64], changesInputs: Bool
+        amounts: [UInt64], pendingAmounts: [UInt64], pendingAsset: PrivateAsset, changesInputs: Bool
     ) throws {
         let state = try NoteFixtures.state(
             notes: NoteFixtures.notes([(0, amounts)], of: .nativeSOL),
-            pending: pendingAmounts.map { PendingAmount(signature: IndexerResponses.signature(2), asset: .nativeSOL, amount: $0) }
+            pending: pendingAmounts.map { PendingAmount(signature: IndexerResponses.signature(2), asset: pendingAsset, amount: $0) }
         )
 
         #expect(state.pendingAmountChangesInputs(of: .nativeSOL) == changesInputs)

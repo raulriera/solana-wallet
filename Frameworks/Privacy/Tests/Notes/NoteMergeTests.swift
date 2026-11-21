@@ -6,74 +6,60 @@ import Transactions
 @testable import RPC
 
 struct NoteMergeTests {
-    private static let amounts: [([(UInt16, [UInt64])], UInt64)] = [
-        ([(0, Array(repeating: 1, count: 41))], 40),
-        ([(0, Array(repeating: 1, count: 44) + [5])], 44),
-        ([(0, Array(repeating: 1, count: 50)), (1, Array(repeating: 2, count: 30))], 70),
-        ([(0, [10]), (1, [3]), (2, [7])], 17),
-    ]
-
-    private static let counts: [([(UInt16, [UInt64])], UInt16, UInt64, Int)] = [
-        ([(0, Array(repeating: 1, count: 40))], 0, 40, 0),
-        ([(0, Array(repeating: 1, count: 41))], 0, 41, 1),
-        ([(0, Array(repeating: 1, count: 79))], 0, 79, 1),
-        ([(0, Array(repeating: 1, count: 80))], 0, 80, 2),
-        ([(0, Array(repeating: 1, count: 120))], 0, 120, 3),
-        ([(0, Array(repeating: 2, count: 50)), (1, Array(repeating: 1, count: 50))], 0, 120, 1),
-        ([(0, Array(repeating: 2, count: 50)), (1, Array(repeating: 1, count: 50))], 2, 120, 2),
-        (
-            [
-                (1, Array(repeating: 3, count: 25) + Array(repeating: 1, count: 25)),
-                (2, Array(repeating: 2, count: 25)),
-            ],
-            0, 150, 2
-        ),
-        ((0...2).map { ($0, Array(repeating: 10, count: 14) + Array(repeating: 1, count: 60)) }, 0, 400, 1),
-        ([(0, [4]), (1, [4]), (2, [4])], 0, 10, 1),
-        ([(1, [4]), (2, [4]), (3, [4])], 0, 10, 1),
-        ([(0, [4]), (1, [4]), (2, [4]), (3, [4])], 0, 14, 2),
-    ]
-
     private let sender: ShieldedAccount
 
     init() throws {
         sender = try TransferVectors.sender()
     }
 
-    @Test(arguments: amounts)
+    @Test(arguments: [
+        (trees: [(0, Array(repeating: 1, count: 41))], amount: 40),
+        (trees: [(0, Array(repeating: 1, count: 44) + [5])], amount: 44),
+        (trees: [(0, Array(repeating: 1, count: 50)), (1, Array(repeating: 2, count: 30))], amount: 70),
+        (trees: [(0, [10]), (1, [3]), (2, [7])], amount: 17),
+    ] as [(trees: [(UInt16, [UInt64])], amount: UInt64)])
     func `Merges total the 40 largest notes of the one or two trees that hold the most`(
         trees: [(UInt16, [UInt64])], amount: UInt64
     ) throws {
         #expect(try NoteMerge.amount(merging: NoteFixtures.notes(trees, of: .nativeSOL)) == amount)
     }
 
-    @Test(arguments: counts)
+    @Test(arguments: [
+        (trees: [(0, Array(repeating: 1, count: 40))], outputTreeID: 0, amount: 40, merges: 0),
+        (trees: [(0, Array(repeating: 1, count: 41))], outputTreeID: 0, amount: 41, merges: 1),
+        (trees: [(0, Array(repeating: 1, count: 79))], outputTreeID: 0, amount: 79, merges: 1),
+        (trees: [(0, Array(repeating: 1, count: 80))], outputTreeID: 0, amount: 80, merges: 2),
+        (trees: [(0, Array(repeating: 1, count: 120))], outputTreeID: 0, amount: 120, merges: 3),
+        (
+            trees: [(0, Array(repeating: 2, count: 50)), (1, Array(repeating: 1, count: 50))],
+            outputTreeID: 0, amount: 120, merges: 1
+        ),
+        (
+            trees: [(0, Array(repeating: 2, count: 50)), (1, Array(repeating: 1, count: 50))],
+            outputTreeID: 2, amount: 120, merges: 2
+        ),
+        (
+            trees: [
+                (1, Array(repeating: 3, count: 25) + Array(repeating: 1, count: 25)),
+                (2, Array(repeating: 2, count: 25)),
+            ],
+            outputTreeID: 0, amount: 150, merges: 2
+        ),
+        (
+            trees: (0...2).map { ($0, Array(repeating: 10, count: 14) + Array(repeating: 1, count: 60)) },
+            outputTreeID: 0, amount: 400, merges: 1
+        ),
+        (trees: (1...5).map { ($0, Array(repeating: 1, count: 30)) }, outputTreeID: 0, amount: 150, merges: 4),
+        (trees: [(0, [4]), (1, [4]), (2, [4])], outputTreeID: 0, amount: 10, merges: 1),
+        (trees: [(1, [4]), (2, [4]), (3, [4])], outputTreeID: 0, amount: 10, merges: 1),
+        (trees: [(0, [4]), (1, [4]), (2, [4]), (3, [4])], outputTreeID: 0, amount: 14, merges: 2),
+    ] as [(trees: [(UInt16, [UInt64])], outputTreeID: UInt16, amount: UInt64, merges: Int)])
     func `Merges count until one choice of trees covers the amount within 40 notes`(
         trees: [(UInt16, [UInt64])], outputTreeID: UInt16, amount: UInt64, merges: Int
     ) throws {
-        let state = try NoteFixtures.state(notes: NoteFixtures.notes(trees, of: .nativeSOL), outputTreeID: outputTreeID)
+        let notes = try NoteFixtures.notes(trees, of: .nativeSOL)
 
-        #expect(NoteMerge.count(covering: amount, of: .nativeSOL, in: state) == merges)
-    }
-
-    @Test
-    func `Merges of notes in many trees end with a spend that one transaction covers`() throws {
-        let notes = (1...5).flatMap { tree in
-            Array(repeating: NoteMerge.SimulatedNote(amount: 1, treeID: UInt16(tree)), count: 30)
-        }
-
-        let merged = NoteMerge.simulatedMerges(of: notes, covering: 150, writingTo: 0)
-
-        #expect(merged.count == 4)
-        #expect(throws: Never.self) { try NoteSelection.notes(covering: 150, from: merged.notes, writingTo: 0) }
-    }
-
-    @Test
-    func `Accounts before a sync reports a tree count no merge`() throws {
-        let notes = try NoteFixtures.notes([(0, Array(repeating: 1, count: 41))], of: .nativeSOL)
-        let state = try NoteFixtures.state(notes: notes, outputTreeID: nil)
-
-        #expect(NoteMerge.count(covering: 41, of: .nativeSOL, in: state) == 0)
+        #expect(NoteMerge.count(covering: amount, from: notes, writingTo: outputTreeID) == merges)
     }
 
     @Test
@@ -115,8 +101,7 @@ struct NoteMergeTests {
     @Test
     func `Merges leave out a note whose nullifier is queued and take the next largest`() async throws {
         let notes = try NoteFixtures.notes([(0, [5] + Array(repeating: 1, count: 41))], of: .nativeSOL)
-        let queued = try ShieldedPool.nullifierAccount(tree: ShieldedPool.tree(id: 0), nullifier: notes[0].nullifier).value
-        let transport = try NoteFixtures.spendTransport(queued: [queued])
+        let transport = try NoteFixtures.spendTransport(queued: [notes[0]])
         var generator = SeededGenerator(seed: 7)
 
         let result = try await NoteMerge(
@@ -133,8 +118,7 @@ struct NoteMergeTests {
     @Test
     func `Merges report one following transaction when queued notes would cover the amount`() async throws {
         let notes = try NoteFixtures.notes([(0, [10] + Array(repeating: 1, count: 41))], of: .nativeSOL)
-        let queued = try ShieldedPool.nullifierAccount(tree: ShieldedPool.tree(id: 0), nullifier: notes[0].nullifier).value
-        let transport = try NoteFixtures.spendTransport(queued: [queued])
+        let transport = try NoteFixtures.spendTransport(queued: [notes[0]])
         var generator = SeededGenerator(seed: 7)
 
         let merge = try await NoteMerge(

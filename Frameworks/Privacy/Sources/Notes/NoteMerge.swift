@@ -64,14 +64,14 @@ public struct NoteMerge: Sendable {
             try Self.notes(merging: available, writingTo: outputTreeID)
         }
         let total = notes.reduce(0) { $0 + $1.amount }
-        let transfer = TransactPlan.Transfer(recipient: try account.recipient, amount: total)
-        spend = try await state.spend(notes, moving: total, of: asset, transfer: transfer, withdrawal: nil,
-                                      openings: [], writingTo: outputTreeID, from: account, prover: prover,
-                                      using: &generator)
-        following = max(1, Self.count(covering: amount, of: asset, in: state))
+        let parts = try PrivateSpend.Destination.transfer(try account.recipient)
+            .parts(moving: total, of: asset, paidBy: account.signingAddress)
+        spend = try await PrivateSpend(spending: notes, moving: total, of: asset, parts: parts,
+                                       writingTo: outputTreeID, from: account, prover: prover, using: &generator)
+        following = max(1, Self.count(covering: amount, from: state.notes(of: asset), writingTo: outputTreeID))
     }
 
-    /// Returns the number of merges that an account needs before one transaction covers an amount of an asset.
+    /// Returns the number of merges that notes need before one transaction covers an amount.
     ///
     /// The count follows the selection of a spend and of each merge: while the notes cover the amount but no choice of
     /// trees covers it within one transaction's inputs, it merges the notes that
@@ -80,42 +80,28 @@ public struct NoteMerge: Sendable {
     ///
     /// - Parameters:
     ///   - amount: The amount to cover, in the asset's smallest unit.
-    ///   - asset: The asset to cover the amount with.
-    ///   - state: The account's notes.
-    /// - Returns: The number of merges, which is zero if one transaction's inputs cover the amount, if the notes don't
-    ///   cover it, or before a sync reports a tree.
-    static func count(covering amount: UInt64, of asset: PrivateAsset, in state: NoteSyncState) -> Int {
-        guard let outputTreeID = state.outputTreeID else { return 0 }
-        let notes = state.notes(of: asset).map { SimulatedNote(amount: $0.amount, treeID: $0.treeID) }
-        return simulatedMerges(of: notes, covering: amount, writingTo: outputTreeID).count
-    }
-
-    /// Simulates the merges of notes until one transaction covers an amount.
-    ///
-    /// - Parameters:
     ///   - notes: The unspent notes of one asset.
-    ///   - amount: The amount to cover, in the asset's smallest unit.
     ///   - outputTreeID: The ID of the tree that receives each merged note.
-    /// - Returns: The notes after the merges, and the number of merges, which is zero if one transaction's inputs
-    ///   cover the amount or if the notes don't cover it.
-    static func simulatedMerges(
-        of notes: [SimulatedNote],
+    /// - Returns: The number of merges, which is zero if one transaction's inputs cover the amount or if the notes
+    ///   don't cover it.
+    static func count(
         covering amount: UInt64,
+        from notes: [some SelectableNote],
         writingTo outputTreeID: UInt16
-    ) -> (notes: [SimulatedNote], count: Int) {
-        var notes = notes
+    ) -> Int {
+        var notes = notes.map { SimulatedNote(amount: $0.amount, treeID: $0.treeID) }
         var count = 0
         while true {
             do {
                 _ = try NoteSelection.notes(covering: amount, from: notes, writingTo: outputTreeID)
-                return (notes, count)
+                return count
             } catch PrivateSpend.ValidationError.tooManyNotes {
-                guard let merged = try? Self.notes(merging: notes, writingTo: outputTreeID) else { return (notes, count) }
+                guard let merged = try? Self.notes(merging: notes, writingTo: outputTreeID) else { return count }
                 notes.remove(contentsOf: merged)
                 notes.append(SimulatedNote(amount: merged.reduce(0) { $0 + $1.amount }, treeID: outputTreeID))
                 count += 1
             } catch {
-                return (notes, count)
+                return count
             }
         }
     }

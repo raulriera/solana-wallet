@@ -1,4 +1,5 @@
 import ModularArithmetic
+import RPC
 public import Redaction
 public import Transactions
 
@@ -59,6 +60,58 @@ public struct PrivateSpend: Sendable, Redacted {
     public var openedAccounts: [Address] { openings.map(\.account) }
 }
 
+extension PrivateSpend {
+    /// The private transfer, the public withdrawal, and the account openings that move an amount to a destination.
+    struct Parts {
+        /// The private transfer, or `nil` for none.
+        let transfer: TransactPlan.Transfer?
+
+        /// The public withdrawal, or `nil` for none.
+        let withdrawal: ExternalData.Withdrawal?
+
+        /// The accounts that the spend opens, such as a token withdrawal's associated token account, each with the
+        /// instruction that opens it and succeeds without a change when it exists.
+        let openings: [(account: Address, instruction: Instruction)]
+    }
+
+    /// Spends chosen notes into the parts of a spend, and proves the spend.
+    ///
+    /// - Parameters:
+    ///   - notes: The notes to spend, whose nullifiers aren't queued.
+    ///   - amount: The amount that the spend moves, in the asset's smallest unit.
+    ///   - asset: The asset to spend.
+    ///   - parts: The private transfer, the public withdrawal, and the account openings of the spend.
+    ///   - outputTreeID: The ID of the tree that receives the spend's outputs.
+    ///   - account: The account that owns the notes.
+    ///   - prover: The prover of the account's network.
+    ///   - generator: The source of the padding, blindings, and salt.
+    /// - Throws: An error from the plan, the prover, or a proof check.
+    init(
+        spending notes: [ReceivedNote],
+        moving amount: UInt64,
+        of asset: PrivateAsset,
+        parts: Parts,
+        writingTo outputTreeID: UInt16,
+        from account: ShieldedAccount,
+        prover: some ProofProviding,
+        using generator: inout some RandomNumberGenerator
+    ) async throws {
+        let plan = try TransactPlan(
+            spending: notes.map(\.utxo), of: asset, sender: account, transfer: parts.transfer,
+            withdrawal: parts.withdrawal, outputTreeID: outputTreeID, using: &generator
+        )
+        let sender = try account.recipient.owner
+        let receivedAmount = plan.outputs.filter { $0.owner?.owner == sender }.reduce(0) { $0 + ($1.utxo?.amount ?? 0) }
+        self.init(
+            openings: parts.openings,
+            instruction: try await plan.instruction(nullifierKey: account.nullifierKey, prover: prover),
+            amount: amount, receivedAmount: receivedAmount,
+            treeIDs: TransactPlan.writtenTreeIDs(inputs: plan.inputTreeIDs, output: plan.outputTreeID),
+            nullifiers: notes.map(\.nullifier), asset: asset
+        )
+    }
+}
+
 extension PrivateSpend.Destination {
     /// Returns the private transfer, the public withdrawal, and the account openings that move an amount of an asset to
     /// the destination.
@@ -67,29 +120,28 @@ extension PrivateSpend.Destination {
     ///   - amount: The amount to transfer or withdraw, in the asset's smallest unit.
     ///   - asset: The asset to move.
     ///   - payer: The account that signs and pays the rent of the accounts that the spend opens.
-    /// - Returns: The transfer and the withdrawal, either of which can be `nil`, and for a token withdrawal the owner's
-    ///   associated token account with the instruction that opens it and succeeds without a change when it exists.
+    /// - Returns: The parts of the spend.
     /// - Throws: A ``Transactions/ValidationError`` if an address or a token account's derivation is invalid.
-    func parts(moving amount: UInt64, of asset: PrivateAsset, paidBy payer: Address) throws -> (
-        transfer: TransactPlan.Transfer?, withdrawal: ExternalData.Withdrawal?,
-        openings: [(account: Address, instruction: Instruction)]
-    ) {
+    func parts(moving amount: UInt64, of asset: PrivateAsset, paidBy payer: Address) throws -> PrivateSpend.Parts {
         switch (self, asset) {
         case (.transfer(let recipient), _):
-            return (TransactPlan.Transfer(recipient: recipient, amount: amount), nil, [])
+            return PrivateSpend.Parts(transfer: TransactPlan.Transfer(recipient: recipient, amount: amount),
+                                      withdrawal: nil, openings: [])
         case (.withdrawal(let owner), .nativeSOL):
-            return (nil, ExternalData.Withdrawal(recipient: owner, amount: amount, asset: asset), [])
+            let withdrawal = ExternalData.Withdrawal(recipient: owner, amount: amount, asset: asset)
+            return PrivateSpend.Parts(transfer: nil, withdrawal: withdrawal, openings: [])
         case (.withdrawal(let owner), .token(let token)):
             let account = try PrivateToken.program.associatedAccount(owner: owner, mint: token.mint)
             let opening = try AssociatedTokenProgram.createIdempotent(owner: owner, mint: token.mint,
                                                                       program: PrivateToken.program, payer: payer)
             let withdrawal = ExternalData.Withdrawal(recipient: account, amount: amount, asset: asset)
-            return (nil, withdrawal, [(account, opening)])
+            return PrivateSpend.Parts(transfer: nil, withdrawal: withdrawal, openings: [(account, opening)])
         case (.fundedTransfer(let recipient, let publicLamports), _):
-            return (
-                TransactPlan.Transfer(recipient: recipient, amount: amount),
-                ExternalData.Withdrawal(recipient: recipient.signingAddress, amount: publicLamports, asset: .nativeSOL),
-                []
+            return PrivateSpend.Parts(
+                transfer: TransactPlan.Transfer(recipient: recipient, amount: amount),
+                withdrawal: ExternalData.Withdrawal(recipient: recipient.signingAddress, amount: publicLamports,
+                                                    asset: .nativeSOL),
+                openings: []
             )
         }
     }
