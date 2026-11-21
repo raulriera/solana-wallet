@@ -58,6 +58,7 @@ struct LocalBalanceMove {
                 ?? success(
                     of: instructions,
                     paidBy: account.address,
+                    holding: publicLamports,
                     leaving: publicLamports - spent,
                     depositing: [:],
                     fixture: fixture
@@ -84,6 +85,7 @@ struct LocalBalanceMove {
 
     static func send(
         of asset: PrivateAsset,
+        publicLamports: UInt64 = LocalBalanceMove.publicLamports,
         privacyFee: UInt64 = 0,
         statuses: [GetSignatureStatuses.Response] = []
     ) async throws -> LocalBalanceMove {
@@ -92,14 +94,15 @@ struct LocalBalanceMove {
         let registry = try PrivateBalanceFixtures.registry(publishing: keys.shieldedAccount(for: recipient.address))
         return try await spend(.toRecipient(PaymentRecipient(address: recipient.address, name: "Alex"), warnings: []),
                                of: asset,
-                               registry: [registry, PrivateBalanceFixtures.unregistered], privacyFee: privacyFee,
-                               statuses: statuses)
+                               registry: [registry, PrivateBalanceFixtures.unregistered], publicLamports: publicLamports,
+                               privacyFee: privacyFee, statuses: statuses)
     }
 
     private static func spend(
         _ direction: BalanceMoveProposal.Direction,
         of asset: PrivateAsset,
         registry: [String],
+        publicLamports: UInt64 = LocalBalanceMove.publicLamports,
         privateAmount: UInt64 = LocalBalanceMove.privateAmount,
         privacyFee: UInt64,
         accountDeposit: UInt64 = 0,
@@ -146,6 +149,7 @@ struct LocalBalanceMove {
             simulation: try success(
                 of: instructions,
                 paidBy: account.address,
+                holding: publicLamports,
                 leaving: kept,
                 depositing: deposits,
                 fixture: fixture
@@ -200,7 +204,8 @@ struct LocalBalanceMove {
         self.sockets = sockets
     }
 
-    private static func success(of instructions: [Instruction], paidBy payer: Address, leaving kept: UInt64,
+    private static func success(of instructions: [Instruction], paidBy payer: Address, holding held: UInt64,
+                                leaving kept: UInt64,
                                 depositing deposits: [Address: UInt64],
                                 fixture: SigningFixture) throws -> SimulateTransaction.Value {
         let message = try MessageBuilder().message(instructions: instructions, payer: payer,
@@ -210,7 +215,7 @@ struct LocalBalanceMove {
             .accounts.dropFirst()
         return SimulateTransaction.Value(error: nil, logs: ["Program completed"], unitsConsumed: 150,
                                          loadedAccountsDataSize: 256, fee: networkFee, replacementBlockhash: nil,
-                                         preBalances: [publicLamports] + others.map { _ in 0 },
+                                         preBalances: [held] + others.map { _ in 0 },
                                          postBalances: [kept] + others.map { deposits[$0.address] ?? 0 },
                                          preTokenBalances: [], postTokenBalances: [])
     }

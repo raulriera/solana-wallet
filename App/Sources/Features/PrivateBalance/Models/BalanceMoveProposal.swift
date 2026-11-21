@@ -110,7 +110,12 @@ struct BalanceMoveProposal: TransactionProposal {
         guard let networkFee = simulation.networkFee else { throw PrivateBalanceError.preparationFailed }
         let movedLamports = privateAsset.lamports(moving: sent.amount)
         let review: Review
-        let kind: TransactionRecord.Kind
+        let kind: TransactionRecord.Kind =
+            switch direction {
+            case .toPrivate: .privateDeposit
+            case .toPublic: .privateWithdrawal
+            case .toRecipient: .privatePayment
+            }
         var followingTransactions = 0
         switch preparation.effect {
         case .deposit:
@@ -119,19 +124,14 @@ struct BalanceMoveProposal: TransactionProposal {
                                networkFee: networkFee) : nil
             review = Review(networkFee: networkFee, registrationFee: registrationFee, privacyFee: nil,
                             pendingChange: nil, accountDeposit: nil)
-            kind = .privateDeposit
         case .spend(let spend):
             let accountDeposit = spend.openedAccounts.compactMap { openingDeposit(of: $0, in: simulation) }
                 .reduce(0, +).nonZero
-            let receivedLamports: UInt64
-            switch direction {
-            case .toRecipient:
-                receivedLamports = 0
-                kind = .privatePayment
-            case .toPrivate, .toPublic:
-                receivedLamports = movedLamports
-                kind = .privateWithdrawal
-            }
+            let receivedLamports: UInt64 =
+                switch direction {
+                case .toRecipient: 0
+                case .toPrivate, .toPublic: movedLamports
+                }
             let privacyFee = try otherFee(
                 of: simulation,
                 for: account,
@@ -149,11 +149,11 @@ struct BalanceMoveProposal: TransactionProposal {
         case .merge(let merge, let following):
             let privacyFee = try otherFee(of: simulation, for: account, paying: 0, receiving: 0,
                                           networkFee: networkFee)
+            try checkFees(of: following, networkFee: networkFee, privacyFee: privacyFee, after: simulation, for: account)
             let transactions = UInt64(following) + 1
             review = Review(networkFee: networkFee * transactions, registrationFee: nil,
                             privacyFee: (privacyFee * transactions).nonZero,
                             pendingChange: merge.receivedAmount.nonZero, accountDeposit: nil)
-            kind = if case .toRecipient = direction { .privatePayment } else { .privateWithdrawal }
             followingTransactions = following
         case .createCode, .redeem:
             throw PrivateBalanceError.preparationFailed
@@ -185,6 +185,30 @@ struct BalanceMoveProposal: TransactionProposal {
             throw PrivateBalanceError.preparationFailed
         }
         return incoming - outgoing
+    }
+
+    /// Checks that the account's public SOL after a simulated transaction covers the fees of the transactions that
+    /// follow it, so that a move whose public SOL doesn't cover the fees of all its transactions is refused before
+    /// any is sent.
+    ///
+    /// Each following transaction is estimated to cost what the simulated one does.
+    ///
+    /// - Parameters:
+    ///   - following: The number of transactions that follow the simulated one.
+    ///   - networkFee: The simulated transaction's network fee and service tip, in lamports.
+    ///   - privacyFee: The simulated transaction's other fees, in lamports.
+    ///   - simulation: The simulated transaction.
+    ///   - account: The account whose public SOL pays.
+    /// - Throws: ``PrivateBalanceError/insufficientPublicBalanceForFees`` if the SOL doesn't cover the fees, or
+    ///   ``PrivateBalanceError/preparationFailed`` if the simulation doesn't report the account's SOL or the fees
+    ///   exceed a 64-bit integer.
+    private func checkFees(of following: Int, networkFee: UInt64, privacyFee: UInt64, after simulation: Simulation,
+                           for account: Account) throws {
+        guard let change = solChange(of: account.address, in: simulation) else { throw PrivateBalanceError.preparationFailed }
+        let (fee, feeOverflow) = networkFee.addingReportingOverflow(privacyFee)
+        let (fees, feesOverflow) = fee.multipliedReportingOverflow(by: UInt64(following))
+        guard !feeOverflow, !feesOverflow else { throw PrivateBalanceError.preparationFailed }
+        guard change.after >= fees else { throw PrivateBalanceError.insufficientPublicBalanceForFees }
     }
 
     /// Returns the rent that a simulation pays into a token account that it opens.

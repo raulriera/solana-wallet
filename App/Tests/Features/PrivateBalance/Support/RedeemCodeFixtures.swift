@@ -17,17 +17,12 @@ enum RedeemCodeFixtures {
     static func responses(accounts: [String: String], deposits: [String], spends: [String] = [],
                           outputTreeID: UInt16? = 1, isFinalized: Bool = true) throws -> HTTPResponses {
         let trees = UTXOTrees(rows: deposits + spends, isFinalized: isFinalized, feePerTree: treeFee)
-        return HTTPResponses.privateNotes(deposits: deposits, spends: spends, outputTreeID: outputTreeID,
-                                          prover: try IndexedProofs.prover(), trees: trees) { request in
-            switch try request.jsonBody()["method"] as? String {
-            case GetMultipleAccounts.method?:
-                let addresses = try #require(try request.rpcParameters.first as? [String])
-                return AccountReplies.accounts(addresses.map { accounts[$0] })
-            case GetMinimumBalanceForRentExemption.method?:
-                return String(rent)
-            default:
-                return try #require(nil as String?, "Unexpected request")
-            }
+        return HTTPResponses.privateNotes(accounts: accounts, deposits: deposits, spends: spends,
+                                          outputTreeID: outputTreeID, prover: try IndexedProofs.prover(),
+                                          trees: trees) { request in
+            try #require(try request.jsonBody()["method"] as? String == GetMinimumBalanceForRentExemption.method,
+                         "Unexpected request")
+            return String(rent)
         }
     }
 

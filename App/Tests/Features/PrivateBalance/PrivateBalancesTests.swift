@@ -1,14 +1,19 @@
 import Foundation
-import Privacy
 import Storage
 import Testing
 import Transactions
 import Wallet
+@testable import Privacy
 @testable import RPC
 @testable import widgets
 
 @Suite(.timeLimit(.minutes(1)))
 struct PrivateBalancesTests {
+    enum Spend: CaseIterable {
+        case withdrawal
+        case send
+    }
+
     @Test
     func `Enabling keeps the keys of an unregistered account`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -845,29 +850,43 @@ struct PrivateBalancesTests {
         #expect(await notes.value?[id]?.pendingAmount(of: .nativeSOL) == 12_000)
     }
 
-    @Test
-    func `A spend of too many notes prepares a merge of the 40 largest that another transaction follows`()
-        async throws {
-        let sender = try await Self.accountOfManyNotes()
+    @Test(arguments: [PrivateAsset.nativeSOL, .token(.devnetUSDC)], Spend.allCases)
+    func `A spend of too many notes prepares a merge of the 40 largest to the account that another transaction follows`(
+        asset: PrivateAsset, spend: Spend
+    ) async throws {
+        let recipient = try await PrivateBalanceFixtures.account(index: 1)
+        let recipientKeys = try await PrivateBalanceFixtures.keys(for: recipient)
+        let recipientRecord = try PrivateBalanceFixtures.registryRecord(
+            publishing: recipientKeys.shieldedAccount(for: recipient.address)
+        )
+        let sender = try await Self.accountOfManyNotes(
+            of: asset, accounts: [try RedeemCodeFixtures.recordAddress(of: recipient): recipientRecord]
+        )
         let responses = sender.responses
         let balances = try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
+        let request: PrivateTransactionRequest =
+            switch spend {
+            case .withdrawal: .withdraw(41, of: asset, to: sender.account.address)
+            case .send: .send(41, of: asset, to: recipient.address)
+            }
 
-        let prepared = try await balances.prepare(.withdraw(41, of: .nativeSOL, to: sender.account.address),
-                                                  from: sender.account, on: .devnet)
+        let prepared = try await balances.prepare(request, from: sender.account, on: .devnet)
 
-        let (spend, following) = try #require(prepared.effect.merge)
-        #expect(prepared.instructions == spend.instructions)
+        let (merge, following) = try #require(prepared.effect.merge)
+        #expect(prepared.instructions == merge.instructions)
+        #expect(merge.asset == asset)
+        #expect(merge.openedAccounts.isEmpty)
         #expect(following == 1)
-        #expect(spend.amount == 40)
-        #expect(spend.receivedAmount == 40)
+        #expect(merge.amount == 40)
+        #expect(merge.receivedAmount == 40)
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 1)
         #expect(try await balances.complete(prepared, with: PrivateBalanceFixtures.confirmation(.succeeded))
-            == .balance(available: 1, pending: 40, of: .nativeSOL))
+            == .balance(available: 1, pending: 40, of: asset))
     }
 
     @Test
     func `A withdrawal that no pair of trees covers merges the pair whose notes total the most`() async throws {
-        let sender = try await Self.account(holding: [(amount: 2, tree: 1), (5, 2), (4, 3)], merging: 2)
+        let sender = try await Self.account(holding: [(amount: 2, tree: 1), (5, 2), (4, 3)], of: .nativeSOL)
         let responses = sender.responses
         let balances = try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
 
@@ -885,7 +904,7 @@ struct PrivateBalancesTests {
 
     @Test
     func `A spend that a pending amount would cover waits for it 20 times before it's insufficient`() async throws {
-        let sender = try await Self.accountOfManyNotes()
+        let sender = try await Self.accountOfManyNotes(of: .nativeSOL)
         let responses = sender.responses
         let clock = ManualClock()
         let balances = try await Self.balances(responses, keys: sender.keys, notes: sender.notes, clock: clock)
@@ -903,11 +922,36 @@ struct PrivateBalancesTests {
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 1)
     }
 
+    @Test
+    func `A spend that waits for a merge's pending note is prepared once a later sync delivers the note`()
+        async throws {
+        let sender = try await Self.account(holding: Array(repeating: (amount: 1, tree: 1), count: 41), of: .nativeSOL,
+                                            later: [(amount: 40, tree: 1)], readsBeforeLater: 2)
+        let responses = sender.responses
+        let clock = ManualClock()
+        let balances = try await Self.balances(responses, keys: sender.keys, notes: sender.notes, clock: clock)
+        let account = sender.account
+        let request = PrivateTransactionRequest.withdraw(41, of: .nativeSOL, to: account.address)
+        let merge = try await balances.prepare(request, from: account, on: .devnet)
+        let mergeSignature = RedeemCodeFixtures.signature(ofDepositAt: 42)
+        _ = try await balances.complete(merge, with: PrivateBalanceFixtures.confirmation(.succeeded,
+                                                                                         signature: mergeSignature))
+        var waits = clock.waits.makeAsyncIterator()
+
+        let spend = Task { try await balances.prepare(request, from: account, on: .devnet) }
+        let advanced = try await clock.advanceWaits(&waits, count: 1)
+
+        let prepared = try #require(try await spend.value.effect.spend)
+        #expect(prepared.amount == 41)
+        #expect(advanced == [.seconds(3)])
+        #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 2)
+    }
+
     @Test(arguments: [(UInt64(1), 0), (2, 20)])
     func `A spend of too many notes waits only for a pending amount that one transaction would take`(
         pending: UInt64, waits: Int
     ) async throws {
-        let sender = try await Self.accountOfManyNotes()
+        let sender = try await Self.accountOfManyNotes(of: .nativeSOL)
         let clock = ManualClock()
         let balances = try await Self.balances(sender.responses, keys: sender.keys, notes: sender.notes, clock: clock)
         _ = try await balances.complete(PrivateBalanceFixtures.preparedDeposit(pending, of: .nativeSOL, from: sender.account),
@@ -950,22 +994,26 @@ struct PrivateBalancesTests {
                 StoredValue([id: NoteSyncState()]), id, registered.deposit)
     }
 
-    private static func accountOfManyNotes() async throws -> (account: widgets.Account,
-        keys: StoredValue<PrivateBalances.Keys>, notes: StoredValue<PrivateBalances.Notes>, responses: HTTPResponses) {
-        try await account(holding: Array(repeating: (amount: 1, tree: 1), count: 41), merging: 40)
-    }
-
-    private static func account(holding notes: [(amount: UInt64, tree: UInt16)], merging merged: Int) async throws
+    private static func accountOfManyNotes(of asset: PrivateAsset, accounts: [String: String] = [:]) async throws
         -> (account: widgets.Account, keys: StoredValue<PrivateBalances.Keys>, notes: StoredValue<PrivateBalances.Notes>,
             responses: HTTPResponses) {
-        let sender = try await fundedAccount(amount: 1, of: .nativeSOL)
+        try await account(holding: Array(repeating: (amount: 1, tree: 1), count: 41), of: asset, accounts: accounts)
+    }
+
+    private static func account(holding notes: [(amount: UInt64, tree: UInt16)], of asset: PrivateAsset,
+                                accounts: [String: String] = [:], later: [(amount: UInt64, tree: UInt16)] = [],
+                                readsBeforeLater: Int = 1) async throws
+        -> (account: widgets.Account, keys: StoredValue<PrivateBalances.Keys>, notes: StoredValue<PrivateBalances.Notes>,
+            responses: HTTPResponses) {
+        let sender = try await fundedAccount(amount: 1, of: asset)
         let shielded = try await PrivateBalanceFixtures.keys(for: sender.account).shieldedAccount(for: sender.account.address)
-        let deposits = try notes.enumerated().map { index, note in
+        let deposits = try (notes + later).enumerated().map { index, note in
             try PrivateBalanceFixtures.deposit(note.amount, to: shielded, leafIndex: UInt64(index) + 1, tree: note.tree,
-                                               of: .nativeSOL)
+                                               of: asset)
         }
-        let unqueued = AccountReplies.accounts(Array(repeating: nil, count: merged))
-        let responses = HTTPResponses.privateNotes(registry: [unqueued], deposits: deposits, outputTreeID: 1,
+        let responses = HTTPResponses.privateNotes(accounts: accounts, deposits: Array(deposits.prefix(notes.count)),
+                                                   laterDeposits: Array(deposits.dropFirst(notes.count)),
+                                                   readsBeforeLaterDeposits: readsBeforeLater, outputTreeID: 1,
                                                    prover: try IndexedProofs.prover())
         return (sender.account, sender.keys, sender.notes, responses)
     }

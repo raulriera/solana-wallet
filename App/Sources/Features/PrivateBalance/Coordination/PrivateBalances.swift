@@ -215,7 +215,7 @@ actor PrivateBalances: PrivateBalancing {
     /// or withdrawal of too many notes needs first.
     ///
     /// A send or withdrawal that the spendable notes can't make waits for a pending amount that can make it, such as
-    /// an earlier merge's note, so that it never merges the same notes again.
+    /// an earlier merge's note, so that it doesn't merge other notes while that amount is pending.
     ///
     /// - Parameters:
     ///   - request: The deposit, send, or withdrawal.

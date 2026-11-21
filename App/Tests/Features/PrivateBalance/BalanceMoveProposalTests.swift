@@ -191,25 +191,47 @@ struct BalanceMoveProposalTests {
         #expect(model.error == nil)
     }
 
-    @Test
-    func `A merge is preliminary and shows the fees of every transaction that follows it`() async throws {
-        let send = try await LocalBalanceMove.send(of: .nativeSOL, privacyFee: 3_000)
-        let proposal = send.model.proposal
-        let prepared = try await proposal.prepare(from: send.account, on: .devnet)
-        let spend = try #require(prepared.effect.spend)
-        let merge = PreparedPrivateTransaction(
-            instructions: prepared.instructions, account: prepared.account, network: prepared.network,
-            effect: .merge(spend, following: 2), registers: prepared.registers, authorities: prepared.authorities
-        )
+    @Test(arguments: [TransactionRecord.Kind.privatePayment, .privateWithdrawal])
+    func `A merge is preliminary and shows the fees of every transaction that follows it`(
+        kind: TransactionRecord.Kind
+    ) async throws {
+        let move = if kind == .privatePayment {
+            try await LocalBalanceMove.send(of: .nativeSOL, privacyFee: 3_000)
+        } else {
+            try await LocalBalanceMove.withdrawal(of: .token(.devnetUSDC), privacyFee: 3_000)
+        }
+        let merge = try await Self.merge(of: move, following: 2)
 
-        let proposed = try await proposal.simulate(merge, with: send.transactions.coordinator(for: .devnet),
-                                                   from: send.account)
+        let proposed = try await move.model.proposal.simulate(merge, with: move.transactions.coordinator(for: .devnet),
+                                                              from: move.account)
 
+        #expect(proposed.kind == kind)
         #expect(proposed.followingTransactions == 2)
         #expect(proposed.review == BalanceMoveProposal.Review(
             networkFee: 3 * LocalBalanceMove.networkFee, registrationFee: nil, privacyFee: 9_000,
             pendingChange: LocalBalanceMove.privateAmount - LocalBalanceMove.amount, accountDeposit: nil
         ))
+    }
+
+    @Test(arguments: [(UInt64(25_999), PrivateBalanceError?.some(.insufficientPublicBalanceForFees)), (26_000, nil)])
+    func `A merge needs public SOL for the fees of every transaction that follows it`(
+        lamportsAfterMerge: UInt64, expected: PrivateBalanceError?
+    ) async throws {
+        let move = try await LocalBalanceMove.send(
+            of: .nativeSOL, publicLamports: lamportsAfterMerge + LocalBalanceMove.networkFee + 3_000, privacyFee: 3_000
+        )
+        let merge = try await Self.merge(of: move, following: 2)
+        let coordinator = try move.transactions.coordinator(for: .devnet)
+
+        if let expected {
+            await #expect(throws: expected) {
+                try await move.model.proposal.simulate(merge, with: coordinator, from: move.account)
+            }
+        } else {
+            await #expect(throws: Never.self) {
+                try await move.model.proposal.simulate(merge, with: coordinator, from: move.account)
+            }
+        }
     }
 
     @Test(arguments: [false, true])
@@ -221,5 +243,15 @@ struct BalanceMoveProposalTests {
         let direction = BalanceMoveProposal.Direction.send(to: recipient, in: context)
 
         #expect(direction == .toRecipient(recipient, warnings: paid ? [] : [.firstPayment]))
+    }
+
+    private static func merge(of move: LocalBalanceMove, following: Int) async throws -> PreparedPrivateTransaction {
+        let prepared = try await move.model.proposal.prepare(from: move.account, on: .devnet)
+        let spend = try #require(prepared.effect.spend)
+        return PreparedPrivateTransaction(
+            instructions: prepared.instructions, account: prepared.account, network: prepared.network,
+            effect: .merge(spend, following: following), registers: prepared.registers,
+            authorities: prepared.authorities
+        )
     }
 }
