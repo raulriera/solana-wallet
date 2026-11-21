@@ -33,7 +33,9 @@ struct SteppedProposal: TransactionProposal {
         if let error = failingSimulations[simulations.count] { throw error }
         let proposed = try await payment.simulate((), with: coordinator, from: account)
         let following = followingTransactions[min(simulations.count, followingTransactions.endIndex - 1)]
-        return ProposedTransaction(simulation: proposed.simulation, review: proposed.review, kind: proposed.kind,
+        let review = Review(networkFee: proposed.review.networkFee * UInt64(following + 1),
+                            accountDeposit: proposed.review.accountDeposit, transferFee: proposed.review.transferFee)
+        return ProposedTransaction(simulation: proposed.simulation, review: review, kind: proposed.kind,
                                    settling: proposed.settling, followingTransactions: following)
     }
 }

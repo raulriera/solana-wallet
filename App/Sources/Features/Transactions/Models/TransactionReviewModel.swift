@@ -29,6 +29,8 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
 
     let proposal: Proposal
     /// What the review shows, or `nil` before the transaction is simulated.
+    ///
+    /// Once a send with preliminary transactions is sent, it's the review of the proposal's own transaction.
     private(set) var review: Proposal.Review?
     /// The sent transaction's record as saved when it was sent, or `nil` before it's sent.
     private(set) var record: TransactionRecord?
@@ -200,12 +202,16 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     private func send() async {
         guard let proposed else { return }
         do {
-            record = proposed.isPreliminary
-                ? try await coordinator.withSharedAuthentication { coordinator in
+            if proposed.isPreliminary {
+                let sent = try await coordinator.withSharedAuthentication { coordinator in
                     try await self.sendInSteps(startingWith: proposed, using: coordinator)
                 }
-                : try await transactions.send(proposed.simulation, as: proposed.kind, from: account,
-                                              settling: proposed.settling)
+                if review != sent.review { review = sent.review }
+                record = sent.record
+            } else {
+                record = try await transactions.send(proposed.simulation, as: proposed.kind, from: account,
+                                                     settling: proposed.settling)
+            }
         } catch is CancellationError {
             guard !Task.isCancelled else { return }
             await prepare()
@@ -226,7 +232,7 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     /// - Parameters:
     ///   - first: The approved simulation of the first preliminary transaction.
     ///   - coordinator: The coordinator whose signatures share one authentication.
-    /// - Returns: The record of the proposal's own transaction.
+    /// - Returns: The record of the proposal's own transaction, and that transaction's review.
     /// - Throws: ``Error/endedBeforeNextTransaction`` if the send was stopped while it prepared the next transaction,
     ///   or that transaction needs more transactions than the person approved with the first one; the proposal's
     ///   not-finished error, or its not-sent error before a transaction landed, if a preliminary transaction didn't
@@ -234,7 +240,8 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     ///   the next transaction or the preparation of a dropped one; `CancellationError` if the person cancels
     ///   authentication or the task is cancelled; or a preparation, signing, or storage error.
     private func sendInSteps(startingWith first: ProposedTransaction<Proposal.Review>,
-                             using coordinator: any TransactionCoordinating) async throws -> TransactionRecord {
+                             using coordinator: any TransactionCoordinating) async throws
+        -> (record: TransactionRecord, review: Proposal.Review) {
         var proposed = first
         var resends = 0
         var approvedTransactions = first.followingTransactions
@@ -255,7 +262,7 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
                     try Task.checkCancellation()
                     throw sendError
                 }
-                return sent
+                return (sent, proposed.review)
             }
             guard !isStopping else { throw sendError }
             try Task.checkCancellation()

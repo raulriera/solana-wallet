@@ -325,6 +325,21 @@ struct TransactionReviewModelTests {
     }
 
     @Test
+    func `A sent proposal's review is the review of its own transaction, not of a preliminary one`() async throws {
+        let review = try LocalSteppedReview(followingTransactions: [1, 0], statuses: [.status(.finalized)])
+        let model = review.model
+        try await model.runReview()
+        let approved = try #require(model.review)
+
+        model.approve()
+        await model.run(model.attempt)
+
+        #expect(model.outcome == .succeeded)
+        #expect(try #require(model.review).networkFee * 2 == approved.networkFee)
+        await review.sockets.waitUntilClosed()
+    }
+
+    @Test
     func `The proposal's own transaction that drops after a preliminary one is sent again`() async throws {
         let review = try LocalSteppedReview(followingTransactions: [1, 0],
                                             statuses: [.status(.finalized), .status(nil), .status(.finalized)],
