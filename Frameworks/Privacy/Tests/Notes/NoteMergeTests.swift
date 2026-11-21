@@ -13,6 +13,24 @@ struct NoteMergeTests {
         ([(0, [10]), (1, [3]), (2, [7])], 17),
     ]
 
+    private static let counts: [([(UInt16, [UInt64])], UInt16, UInt64, Int)] = [
+        ([(0, Array(repeating: 1, count: 40))], 0, 40, 0),
+        ([(0, Array(repeating: 1, count: 41))], 0, 41, 1),
+        ([(0, Array(repeating: 1, count: 79))], 0, 79, 1),
+        ([(0, Array(repeating: 1, count: 80))], 0, 80, 2),
+        ([(0, Array(repeating: 1, count: 120))], 0, 120, 3),
+        ([(0, Array(repeating: 2, count: 50)), (1, Array(repeating: 1, count: 50))], 0, 120, 1),
+        ([(0, Array(repeating: 2, count: 50)), (1, Array(repeating: 1, count: 50))], 2, 120, 2),
+        (
+            [
+                (1, Array(repeating: 3, count: 25) + Array(repeating: 1, count: 25)),
+                (2, Array(repeating: 2, count: 25)),
+            ],
+            0, 150, 1
+        ),
+        ((0...2).map { ($0, Array(repeating: 10, count: 14) + Array(repeating: 1, count: 60)) }, 0, 400, 1),
+    ]
+
     private let sender: ShieldedAccount
 
     init() throws {
@@ -26,18 +44,26 @@ struct NoteMergeTests {
         #expect(try NoteMerge.amount(merging: notes(trees)) == amount)
     }
 
-    @Test(arguments: [(40, 0), (41, 1), (79, 1), (80, 2), (120, 3)])
-    func `Amounts need one merge for every 39 notes beyond the 40 of one transaction`(noteCount: Int, merges: Int)
-        throws {
-        let notes = try notes([(0, Array(repeating: 1, count: noteCount))])
+    @Test(arguments: counts)
+    func `Merges count until one choice of trees covers the amount within 40 notes`(
+        trees: [(UInt16, [UInt64])], outputTreeID: UInt16, amount: UInt64, merges: Int
+    ) throws {
+        let state = try Self.state(of: notes(trees), writingTo: outputTreeID)
 
-        #expect(NoteMerge.count(covering: UInt64(noteCount), with: notes) == merges)
+        #expect(NoteMerge.count(covering: amount, of: .nativeSOL, in: state) == merges)
+    }
+
+    @Test
+    func `Accounts before a sync reports a tree count no merge`() throws {
+        let state = try Self.state(of: notes([(0, Array(repeating: 1, count: 41))]), writingTo: nil)
+
+        #expect(NoteMerge.count(covering: 41, of: .nativeSOL, in: state) == 0)
     }
 
     @Test
     func `Accounts without notes have nothing to merge`() {
         #expect(throws: PrivateSpend.ValidationError.insufficientFunds) {
-            try NoteMerge.amount(merging: [])
+            try NoteMerge.amount(merging: [ReceivedNote]())
         }
     }
 
@@ -86,10 +112,20 @@ struct NoteMergeTests {
         #expect(result.receivedAmount == 40)
     }
 
-    private static func state(of notes: [ReceivedNote]) throws -> NoteSyncState {
+    private static func state(
+        of notes: [ReceivedNote],
+        writingTo outputTreeID: UInt16? = 0
+    ) throws -> NoteSyncState {
         try NoteSyncState(
-            position: nil, notes: notes, unconfirmedNotes: [], outputTreeID: 0, pending: [], localSpends: [],
-            claimedSpends: [], rejectedSpends: [], missingSpendReads: [:]
+            position: nil,
+            notes: notes,
+            unconfirmedNotes: [],
+            outputTreeID: outputTreeID,
+            pending: [],
+            localSpends: [],
+            claimedSpends: [],
+            rejectedSpends: [],
+            missingSpendReads: [:]
         )
     }
 

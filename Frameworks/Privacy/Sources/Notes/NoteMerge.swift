@@ -47,7 +47,7 @@ public enum NoteMerge {
     ) async throws -> PrivateSpend {
         guard let outputTreeID = state.outputTreeID else { throw PrivateSpend.ValidationError.noOutputTree }
         let notes = try await state.unqueuedNotes(of: asset, using: rpc) { available in
-            try NoteSelection.notes(covering: try amount(merging: available), from: available, writingTo: outputTreeID)
+            try notes(merging: available, writingTo: outputTreeID)
         }
         let amount = notes.reduce(0) { $0 + $1.amount }
         let transfer = TransactPlan.Transfer(recipient: try account.recipient, amount: amount)
@@ -58,30 +58,49 @@ public enum NoteMerge {
 
     /// Returns the number of merges that an account needs before one transaction covers an amount of an asset.
     ///
+    /// The count follows the selection of a spend and of each merge: while no choice of trees covers the amount
+    /// within one transaction's inputs, it merges the notes that ``spend(of:in:from:rpc:prover:)`` merges into one
+    /// note in the output tree. It reads no nullifier, so it counts notes whose nullifiers are queued, and is an
+    /// estimate for them.
+    ///
     /// - Parameters:
     ///   - amount: The amount to cover, in the asset's smallest unit.
     ///   - asset: The asset to cover the amount with.
     ///   - state: The account's notes.
-    /// - Returns: The number of merges, which is zero if one transaction's inputs cover the amount. The count takes
-    ///   the largest notes first and doesn't consider their trees.
+    /// - Returns: The number of merges, which is zero if one transaction's inputs cover the amount, if no choice of
+    ///   trees covers it, or before a sync reports a tree. The count stops when the merges leave no choice of trees
+    ///   that covers the amount.
     public static func count(covering amount: UInt64, of asset: PrivateAsset, in state: NoteSyncState) -> Int {
-        count(covering: amount, with: state.notes(of: asset))
+        guard let outputTreeID = state.outputTreeID else { return 0 }
+        var notes = state.notes(of: asset).map { SimulatedNote(amount: $0.amount, treeID: $0.treeID) }
+        var merges = 0
+        while true {
+            do {
+                _ = try NoteSelection.notes(covering: amount, from: notes, writingTo: outputTreeID)
+                return merges
+            } catch PrivateSpend.ValidationError.tooManyNotes {
+                guard let merged = try? Self.notes(merging: notes, writingTo: outputTreeID) else { return merges }
+                notes.remove(contentsOf: merged)
+                notes.append(SimulatedNote(amount: merged.reduce(0) { $0 + $1.amount }, treeID: outputTreeID))
+                merges += 1
+            } catch {
+                return merges
+            }
+        }
     }
 
-    /// Returns the number of merges that notes need before one transaction covers an amount.
+    /// Chooses the notes that one merge spends.
     ///
     /// - Parameters:
-    ///   - amount: The amount to cover, in the asset's smallest unit.
     ///   - notes: The unspent notes of one asset.
-    /// - Returns: The number of merges, where each merge turns one transaction's inputs into one note.
-    static func count(covering amount: UInt64, with notes: [ReceivedNote]) -> Int {
-        var total: UInt64 = 0
-        let needed = notes.map(\.amount).sorted(by: >).prefix { note in
-            defer { total += note }
-            return total < amount
-        }.count
-        let inputs = TransactPlan.maximumInputs
-        return needed <= inputs ? 0 : 1 + (needed - inputs - 1) / (inputs - 1)
+    ///   - outputTreeID: The ID of the tree that receives the merged note.
+    /// - Returns: The notes that cover the amount of one merge, as ``NoteSelection`` chooses them.
+    /// - Throws: ``PrivateSpend/ValidationError/insufficientFunds`` without a note.
+    private static func notes<Note: SelectableNote>(
+        merging notes: [Note],
+        writingTo outputTreeID: UInt16
+    ) throws -> [Note] {
+        try NoteSelection.notes(covering: try amount(merging: notes), from: notes, writingTo: outputTreeID)
     }
 
     /// Returns the most that one transaction spends from notes, which is the amount of one merge.
@@ -90,11 +109,31 @@ public enum NoteMerge {
     /// - Returns: The total of the largest notes, up to one transaction's inputs, of the one or two trees whose
     ///   largest notes total the most, in the asset's smallest unit.
     /// - Throws: ``PrivateSpend/ValidationError/insufficientFunds`` without a note.
-    static func amount(merging notes: [ReceivedNote]) throws -> UInt64 {
+    static func amount(merging notes: [some SelectableNote]) throws -> UInt64 {
         let amounts = NoteSelection.treeChoices(of: notes).map { choice in
             choice.map(\.amount).sorted(by: >).prefix(TransactPlan.maximumInputs).reduce(0, +)
         }
         guard let amount = amounts.max() else { throw PrivateSpend.ValidationError.insufficientFunds }
         return amount
+    }
+
+    /// A note that a count of merges simulates, by the amount and tree that the count reads.
+    private struct SimulatedNote: SelectableNote {
+        let amount: UInt64
+
+        let treeID: UInt16
+    }
+}
+
+extension Array where Element: Equatable {
+    /// Removes one equal element for each of the given elements.
+    ///
+    /// - Parameter elements: The elements to remove.
+    fileprivate mutating func remove(contentsOf elements: some Sequence<Element>) {
+        for element in elements {
+            if let index = firstIndex(of: element) {
+                remove(at: index)
+            }
+        }
     }
 }
