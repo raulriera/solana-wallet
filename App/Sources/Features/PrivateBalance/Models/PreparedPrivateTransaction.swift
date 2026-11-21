@@ -11,6 +11,9 @@ nonisolated struct PreparedPrivateTransaction: Sendable, Redacted {
         case deposit(UInt64, of: PrivateAsset)
         /// A spend of the account's notes into a private transfer or a public withdrawal.
         case spend(PrivateSpend)
+        /// A spend of the account's notes into one note of the account, before a send or withdrawal that needs too
+        /// many notes, and the number of transactions that the request still needs after it, which is at least one.
+        case merge(PrivateSpend, following: Int)
         /// A spend that funds a new redeem code at an index of the code root, with a reserve in lamports.
         case createCode(PrivateSpend, index: UInt32, reserve: UInt64)
         /// A redeem or take-back of a code.
@@ -26,9 +29,6 @@ nonisolated struct PreparedPrivateTransaction: Sendable, Redacted {
     let registers: Bool
     /// The accounts that sign, in signing order, where the first pays.
     let authorities: [Authority]
-    /// The number of transactions that the request still needs after this one succeeds, which is zero unless this
-    /// transaction is a merge of the account's notes.
-    var followingTransactions = 0
 
     /// Returns the transaction with a redeem or take-back's network fee charged to its trailing deposit.
     ///

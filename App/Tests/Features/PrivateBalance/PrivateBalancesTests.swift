@@ -859,9 +859,9 @@ struct PrivateBalancesTests {
         let prepared = try await balances.prepare(.withdraw(41, of: .nativeSOL, to: sender.account.address),
                                                   from: sender.account, on: .devnet)
 
-        let spend = try #require(prepared.effect.spend)
+        let (spend, following) = try #require(prepared.effect.merge)
         #expect(prepared.instructions == spend.instructions)
-        #expect(prepared.followingTransactions == 1)
+        #expect(following == 1)
         #expect(spend.amount == 40)
         #expect(spend.receivedAmount == 40)
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 1)

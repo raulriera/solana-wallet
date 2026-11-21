@@ -192,13 +192,17 @@ struct BalanceMoveProposalTests {
     }
 
     @Test
-    func `A transaction that others follow is preliminary and shows the fees of all of them`() async throws {
+    func `A merge is preliminary and shows the fees of every transaction that follows it`() async throws {
         let send = try await LocalBalanceMove.send(of: .nativeSOL, privacyFee: 3_000)
         let proposal = send.model.proposal
-        var prepared = try await proposal.prepare(from: send.account, on: .devnet)
-        prepared.followingTransactions = 2
+        let prepared = try await proposal.prepare(from: send.account, on: .devnet)
+        let spend = try #require(prepared.effect.spend)
+        let merge = PreparedPrivateTransaction(
+            instructions: prepared.instructions, account: prepared.account, network: prepared.network,
+            effect: .merge(spend, following: 2), registers: prepared.registers, authorities: prepared.authorities
+        )
 
-        let proposed = try await proposal.simulate(prepared, with: send.transactions.coordinator(for: .devnet),
+        let proposed = try await proposal.simulate(merge, with: send.transactions.coordinator(for: .devnet),
                                                    from: send.account)
 
         #expect(proposed.isPreliminary)

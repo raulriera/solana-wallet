@@ -188,7 +188,7 @@ extension PrivateBalances {
         case (.redeem(let redemption), .succeeded):
             guard let index = redemption.takenBackIndex else { return }
             try await update(\.codes, from: generation) { $0[id]?.remove([index]) }
-        case (.redeem, _), (.deposit, _), (.spend, _):
+        case (.redeem, _), (.deposit, _), (.spend, _), (.merge, _):
             return
         }
     }

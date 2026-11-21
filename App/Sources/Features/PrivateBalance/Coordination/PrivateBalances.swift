@@ -242,7 +242,6 @@ actor PrivateBalances: PrivateBalancing {
             let (shielded, state, registers) = try await notes(after: outcome, for: request, client: client)
             let instructions: [Instruction]
             let effect: PreparedPrivateTransaction.Effect
-            var followingTransactions = 0
             switch request {
             case .deposit(let amount, let asset):
                 guard let treeID = state.outputTreeID else { throw PrivateBalanceError.unavailable }
@@ -258,32 +257,28 @@ actor PrivateBalances: PrivateBalancing {
                     } else {
                         throw PrivateBalanceError.recipientUnregistered
                     }
-                let spend: PrivateSpend
                 do {
-                    spend = try await state.spend(amount, of: asset, to: destination, from: shielded, rpc: client,
-                                                  prover: client)
-                } catch let error as PrivateSpend.ValidationError {
-                    if waits < Self.maximumPendingWaits,
-                       Self.awaitsPending(after: error, spending: amount, of: asset, in: state) {
-                        waits += 1
-                        try await clock.sleep(for: Self.pendingInterval)
-                        outcome = try await sharedSync(of: account, on: network)
-                        continue
-                    }
-                    guard error == .tooManyNotes else { throw error }
-                    spend = try await NoteMerge.spend(of: asset, in: state, from: shielded, rpc: client,
+                    let spend = try await state.spend(amount, of: asset, to: destination, from: shielded, rpc: client,
                                                       prover: client)
-                    followingTransactions = NoteMerge.count(covering: amount, of: asset, in: state)
+                    (instructions, effect) = (spend.instructions, .spend(spend))
+                } catch let error as PrivateSpend.ValidationError
+                    where waits < Self.maximumPendingWaits
+                    && Self.awaitsPending(after: error, spending: amount, of: asset, in: state) {
+                    waits += 1
+                    try await clock.sleep(for: Self.pendingInterval)
+                    outcome = try await sharedSync(of: account, on: network)
+                    continue
+                } catch PrivateSpend.ValidationError.tooManyNotes {
+                    let merge = try await NoteMerge.spend(of: asset, in: state, from: shielded, rpc: client,
+                                                          prover: client)
+                    let following = max(1, NoteMerge.count(covering: amount, of: asset, in: state))
+                    (instructions, effect) = (merge.instructions, .merge(merge, following: following))
                 }
-                (instructions, effect) = (spend.instructions, .spend(spend))
             case .createCode, .redeem, .takeBack:
                 throw Transactions.ValidationError.invalidTransaction
             }
-            var prepared = PreparedPrivateTransaction(instructions: instructions, account: account, network: network,
-                                                      effect: effect, registers: registers,
-                                                      authorities: [.account(account)])
-            prepared.followingTransactions = followingTransactions
-            return prepared
+            return PreparedPrivateTransaction(instructions: instructions, account: account, network: network,
+                                              effect: effect, registers: registers, authorities: [.account(account)])
         }
     }
 
@@ -390,7 +385,8 @@ actor PrivateBalances: PrivateBalancing {
             let saved = entries[id] ?? NoteSyncState()
             let state = switch effect {
             case .deposit(let amount, let asset): try saved.recording(depositOf: amount, of: asset, signature: signature)
-            case .spend(let spend), .createCode(let spend, _, _): try saved.recording(spend, signature: signature)
+            case .spend(let spend), .merge(let spend, _), .createCode(let spend, _, _):
+                try saved.recording(spend, signature: signature)
             case .redeem(let redemption): try saved.recording(depositOf: redemption.lamports, of: .nativeSOL, signature: signature)
             }
             entries[id] = state

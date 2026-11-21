@@ -6,6 +6,10 @@ extension PreparedPrivateTransaction.Effect {
         if case .spend(let spend) = self { spend } else { nil }
     }
 
+    var merge: (spend: PrivateSpend, following: Int)? {
+        if case .merge(let spend, let following) = self { (spend, following) } else { nil }
+    }
+
     var codeCreation: (spend: PrivateSpend, index: UInt32, reserve: UInt64)? {
         if case .createCode(let spend, let index, let reserve) = self { (spend, index, reserve) } else { nil }
     }

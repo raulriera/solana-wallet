@@ -111,6 +111,7 @@ struct BalanceMoveProposal: TransactionProposal {
         let movedLamports = privateAsset.lamports(moving: sent.amount)
         let review: Review
         let kind: TransactionRecord.Kind
+        var isPreliminary = false
         switch preparation.effect {
         case .deposit:
             let registrationFee = preparation.registers
@@ -128,7 +129,7 @@ struct BalanceMoveProposal: TransactionProposal {
                 receivedLamports = 0
                 kind = .privatePayment
             case .toPrivate, .toPublic:
-                receivedLamports = preparation.followingTransactions > 0 ? 0 : movedLamports
+                receivedLamports = movedLamports
                 kind = .privateWithdrawal
             }
             let privacyFee = try otherFee(
@@ -138,20 +139,28 @@ struct BalanceMoveProposal: TransactionProposal {
                 receiving: receivedLamports,
                 networkFee: networkFee
             )
-            let transactions = UInt64(preparation.followingTransactions) + 1
             review = Review(
-                networkFee: networkFee * transactions,
+                networkFee: networkFee,
                 registrationFee: nil,
-                privacyFee: (privacyFee * transactions).nonZero,
+                privacyFee: privacyFee.nonZero,
                 pendingChange: spend.receivedAmount.nonZero,
                 accountDeposit: accountDeposit
             )
+        case .merge(let merge, let following):
+            let privacyFee = try otherFee(of: simulation, for: account, paying: 0, receiving: 0,
+                                          networkFee: networkFee)
+            let transactions = UInt64(following) + 1
+            review = Review(networkFee: networkFee * transactions, registrationFee: nil,
+                            privacyFee: (privacyFee * transactions).nonZero,
+                            pendingChange: merge.receivedAmount.nonZero, accountDeposit: nil)
+            kind = if case .toRecipient = direction { .privatePayment } else { .privateWithdrawal }
+            isPreliminary = true
         case .createCode, .redeem:
             throw PrivateBalanceError.preparationFailed
         }
         return ProposedTransaction(simulation: simulation, review: review, kind: kind,
                                    settling: PrivateBalanceSettlement(balances: balances, transaction: transaction),
-                                   isPreliminary: preparation.followingTransactions > 0)
+                                   isPreliminary: isPreliminary)
     }
 
     /// Returns what the account's public SOL pays in a simulation beyond the moved SOL and the network fee.
