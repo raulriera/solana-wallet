@@ -5,7 +5,7 @@
 - Store each account's exact derivation path in its metadata.
 - The Wallet framework stays local and cryptographic: no network, no persistence, no retained secrets. Signing neither authenticates nor interprets intent. It refuses Solana Rings key-derivation messages.
 - Vault's `KeychainStore` keeps recovery in non-synchronizing Keychain items with `kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly` and `userPresence`.
-- Each recovery read authenticates the person on its own. The one exception is a send that needs several transactions: its reads share one authentication, which ends when the send ends or fails, or, when the app goes to the background, before its next signature.
+- Each recovery read authenticates the person on its own. The one exception is a send that needs several transactions: its reads share one authentication, which ends when the send ends or fails, or, when the app goes to the background, before it starts its next transaction.
 - Onboarding and backup screens say that the recovery phrase, with any BIP-39 passphrase, is the only way to recover the wallet.
 - Private-balance keys, notes, and redeem codes stay in the device-only Keychain (`kSecAttrAccessibleWhenUnlockedThisDeviceOnly`) without authentication. Only deriving the keys reads recovery.
 
