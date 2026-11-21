@@ -8,6 +8,8 @@ import Transactions
 @Suite(.timeLimit(.minutes(1)))
 struct TransactionReviewModelTests {
     private static let rateLimit = RPCError.http(statusCode: 429, retryAfter: "3")
+    nonisolated private static let slotError = RPCError.server(code: -32016,
+                                                               message: "Minimum context slot has not been reached")
 
     @Test
     func `Reviewing shows the review`() async throws {
@@ -117,7 +119,7 @@ struct TransactionReviewModelTests {
     }
 
     @Test(arguments: [
-        (RPCError.server(code: -32016, message: "Minimum context slot has not been reached"), 1),
+        (Self.slotError, 1),
         (RPCError.server(code: -32602, message: "Invalid params"), 2),
     ])
     func `Retrying a review whose simulation failed prepares again only after an error that can't clear`(
@@ -137,20 +139,27 @@ struct TransactionReviewModelTests {
         #expect(model.proposal.simulations.prepareCount == prepareCount)
     }
 
-    @Test
-    func `A simulation that fails with an error that can clear is tried again without another preparation`()
-        async throws {
-        let slotError = RPCError.server(code: -32016, message: "Minimum context slot has not been reached")
-        let review = try LocalSteppedReview(preliminaryCount: 1, failingSimulations: [1: slotError],
+    @Test(arguments: [
+        ([1: Self.slotError], [Duration.seconds(2)]),
+        ([1: Self.slotError, 2: Self.slotError], [Duration.seconds(2), .seconds(4)]),
+    ])
+    func `An error that can clear retries the next simulation after doubling waits without another preparation`(
+        failingSimulations: [Int: RPCError], expectedWaits: [Duration]
+    ) async throws {
+        let review = try LocalSteppedReview(preliminaryCount: 1, failingSimulations: failingSimulations,
                                             statuses: [.status(.finalized)])
         let model = review.model
         try await model.runReview()
+        var waits = review.clock.waits.makeAsyncIterator()
 
         model.approve()
-        await model.run(model.attempt)
+        let send = Task { await model.run(model.attempt) }
+        let advanced = try await review.clock.advanceWaits(&waits, count: expectedWaits.count)
+        await send.value
 
+        #expect(advanced == expectedWaits)
         #expect(model.outcome == .succeeded)
-        #expect(model.proposal.simulations.count == 3)
+        #expect(model.proposal.simulations.count == 2 + failingSimulations.count)
         #expect(model.proposal.simulations.prepareCount == 2)
         await review.sockets.waitUntilClosed()
     }
@@ -158,14 +167,17 @@ struct TransactionReviewModelTests {
     @Test
     func `Retrying a send whose next simulation kept failing with an error that can clear keeps its preparation`()
         async throws {
-        let slotError = RPCError.server(code: -32016, message: "Minimum context slot has not been reached")
-        let review = try LocalSteppedReview(preliminaryCount: 1,
-                                            failingSimulations: [1: slotError, 2: slotError, 3: slotError],
-                                            statuses: [.status(.finalized)])
+        let review = try LocalSteppedReview(
+            preliminaryCount: 1, failingSimulations: [1: Self.slotError, 2: Self.slotError, 3: Self.slotError],
+            statuses: [.status(.finalized)]
+        )
         let model = review.model
         try await model.runReview()
+        var waits = review.clock.waits.makeAsyncIterator()
         model.approve()
-        await model.run(model.attempt)
+        let send = Task { await model.run(model.attempt) }
+        try await review.clock.advanceWaits(&waits, count: 2)
+        await send.value
         try #require(model.error == .notSent)
 
         model.retry()
@@ -174,6 +186,28 @@ struct TransactionReviewModelTests {
         #expect(model.canApprove)
         #expect(model.proposal.simulations.count == 5)
         #expect(model.proposal.simulations.prepareCount == 2)
+        await review.sockets.waitUntilClosed()
+    }
+
+    @Test
+    func `Cancelling a send while it waits to retry its next transaction ends it without another simulation`()
+        async throws {
+        let review = try LocalSteppedReview(preliminaryCount: 1, failingSimulations: [1: Self.slotError],
+                                            statuses: [.status(.finalized)])
+        let model = review.model
+        try await model.runReview()
+        var waits = review.clock.waits.makeAsyncIterator()
+        model.approve()
+        let send = Task { await model.run(model.attempt) }
+        _ = try await review.clock.durationToNextWait(&waits)
+
+        send.cancel()
+        await send.value
+
+        #expect(model.record == nil)
+        #expect(model.attempt == nil)
+        #expect(model.proposal.simulations.count == 2)
+        #expect(await review.sent.requests.count == 1)
         await review.sockets.waitUntilClosed()
     }
 

@@ -47,6 +47,7 @@ struct LocalSteppedReview {
     let transactions: TransactionStore
     let sent = HTTPResponses.sending()
     let sockets = SocketSequence()
+    let clock = ManualClock()
 
     init(preliminaryCount: Int, reportedFollowing: Int? = nil, failingSimulations: [Int: any Swift.Error] = [:],
          statuses: [GetSignatureStatuses.Response], height: UInt64 = 500) throws {
@@ -63,7 +64,7 @@ struct LocalSteppedReview {
         model = try TransactionReviewModel(
             SteppedProposal(payment: payment, preliminaryCount: preliminaryCount, reportedFollowing: reportedFollowing,
                             failingSimulations: failingSimulations),
-            from: fixture.account, on: .devnet, transactions: transactions
+            from: fixture.account, on: .devnet, transactions: transactions, clock: clock
         )
     }
 }

@@ -48,6 +48,7 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     private let network: Network
     private let coordinator: any TransactionCoordinating
     private let transactions: TransactionStore
+    private let clock: any Clock<Duration>
 
     /// The most times that a send with preliminary transactions sends a dropped transaction again.
     private static var maximumResends: Int { 2 }
@@ -75,13 +76,16 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     ///   - account: The account that signs and pays.
     ///   - network: The network that the transaction is sent on.
     ///   - transactions: The store that sends, records, and watches the transaction.
+    ///   - clock: The clock that times the waits before a send tries its next transaction again.
     /// - Throws: An error if the network's transaction coordinator can't be created.
-    init(_ proposal: Proposal, from account: Account, on network: Network, transactions: TransactionStore) throws {
+    init(_ proposal: Proposal, from account: Account, on network: Network, transactions: TransactionStore,
+         clock: any Clock<Duration> = ContinuousClock()) throws {
         coordinator = try transactions.coordinator(for: network)
         self.proposal = proposal
         self.account = account
         self.network = network
         self.transactions = transactions
+        self.clock = clock
     }
 
     /// Starts preparing and simulating the transaction, unless a step is waiting or running or it was sent.
@@ -241,20 +245,22 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
 
     /// Simulates the kept preparation, or prepares the transaction and simulates its preparation.
     ///
-    /// It prepares the transaction again only if the proposal rejects the kept preparation, and simulates again
-    /// without preparing after an error that can clear by itself.
+    /// It prepares the transaction again only if the proposal rejects the kept preparation, and after an error that can
+    /// clear by itself, it waits with a doubling backoff and tries again, reusing any preparation that it kept.
     ///
-    /// - Parameter maximumRetries: The most times that it simulates again after an error that can clear by itself.
+    /// - Parameter maximumRetries: The most times that it tries again after an error that can clear by itself.
     /// - Returns: The simulation of the transaction.
     /// - Throws: A preparation, simulation, or cancellation error.
     private func simulate(retryingUpTo maximumRetries: Int = 0) async throws -> ProposedTransaction<Proposal.Review> {
         var retries = 0
+        var backoff = Backoff.reconnection
         var reusesPreparation = preparation != nil
         while true {
             do {
                 return try await proposal.simulate(try await prepared(), with: coordinator, from: account)
             } catch let error as RPCError where error.isRecoverable && retries < maximumRetries {
                 retries += 1
+                try await clock.sleep(for: backoff.next())
             } catch is Proposal.Error where reusesPreparation {
                 reusesPreparation = false
                 preparation = nil
