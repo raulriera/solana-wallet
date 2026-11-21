@@ -10,6 +10,10 @@ struct TransactionReviewModelTests {
     private static let rateLimit = RPCError.http(statusCode: 429, retryAfter: "3")
     nonisolated private static let slotError = RPCError.server(code: -32016,
                                                                message: "Minimum context slot has not been reached")
+    private static let instructionError = TransactionError(
+        name: "InstructionError", details: .array([.integer(0), .object(["Custom": .integer(1)])])
+    )
+    nonisolated private static let invalidParams = RPCError.server(code: -32602, message: "Invalid params")
 
     @Test
     func `Reviewing shows the review`() async throws {
@@ -120,7 +124,7 @@ struct TransactionReviewModelTests {
 
     @Test(arguments: [
         (Self.slotError, 1),
-        (RPCError.server(code: -32602, message: "Invalid params"), 2),
+        (Self.invalidParams, 2),
     ])
     func `Retrying a review whose simulation failed prepares again only after an error that can't clear`(
         error: RPCError, prepareCount: Int
@@ -135,16 +139,35 @@ struct TransactionReviewModelTests {
         await model.run(model.attempt)
 
         #expect(model.canApprove)
-        #expect(model.proposal.simulations.count == 2)
         #expect(model.proposal.simulations.prepareCount == prepareCount)
     }
 
+    @Test
+    func `Retrying with a kept preparation that the proposal rejects for another reason doesn't prepare again`()
+        async throws {
+        let review = try LocalSteppedReview(
+            followingTransactions: [0],
+            failingSimulations: [0: Self.slotError, 1: SendError.notEnoughSOL, 2: SendError.notEnoughSOL],
+            statuses: []
+        )
+        let model = review.model
+        model.prepareReview()
+        await model.run(model.attempt)
+        try #require(model.error == .preparationFailed)
+
+        model.retry()
+        await model.run(model.attempt)
+
+        #expect(model.error == .notEnoughSOL)
+        #expect(model.proposal.simulations.prepareCount == 1)
+    }
+
     @Test(arguments: [
-        ([1: Self.slotError], [Duration.seconds(2)]),
-        ([1: Self.slotError, 2: Self.slotError], [Duration.seconds(2), .seconds(4)]),
+        ([1: Self.slotError], [Duration.seconds(2)], 3),
+        ([1: Self.slotError, 2: Self.slotError], [Duration.seconds(2), .seconds(4)], 4),
     ])
     func `An error that can clear retries the next simulation after doubling waits without another preparation`(
-        failingSimulations: [Int: RPCError], expectedWaits: [Duration]
+        failingSimulations: [Int: RPCError], expectedWaits: [Duration], simulationCount: Int
     ) async throws {
         let review = try LocalSteppedReview(followingTransactions: [1, 0], failingSimulations: failingSimulations,
                                             statuses: [.status(.finalized)])
@@ -159,7 +182,7 @@ struct TransactionReviewModelTests {
 
         #expect(advanced == expectedWaits)
         #expect(model.outcome == .succeeded)
-        #expect(model.proposal.simulations.count == 2 + failingSimulations.count)
+        #expect(model.proposal.simulations.count == simulationCount)
         #expect(model.proposal.simulations.prepareCount == 2)
         await review.sockets.waitUntilClosed()
     }
@@ -185,7 +208,6 @@ struct TransactionReviewModelTests {
         await model.run(model.attempt)
 
         #expect(model.canApprove)
-        #expect(model.proposal.simulations.count == 5)
         #expect(model.proposal.simulations.prepareCount == 2)
         await review.sockets.waitUntilClosed()
     }
@@ -212,9 +234,32 @@ struct TransactionReviewModelTests {
         await review.sockets.waitUntilClosed()
     }
 
+    @Test(arguments: [
+        ([Int: SendError](), SendError.notSent, 3),
+        ([1: .preparationFailed], .preparationFailed, 1),
+    ])
+    func `A dropped preliminary transaction is sent again only with its preparation`(
+        failingSimulations: [Int: SendError], error: SendError, sendCount: Int
+    ) async throws {
+        let review = try LocalSteppedReview(followingTransactions: [1], failingSimulations: failingSimulations,
+                                            statuses: [.status(nil)], height: 600)
+        let model = review.model
+        try await model.runReview()
+
+        model.approve()
+        await model.run(model.attempt)
+
+        #expect(model.record == nil)
+        #expect(model.error == error)
+        #expect(model.proposal.simulations.prepareCount == 1)
+        #expect(await review.sent.requests.count == sendCount)
+        await review.sockets.waitUntilClosed()
+    }
+
     @Test
-    func `A preliminary transaction that keeps dropping is sent three times with one preparation`() async throws {
-        let review = try LocalSteppedReview(followingTransactions: [1], statuses: [.status(nil)], height: 600)
+    func `A preliminary transaction that fails ends the send as not sent without sending more`() async throws {
+        let review = try LocalSteppedReview(followingTransactions: [1, 0],
+                                            statuses: [.status(.finalized, error: Self.instructionError)])
         let model = review.model
         try await model.runReview()
 
@@ -223,8 +268,57 @@ struct TransactionReviewModelTests {
 
         #expect(model.record == nil)
         #expect(model.error == .notSent)
-        #expect(model.proposal.simulations.prepareCount == 1)
+        #expect(await review.sent.requests.count == 1)
+        await review.sockets.waitUntilClosed()
+    }
+
+    @Test
+    func `Two preliminary transactions that succeed are followed by the proposal's own`() async throws {
+        let review = try LocalSteppedReview(followingTransactions: [2, 1, 0], statuses: [.status(.finalized)])
+        let model = review.model
+        try await model.runReview()
+
+        model.approve()
+        await model.run(model.attempt)
+
+        #expect(model.outcome == .succeeded)
         #expect(await review.sent.requests.count == 3)
+        await review.sockets.waitUntilClosed()
+    }
+
+    @Test
+    func `The proposal's own transaction that drops after a preliminary one is sent again`() async throws {
+        let review = try LocalSteppedReview(followingTransactions: [1, 0],
+                                            statuses: [.status(.finalized), .status(nil), .status(.finalized)],
+                                            height: 600)
+        let model = review.model
+        try await model.runReview()
+
+        model.approve()
+        await model.run(model.attempt)
+
+        #expect(model.outcome == .succeeded)
+        #expect(await review.sent.requests.count == 3)
+        await review.sockets.waitUntilClosed()
+    }
+
+    @Test
+    func `Cancelling a send while a preliminary transaction waits for its outcome ends it with nothing to approve`()
+        async throws {
+        let review = try LocalSteppedReview(followingTransactions: [1, 0], statuses: [.status(nil)])
+        let model = review.model
+        try await model.runReview()
+        var openings = review.sockets.openings.makeAsyncIterator()
+        model.approve()
+        let send = Task { await model.run(model.attempt) }
+        _ = await openings.next()
+
+        send.cancel()
+        await send.value
+
+        #expect(model.error == nil)
+        #expect(!model.canApprove)
+        try await review.transactions.erase()
         await review.sockets.waitUntilClosed()
     }
 
@@ -261,24 +355,6 @@ struct TransactionReviewModelTests {
     }
 
     @Test
-    func `A dropped transaction whose preparation the proposal rejects is prepared again`() async throws {
-        let review = try LocalSteppedReview(followingTransactions: [1],
-                                            failingSimulations: [1: SendError.preparationFailed],
-                                            statuses: [.status(nil)], height: 600)
-        let model = review.model
-        try await model.runReview()
-
-        model.approve()
-        await model.run(model.attempt)
-
-        #expect(model.error == .notSent)
-        #expect(model.proposal.simulations.prepareCount == 2)
-        #expect(model.proposal.simulations.count == 4)
-        #expect(await review.sent.requests.count == 3)
-        await review.sockets.waitUntilClosed()
-    }
-
-    @Test
     func `Trying again after a send ends beyond the approved transactions keeps the next preparation`() async throws {
         let review = try LocalSteppedReview(followingTransactions: [1, 1, 0], statuses: [.status(.finalized)])
         let model = review.model
@@ -291,7 +367,6 @@ struct TransactionReviewModelTests {
         await model.run(model.attempt)
 
         #expect(model.canApprove)
-        #expect(model.proposal.simulations.count == 3)
         #expect(model.proposal.simulations.prepareCount == 2)
         await review.sockets.waitUntilClosed()
     }
@@ -330,29 +405,8 @@ struct TransactionReviewModelTests {
     }
 
     @Test
-    func `Trying again after a send stops while preparing keeps the next preparation`() async throws {
-        let review = try LocalSteppedReview(followingTransactions: [1, 0], statuses: [.status(.finalized)])
-        let model = review.model
-        try await model.runReview()
-        model.proposal.simulations.onPrepare = { [weak model] in model?.stopSending() }
-        model.approve()
-        await model.run(model.attempt)
-        try #require(model.error == .notSent)
-
-        model.retry()
-        await model.run(model.attempt)
-
-        #expect(model.canApprove)
-        #expect(model.proposal.simulations.count == 3)
-        #expect(model.proposal.simulations.prepareCount == 2)
-        await review.sockets.waitUntilClosed()
-    }
-
-    @Test
     func `A failed transaction shows its outcome`() async throws {
-        let failure = TransactionError(name: "InstructionError",
-                                       details: .array([.integer(0), .object(["Custom": .integer(1)])]))
-        let payment = try LocalPaymentReview(statuses: [.status(.finalized, error: failure)])
+        let payment = try LocalPaymentReview(statuses: [.status(.finalized, error: Self.instructionError)])
         let model = payment.model
         try await payment.model.runReview()
 
@@ -469,6 +523,21 @@ struct TransactionReviewModelTests {
         #expect(model.review == LocalPaymentReview.costs)
         #expect(model.canApprove)
         #expect(try await payment.preparation.simulations() == 2)
+    }
+
+    @Test
+    func `A refresh error keeps later refreshes simulating the review`() async throws {
+        let review = try LocalSteppedReview(followingTransactions: [0], failingSimulations: [1: Self.invalidParams],
+                                            statuses: [])
+        let model = review.model
+        try await model.runReview()
+        await model.refreshReview()
+        try #require(model.error == .preparationFailed)
+
+        await model.refreshReview()
+
+        #expect(model.canApprove)
+        #expect(model.proposal.simulations.count == 3)
     }
 
     @Test

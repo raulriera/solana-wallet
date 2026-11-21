@@ -3,7 +3,7 @@ import RPC
 /// A transaction that the person reviews and approves, such as a payment.
 @MainActor
 protocol TransactionProposal: SendableMetatype {
-    /// What the proposal prepares once per review for each simulation to use.
+    /// What the proposal prepares once per transaction for each of its simulations to use.
     associatedtype Preparation = Void
     /// What the review shows about each simulation.
     associatedtype Review: Equatable & Sendable
@@ -13,7 +13,7 @@ protocol TransactionProposal: SendableMetatype {
     /// How often an open review simulates the transaction again.
     var refreshInterval: Duration { get }
 
-    /// Prepares what every simulation of the review uses.
+    /// Prepares what every simulation of the next transaction uses.
     ///
     /// - Parameters:
     ///   - account: The account that signs and pays.
