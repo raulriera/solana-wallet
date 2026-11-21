@@ -44,6 +44,7 @@ struct SteppedProposal: TransactionProposal {
 struct LocalSteppedReview {
     let model: TransactionReviewModel<SteppedProposal>
     let recovery: SigningRecoveryStore
+    let transactions: TransactionStore
     let sent = HTTPResponses.sending()
     let sockets = SocketSequence()
 
@@ -58,11 +59,11 @@ struct LocalSteppedReview {
             asset: .nativeSOL, sent: TokenAmount(lamports: 1_000_000_000), value: nil, currencyCode: "USD",
             recipient: PaymentRecipient(address: fixture.transfer.accounts[1].address, name: "Bruno"), warnings: [],
             recents: .inMemory())
+        transactions = TransactionStore.inMemory { _ in coordinator }
         model = try TransactionReviewModel(
             SteppedProposal(payment: payment, preliminaryCount: preliminaryCount, reportedFollowing: reportedFollowing,
                             failingSimulations: failingSimulations),
-            from: fixture.account, on: .devnet,
-            transactions: TransactionStore.inMemory { _ in coordinator }
+            from: fixture.account, on: .devnet, transactions: transactions
         )
     }
 }

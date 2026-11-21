@@ -21,6 +21,12 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
         let work: Work
     }
 
+    /// An end of a send with preliminary transactions after its next transaction is prepared.
+    private nonisolated enum Error: Swift.Error {
+        /// The send stopped, or its next transaction needs more transactions than the person approved.
+        case endedBeforeNextTransaction
+    }
+
     let proposal: Proposal
     /// What the review shows, or `nil` before the transaction is simulated.
     private(set) var review: Proposal.Review?
@@ -91,17 +97,20 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
         start(.send)
     }
 
-    /// Starts a new review of a dropped transaction.
+    /// Starts a new review of a dropped transaction, unless a step is waiting or running.
+    ///
+    /// The review simulates the same preparation again, and prepares the transaction again only if the proposal
+    /// rejects that preparation.
     func tryAgain() {
         guard attempt == nil, outcome == .dropped else { return }
         record = nil
-        preparation = nil
         start(.review)
     }
 
     /// Starts the review again after an error, unless the transaction was sent.
     ///
-    /// It simulates the same preparation again when the error could clear by itself.
+    /// It simulates the same preparation again when the error could clear by itself, or when the send ended before its
+    /// next transaction.
     func retry() {
         guard attempt == nil, record == nil else { return }
         start(.review)
@@ -153,7 +162,7 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     private func prepare() async {
         proposed = nil
         do {
-            show(try await proposal.simulate(try await prepared(), with: coordinator, from: account))
+            show(try await simulate())
         } catch is CancellationError {
         } catch {
             show(error)
@@ -198,9 +207,11 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     ///   - first: The approved simulation of the first preliminary transaction.
     ///   - coordinator: The coordinator whose signatures share one authentication.
     /// - Returns: The record of the proposal's own transaction.
-    /// - Throws: The proposal's not-sent error if a preliminary transaction didn't succeed, the send was stopped, or
-    ///   the next transaction needs more transactions than the person approved with the first one,
-    ///   `CancellationError` if the person cancels authentication, or a preparation, signing, or storage error.
+    /// - Throws: ``Error/endedBeforeNextTransaction`` if the send was stopped while it prepared the next transaction,
+    ///   or that transaction needs more transactions than the person approved with the first one; the proposal's
+    ///   not-sent error if a preliminary transaction didn't succeed or the send was stopped before it prepared the
+    ///   next transaction; `CancellationError` if the person cancels authentication; or a preparation, signing, or
+    ///   storage error.
     private func sendInSteps(startingWith first: ProposedTransaction<Proposal.Review>,
                              using coordinator: any TransactionCoordinating) async throws -> TransactionRecord {
         var proposed = first
@@ -221,27 +232,28 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
             }
             guard !isStopping else { throw Proposal.Error.notSent }
             try Task.checkCancellation()
-            proposed = try await nextProposed()
+            proposed = try await simulate(retryingUpTo: Self.maximumRetries)
             guard !isStopping, proposed.followingTransactions <= approvedTransactions else {
-                throw Proposal.Error.notSent
+                throw Error.endedBeforeNextTransaction
             }
         }
     }
 
-    /// Prepares and simulates the proposal's next transaction, trying again after an error that can clear by itself
-    /// without preparing a transaction that's already prepared.
+    /// Simulates the kept preparation, or prepares the transaction and simulates its preparation.
     ///
-    /// A dropped transaction's preparation is simulated again, and prepared again only if the proposal rejects it.
+    /// It prepares the transaction again only if the proposal rejects the kept preparation, and simulates again
+    /// without preparing after an error that can clear by itself.
     ///
-    /// - Returns: The simulation of the next transaction.
-    /// - Throws: A preparation or cancellation error.
-    private func nextProposed() async throws -> ProposedTransaction<Proposal.Review> {
+    /// - Parameter maximumRetries: The most times that it simulates again after an error that can clear by itself.
+    /// - Returns: The simulation of the transaction.
+    /// - Throws: A preparation, simulation, or cancellation error.
+    private func simulate(retryingUpTo maximumRetries: Int = 0) async throws -> ProposedTransaction<Proposal.Review> {
         var retries = 0
         var reusesPreparation = preparation != nil
         while true {
             do {
                 return try await proposal.simulate(try await prepared(), with: coordinator, from: account)
-            } catch let error as RPCError where error.isRecoverable && retries < Self.maximumRetries {
+            } catch let error as RPCError where error.isRecoverable && retries < maximumRetries {
                 retries += 1
             } catch is Proposal.Error where reusesPreparation {
                 reusesPreparation = false
@@ -266,12 +278,16 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
         self.error = error as? Proposal.Error ?? .preparationFailed
     }
 
-    /// Forgets the preparation, unless the error can clear by itself and the next review can simulate the same
-    /// preparation again.
+    /// Forgets the preparation, unless the error can clear by itself or the send ended before its next transaction,
+    /// and the next review can simulate the same preparation again.
     ///
     /// - Parameter error: The error that ended a review or a send.
     private func forgetPreparation(after error: any Swift.Error) {
-        if (error as? RPCError)?.isRecoverable != true { preparation = nil }
+        switch error {
+        case Error.endedBeforeNextTransaction: return
+        case let error as RPCError where error.isRecoverable: return
+        default: preparation = nil
+        }
     }
 }
 
