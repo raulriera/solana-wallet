@@ -69,7 +69,7 @@ Stop and ask the user before you break one of these.
 ## Project layout
 
 - Group files by concern in real folders that Xcode mirrors.
-- `Frameworks/<Module>` holds `Sources`, `Tests`, and a concise, factual `README.md` for third-party readers, without project history, progress reports, or agent-only guidance. `Frameworks/TestSupport` holds test helpers shared by frameworks.
+- `Frameworks/<Module>` holds `Sources`, `Tests`, and a concise, factual `README.md` for third-party readers, without project history, progress reports, or agent-only guidance. Add a Mermaid diagram of a flow, a set of states, or an exchange between parts only where it explains more than a few sentences would: under a short heading with one or two plain sentences, with standard symbols, about 14 nodes at most, and a label on every arrow out of a decision. `Frameworks/TestSupport` holds test helpers shared by frameworks.
 - `App/Sources`:
   - `Application`: app entry and window ownership. `Composition` assembles services and coordinators, `Routing` holds destination contracts and navigation state, and `Startup` restores launch state.
   - `Features/<Feature>`: workflows, coordinators, contracts, and models. Add focused folders only as needed, such as scenes for navigation containers, screens for destinations, sections, components, routing, and styles; they stay with their feature unless shared.
