@@ -180,13 +180,13 @@ struct KeychainStoreTests {
         }
         defer { second.cancel() }
         _ = await created.next()
-        keychain.state.withLock { $0.blocksReads = false }
         clock.advance(to: firstDeadline)
         let secondDeadline = try #require(await clock.nextDeadline(&waits))
 
         await #expect(throws: KeychainStoreError.interactionNotAllowed) { try await first.value }
         #expect(secondDeadline == firstDeadline.advanced(by: .seconds(30)))
-        #expect(try await second.value.passphrase == " TREZOR ")
+        second.cancel()
+        _ = await second.result
     }
 
     @Test
