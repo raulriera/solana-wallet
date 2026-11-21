@@ -48,12 +48,13 @@ struct LocalSteppedReview {
     let clock = ManualClock()
 
     init(followingTransactions: [Int], failingSimulations: [Int: any Swift.Error] = [:],
-         statuses: [GetSignatureStatuses.Response], height: UInt64 = 500) throws {
-        let payment = try LocalPaymentReview(statuses: statuses, height: height)
+         statuses: [GetSignatureStatuses.Response], height: UInt64 = 500,
+         sockets: SocketSequence = SocketSequence()) throws {
+        let payment = try LocalPaymentReview(statuses: statuses, height: height, sockets: sockets)
         recovery = payment.recovery
         transactions = payment.transactions
         sent = payment.sent
-        sockets = payment.sockets
+        self.sockets = payment.sockets
         model = try TransactionReviewModel(
             SteppedProposal(payment: payment.model.proposal, followingTransactions: followingTransactions,
                             failingSimulations: failingSimulations),

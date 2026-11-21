@@ -44,6 +44,8 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     private var isProposed = false
     /// Whether a send with preliminary transactions ends before its next transaction.
     @ObservationIgnored private var isStopping = false
+    /// Whether a transaction of the running send landed, so that its fees left the account.
+    @ObservationIgnored private var hasLanded = false
     private let account: Account
     private let network: Network
     private let coordinator: any TransactionCoordinating
@@ -68,6 +70,9 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     var isSending: Bool { attempt?.work == .send || (record != nil && outcome == nil) }
 
     var canApprove: Bool { attempt == nil && isProposed && record == nil }
+
+    /// The error that ends the running send: not finished once one of its transactions landed, otherwise not sent.
+    private var sendError: Proposal.Error { hasLanded ? .notFinished : .notSent }
 
     /// Creates a review of a proposed transaction.
     ///
@@ -161,6 +166,7 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     private func start(_ work: Work) {
         error = nil
         isStopping = false
+        hasLanded = false
         attempt = Attempt(work: work)
     }
 
@@ -189,7 +195,8 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     /// Signs and sends the reviewed transaction and keeps its record, after any preliminary transactions.
     ///
     /// An error of the proposal, such as a next transaction that the account can't pay for, shows as itself; any other
-    /// error shows as the proposal's not-sent error.
+    /// error shows as the proposal's not-finished error once one of the send's transactions landed, and as its not-sent
+    /// error before.
     private func send() async {
         guard let proposed else { return }
         do {
@@ -204,14 +211,15 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
             await prepare()
         } catch {
             self.proposed = nil
-            show(error, otherwise: .notSent)
+            show(error, otherwise: sendError)
         }
     }
 
     /// Sends the proposal's preliminary transactions and then its own: it sends each transaction, waits for its
-    /// outcome, and prepares the next one. It sends a dropped transaction again only with the same preparation, and
-    /// ends when the proposal rejects that preparation, so that a transaction that landed despite a drop can't be paid
-    /// again with a new preparation.
+    /// outcome, and prepares the next one. A transaction whose watch ends with an error waits until a later watch finds
+    /// its outcome. It sends a dropped transaction again only with the same preparation, and ends when the proposal
+    /// rejects that preparation, so that a transaction that landed despite a drop can't be paid again with a new
+    /// preparation.
     ///
     /// Once the first transaction is sent, its simulation no longer waits for approval.
     ///
@@ -221,10 +229,10 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     /// - Returns: The record of the proposal's own transaction.
     /// - Throws: ``Error/endedBeforeNextTransaction`` if the send was stopped while it prepared the next transaction,
     ///   or that transaction needs more transactions than the person approved with the first one; the proposal's
-    ///   not-sent error if a preliminary transaction didn't succeed or the send was stopped before it prepared the
-    ///   next transaction; the proposal's error if it rejects the next transaction or the preparation of a dropped
-    ///   one; `CancellationError` if the person cancels authentication or the task is cancelled; or a preparation,
-    ///   signing, or storage error.
+    ///   not-finished error, or its not-sent error before a transaction landed, if a preliminary transaction didn't
+    ///   succeed or the send was stopped before it prepared the next transaction; the proposal's error if it rejects
+    ///   the next transaction or the preparation of a dropped one; `CancellationError` if the person cancels
+    ///   authentication or the task is cancelled; or a preparation, signing, or storage error.
     private func sendInSteps(startingWith first: ProposedTransaction<Proposal.Review>,
                              using coordinator: any TransactionCoordinating) async throws -> TransactionRecord {
         var proposed = first
@@ -234,7 +242,9 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
             let sent = try await transactions.send(proposed.simulation, as: proposed.kind, from: account,
                                                    settling: proposed.settling, using: coordinator)
             self.proposed = nil
-            switch try? await transactions.watch(sent.id, for: sent.key) {
+            let outcome = try? await outcome(of: sent)
+            if outcome == .succeeded || outcome == .failed { hasLanded = true }
+            switch outcome {
             case .succeeded? where proposed.isPreliminary:
                 resends = 0
                 preparation = nil
@@ -243,17 +253,34 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
             case .succeeded?, .dropped?, .failed?, nil:
                 guard !proposed.isPreliminary else {
                     try Task.checkCancellation()
-                    throw Proposal.Error.notSent
+                    throw sendError
                 }
                 return sent
             }
-            guard !isStopping else { throw Proposal.Error.notSent }
+            guard !isStopping else { throw sendError }
             try Task.checkCancellation()
             proposed = try await simulate(retryingUpTo: Self.maximumRetries, preparingAgain: false)
             try Task.checkCancellation()
             guard !isStopping, proposed.followingTransactions <= approvedTransactions else {
                 throw Error.endedBeforeNextTransaction
             }
+        }
+    }
+
+    /// Waits for a sent transaction's outcome; when its watch ends with an error, it waits until a later watch finds the
+    /// outcome.
+    ///
+    /// - Parameter sent: The sent transaction's record.
+    /// - Returns: The transaction's outcome.
+    /// - Throws: `CancellationError` if the task or the watch is cancelled.
+    private func outcome(of sent: TransactionRecord) async throws -> TransactionOutcome {
+        do {
+            return try await transactions.watch(sent.id, for: sent.key)
+        } catch where !(error is CancellationError) {
+            for await outcome in Observations({ self.transactions.record(sent.id, for: sent.key)?.outcome }) {
+                if let outcome { return outcome }
+            }
+            throw CancellationError()
         }
     }
 

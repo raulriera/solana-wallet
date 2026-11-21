@@ -10,7 +10,7 @@ struct TransactionReviewModelTests {
     private static let rateLimit = RPCError.http(statusCode: 429, retryAfter: "3")
     nonisolated private static let slotError = RPCError.server(code: -32016,
                                                                message: "Minimum context slot has not been reached")
-    private static let instructionError = TransactionError(
+    nonisolated private static let instructionError = TransactionError(
         name: "InstructionError", details: .array([.integer(0), .object(["Custom": .integer(1)])])
     )
     nonisolated private static let invalidParams = RPCError.server(code: -32602, message: "Invalid params")
@@ -202,7 +202,7 @@ struct TransactionReviewModelTests {
         let send = Task { await model.run(model.attempt) }
         try await review.clock.advanceWaits(&waits, count: 2)
         await send.value
-        try #require(model.error == .notSent)
+        try #require(model.error == .notFinished)
 
         model.retry()
         await model.run(model.attempt)
@@ -256,20 +256,58 @@ struct TransactionReviewModelTests {
         await review.sockets.waitUntilClosed()
     }
 
-    @Test
-    func `A preliminary transaction that fails ends the send as not sent without sending more`() async throws {
-        let review = try LocalSteppedReview(followingTransactions: [1, 0],
-                                            statuses: [.status(.finalized, error: Self.instructionError)])
+    @Test(arguments: [
+        ([1, 0], GetSignatureStatuses.Response.status(.finalized, error: Self.instructionError), UInt64(500), false,
+         SendError.notFinished, 1),
+        ([1, 0], .status(.finalized), 500, true, .notFinished, 1),
+        ([1, 1, 0], .status(.finalized), 500, false, .notFinished, 1),
+        ([1], .status(nil), 600, false, .notSent, 3),
+    ])
+    func `A send that ends after one of its transactions landed isn't finished, and before that isn't sent`(
+        followingTransactions: [Int], status: GetSignatureStatuses.Response, height: UInt64, isStopped: Bool,
+        error: SendError, sendCount: Int
+    ) async throws {
+        let review = try LocalSteppedReview(followingTransactions: followingTransactions, statuses: [status],
+                                            height: height)
         let model = review.model
         try await model.runReview()
 
         model.approve()
+        if isStopped { model.stopSending() }
         await model.run(model.attempt)
 
         #expect(model.record == nil)
-        #expect(model.error == .notSent)
-        #expect(await review.sent.requests.count == 1)
+        #expect(model.error == error)
+        #expect(await review.sent.requests.count == sendCount)
         await review.sockets.waitUntilClosed()
+    }
+
+    @Test
+    func `A preliminary transaction whose watch stops keeps the send waiting until a later watch settles it`()
+        async throws {
+        let refusal = Self.rateLimit
+        let sockets = SocketSequence { $0 == 0 ? SocketSequence.failing(with: refusal) : SocketSequence.watch() }
+        let review = try LocalSteppedReview(followingTransactions: [1, 0], statuses: [.status(.finalized)],
+                                            sockets: sockets)
+        let model = review.model
+        try await model.runReview()
+        model.approve()
+        let send = Task { await model.run(model.attempt) }
+        while sockets.sockets.count < 2 {
+            await review.transactions.resume()
+            await Task.yield()
+        }
+
+        #expect(model.isSending)
+        #expect(!model.canApprove)
+        #expect(model.error == nil)
+
+        await send.value
+
+        #expect(model.outcome == .succeeded)
+        #expect(await review.sent.requests.count == 2)
+        #expect(sockets.sockets.count == 3)
+        await sockets.waitUntilClosed()
     }
 
     @Test
@@ -340,50 +378,19 @@ struct TransactionReviewModelTests {
     }
 
     @Test
-    func `A send ends before a transaction that needs more transactions than the person approved`() async throws {
-        let review = try LocalSteppedReview(followingTransactions: [1, 1, 0], statuses: [.status(.finalized)])
-        let model = review.model
-        try await model.runReview()
-
-        model.approve()
-        await model.run(model.attempt)
-
-        #expect(model.record == nil)
-        #expect(model.error == .notSent)
-        #expect(await review.sent.requests.count == 1)
-        await review.sockets.waitUntilClosed()
-    }
-
-    @Test
     func `Trying again after a send ends beyond the approved transactions keeps the next preparation`() async throws {
         let review = try LocalSteppedReview(followingTransactions: [1, 1, 0], statuses: [.status(.finalized)])
         let model = review.model
         try await model.runReview()
         model.approve()
         await model.run(model.attempt)
-        try #require(model.error == .notSent)
+        try #require(model.error == .notFinished)
 
         model.retry()
         await model.run(model.attempt)
 
         #expect(model.canApprove)
         #expect(model.proposal.simulations.prepareCount == 2)
-        await review.sockets.waitUntilClosed()
-    }
-
-    @Test
-    func `Stopping a send ends it before its next transaction`() async throws {
-        let review = try LocalSteppedReview(followingTransactions: [1, 0], statuses: [.status(.finalized)])
-        let model = review.model
-        try await model.runReview()
-
-        model.approve()
-        model.stopSending()
-        await model.run(model.attempt)
-
-        #expect(model.record == nil)
-        #expect(model.error == .notSent)
-        #expect(await review.sent.requests.count == 1)
         await review.sockets.waitUntilClosed()
     }
 
@@ -398,7 +405,7 @@ struct TransactionReviewModelTests {
         await model.run(model.attempt)
 
         #expect(model.record == nil)
-        #expect(model.error == .notSent)
+        #expect(model.error == .notFinished)
         #expect(model.proposal.simulations.prepareCount == 2)
         #expect(await review.sent.requests.count == 1)
         await review.sockets.waitUntilClosed()
