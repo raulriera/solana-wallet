@@ -44,7 +44,7 @@ Stop and ask the user before you break one of these.
 
 ## Skills
 
-- Use [SwiftUI Expert](plugin://swiftui-expert@swiftui-expert-skill) and Xcode's `swiftui-specialist` skill for UI work.
+- Use [SwiftUI Expert](https://github.com/AvdLee/SwiftUI-Agent-Skill) and Xcode's `swiftui-specialist` skill for UI work.
 - Validate concurrency changes against current Apple documentation and the Swift Concurrency plugin's `swift-concurrency` skill.
 - Use Xcode's skills for their concerns, alongside the plugins named here. `xcrun agent skills export` installs most of them; the accessibility and translation skills come only from Xcode's agent plugin (`xcrun agent plugin path --plugin-format <agent>`). Skills that call Xcode's tools need its MCP bridge (`xcrun mcpbridge`).
   - `swiftui-whats-new-27`: SwiftUI code.

@@ -2,7 +2,7 @@
 
 ## Coverage
 
-- Follow [Swift Testing Expert](plugin://swift-testing-expert@swift-testing-agent-skill): Swift Testing for unit tests, XCTest for UI automation. XCUITests need explicit Objective-C selectors.
+- Follow [Swift Testing Expert](https://github.com/AvdLee/Swift-Testing-Agent-Skill): Swift Testing for unit tests, XCTest for UI automation. XCUITests need explicit Objective-C selectors.
 - Test only the app's own functionality, offline or in UI tests; never test a provider's API.
 - Test meaningful outcomes. Separate success and failure paths, cover shared behavior once, and skip initializer-assignment tests.
 - Test internal workflows in app-hosted tests with `@testable` imports. Use ordinary imports for framework APIs, and existing transport or storage seams without widening the production API.
@@ -21,7 +21,7 @@ Pass the existing regular iPhone simulator to every command, such as `-destinati
 
 ## UI automation
 
-- Follow the [XCUITest Best Practices](plugin://skills@raulriera) skill (`xcuitest-best-practices`).
+- Follow the [XCUITest Best Practices](https://github.com/raulriera/skills/tree/main/xcuitest-best-practices) skill (`xcuitest-best-practices`).
 - Each test prepares its own state before services start. Destructive reset hooks run only in explicit Debug simulator test launches.
 - Query visible text and accessibility labels. Add no test-only identifiers and no accessibility-only tests.
 - Unexpected alerts fail at once; never hide them with timeouts, automatic dismissal, or retries of committed actions.

@@ -55,6 +55,7 @@
           "children": [
             { "kind": "folder", "path": "Sources", "target-membership": [ "Algorithms" ] },
             { "kind": "folder", "path": "Tests", "target-membership": [ "AlgorithmsTests" ] },
+            { "path": "LICENSE.txt" },
             { "path": "README.md" },
           ],
         }, {

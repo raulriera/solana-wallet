@@ -26,6 +26,10 @@ The full rules are in [AGENTS.md](AGENTS.md) and [references/](references/). Thi
 - Match the existing names, folders, and code shapes.
 - Write DocC comments for production code only. Add no other comments.
 
+## Coding agents
+
+- If your coding agent runs the project's hooks in `.claude/`, install [xcsift](https://github.com/ldomaradzki/xcsift) first, such as with `brew install xcsift`. The hooks stop plain `xcodebuild` build and test commands and tell the agent to send their output through xcsift.
+
 ## Pull requests
 
 - Keep each pull request to one concern and at most 8 files, not counting Markdown files. If longer, use stacks.
