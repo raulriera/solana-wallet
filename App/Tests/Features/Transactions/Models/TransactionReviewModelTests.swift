@@ -116,6 +116,67 @@ struct TransactionReviewModelTests {
         await review.sockets.waitUntilClosed()
     }
 
+    @Test(arguments: [
+        (RPCError.server(code: -32016, message: "Minimum context slot has not been reached"), 1),
+        (RPCError.server(code: -32602, message: "Invalid params"), 2),
+    ])
+    func `Retrying a review whose simulation failed prepares again only after an error that can't clear`(
+        error: RPCError, prepareCount: Int
+    ) async throws {
+        let review = try LocalSteppedReview(preliminaryCount: 0, failingSimulations: [0: error], statuses: [])
+        let model = review.model
+        model.prepareReview()
+        await model.run(model.attempt)
+        try #require(model.error == .preparationFailed)
+
+        model.retry()
+        await model.run(model.attempt)
+
+        #expect(model.canApprove)
+        #expect(model.proposal.simulations.count == 2)
+        #expect(model.proposal.simulations.prepareCount == prepareCount)
+    }
+
+    @Test
+    func `A simulation that fails with an error that can clear is tried again without another preparation`()
+        async throws {
+        let slotError = RPCError.server(code: -32016, message: "Minimum context slot has not been reached")
+        let review = try LocalSteppedReview(preliminaryCount: 1, failingSimulations: [1: slotError],
+                                            statuses: [.status(.finalized)])
+        let model = review.model
+        try await model.runReview()
+
+        model.approve()
+        await model.run(model.attempt)
+
+        #expect(model.outcome == .succeeded)
+        #expect(model.proposal.simulations.count == 3)
+        #expect(model.proposal.simulations.prepareCount == 2)
+        await review.sockets.waitUntilClosed()
+    }
+
+    @Test
+    func `Retrying a send whose next simulation kept failing with an error that can clear keeps its preparation`()
+        async throws {
+        let slotError = RPCError.server(code: -32016, message: "Minimum context slot has not been reached")
+        let review = try LocalSteppedReview(preliminaryCount: 1,
+                                            failingSimulations: [1: slotError, 2: slotError, 3: slotError],
+                                            statuses: [.status(.finalized)])
+        let model = review.model
+        try await model.runReview()
+        model.approve()
+        await model.run(model.attempt)
+        try #require(model.error == .notSent)
+
+        model.retry()
+        await model.run(model.attempt)
+
+        #expect(model.canApprove)
+        #expect(model.proposal.simulations.count == 5)
+        #expect(model.proposal.simulations.prepareCount == 2)
+        await review.sockets.waitUntilClosed()
+    }
+
     @Test
     func `A preliminary transaction that keeps dropping is sent three times before the send ends`() async throws {
         let review = try LocalSteppedReview(preliminaryCount: .max, statuses: [.status(nil)], height: 600)
