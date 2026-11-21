@@ -24,18 +24,3 @@ nonisolated protocol TransactionSigning: Sendable {
         reason: String, _ operation: @Sendable (any TransactionSigning) async throws -> Value
     ) async throws -> Value
 }
-
-extension TransactionSigning {
-    /// Runs an operation with this signer, where each signature authenticates on its own.
-    ///
-    /// - Parameters:
-    ///   - reason: The localized reason, which this signer doesn't show.
-    ///   - operation: The work to run with this signer.
-    /// - Returns: The operation's result.
-    /// - Throws: The operation's error.
-    func withSharedAuthentication<Value: Sendable>(
-        reason: String, _ operation: @Sendable (any TransactionSigning) async throws -> Value
-    ) async throws -> Value {
-        try await operation(self)
-    }
-}

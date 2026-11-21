@@ -62,17 +62,6 @@ nonisolated protocol TransactionCoordinating: TransactionConfirming {
 }
 
 extension TransactionCoordinating {
-    /// Runs an operation with this coordinator, where each signature authenticates on its own.
-    ///
-    /// - Parameter operation: The work to run with this coordinator.
-    /// - Returns: The operation's result.
-    /// - Throws: The operation's error.
-    func withSharedAuthentication<Value: Sendable>(
-        _ operation: @Sendable (any TransactionCoordinating) async throws -> Value
-    ) async throws -> Value {
-        try await operation(self)
-    }
-
     /// Simulates a payment of SOL or a token from the account's associated token account.
     ///
     /// - Parameters:

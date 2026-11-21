@@ -13,7 +13,7 @@ public struct KeychainStore: RecoveryStoring {
     private let keychain: any KeychainAccessing
     private let clock: any Clock<Duration>
     /// The authentication that this store's operations share, or `nil` if each operation has its own.
-    private let authentication: AuthenticationContext?
+    private var authentication: AuthenticationContext?
     private let queue = DispatchQueue(label: "Vault.Keychain", qos: .userInitiated)
 
     /// The longest a recovery read waits for authentication once it starts.
@@ -32,13 +32,10 @@ public struct KeychainStore: RecoveryStoring {
     ///   - service: The app-specific Keychain service name.
     ///   - keychain: The Keychain operations.
     ///   - clock: The clock that times authentication.
-    ///   - authentication: The authentication that the store's operations share, or `nil` if each has its own.
-    init(service: String, keychain: any KeychainAccessing, clock: any Clock<Duration> = ContinuousClock(),
-         authentication: AuthenticationContext? = nil) {
+    init(service: String, keychain: any KeychainAccessing, clock: any Clock<Duration> = ContinuousClock()) {
         self.service = service
         self.keychain = keychain
         self.clock = clock
-        self.authentication = authentication
     }
 
     public func save(_ recovery: Recovery, for recoveryID: UUID) async throws {
@@ -81,9 +78,9 @@ public struct KeychainStore: RecoveryStoring {
         if authentication != nil { return try await operation(self) }
         let authentication = AuthenticationContext(context: keychain.makeContext(), reason: reason)
         defer { authentication.finish() }
-        return try await operation(
-            KeychainStore(service: service, keychain: keychain, clock: clock, authentication: authentication)
-        )
+        var store = self
+        store.authentication = authentication
+        return try await operation(store)
     }
 
     public func deleteRecovery(for recoveryID: UUID) async throws {
