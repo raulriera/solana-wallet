@@ -229,6 +229,23 @@ struct TransactionReviewModelTests {
     }
 
     @Test
+    func `A send whose next transaction the proposal rejects shows the proposal's error`() async throws {
+        let review = try LocalSteppedReview(followingTransactions: [1, 0],
+                                            failingSimulations: [1: SendError.notEnoughSOL],
+                                            statuses: [.status(.finalized)])
+        let model = review.model
+        try await model.runReview()
+
+        model.approve()
+        await model.run(model.attempt)
+
+        #expect(model.record == nil)
+        #expect(model.error == .notEnoughSOL)
+        #expect(await review.sent.requests.count == 1)
+        await review.sockets.waitUntilClosed()
+    }
+
+    @Test
     func `A send ends before a transaction that needs more transactions than the person approved`() async throws {
         let review = try LocalSteppedReview(followingTransactions: [1, 1, 0], statuses: [.status(.finalized)])
         let model = review.model

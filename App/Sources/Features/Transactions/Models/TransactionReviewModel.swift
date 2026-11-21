@@ -185,6 +185,9 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     }
 
     /// Signs and sends the reviewed transaction and keeps its record, after any preliminary transactions.
+    ///
+    /// An error of the proposal, such as a next transaction that the account can't pay for, shows as itself; any other
+    /// error shows as the proposal's not-sent error.
     private func send() async {
         guard let proposed else { return }
         do {
@@ -200,7 +203,7 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
         } catch {
             self.proposed = nil
             forgetPreparation(after: error)
-            self.error = .notSent
+            self.error = error as? Proposal.Error ?? .notSent
         }
     }
 
