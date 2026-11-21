@@ -866,6 +866,24 @@ struct PrivateBalancesTests {
     }
 
     @Test
+    func `A withdrawal that no pair of trees covers merges the pair whose notes total the most`() async throws {
+        let sender = try await Self.account(holding: [(amount: 2, tree: 1), (5, 2), (4, 3)], merging: 2)
+        let responses = sender.responses
+        let balances = try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
+
+        let prepared = try await balances.prepare(.withdraw(11, of: .nativeSOL, to: sender.account.address),
+                                                  from: sender.account, on: .devnet)
+
+        let (spend, following) = try #require(prepared.effect.merge)
+        #expect(following == 1)
+        #expect(spend.amount == 9)
+        #expect(spend.receivedAmount == 9)
+        #expect(spend.treeIDs == [1, 2, 3])
+        #expect(try await balances.complete(prepared, with: PrivateBalanceFixtures.confirmation(.succeeded))
+            == .balance(available: 2, pending: 9, of: .nativeSOL))
+    }
+
+    @Test
     func `A spend that a pending amount would cover waits for it 20 times before it's insufficient`() async throws {
         let sender = try await Self.accountOfManyNotes()
         let responses = sender.responses
@@ -934,10 +952,19 @@ struct PrivateBalancesTests {
 
     private static func accountOfManyNotes() async throws -> (account: widgets.Account,
         keys: StoredValue<PrivateBalances.Keys>, notes: StoredValue<PrivateBalances.Notes>, responses: HTTPResponses) {
+        try await account(holding: Array(repeating: (amount: 1, tree: 1), count: 41), merging: 40)
+    }
+
+    private static func account(holding notes: [(amount: UInt64, tree: UInt16)], merging merged: Int) async throws
+        -> (account: widgets.Account, keys: StoredValue<PrivateBalances.Keys>, notes: StoredValue<PrivateBalances.Notes>,
+            responses: HTTPResponses) {
         let sender = try await fundedAccount(amount: 1, of: .nativeSOL)
         let shielded = try await PrivateBalanceFixtures.keys(for: sender.account).shieldedAccount(for: sender.account.address)
-        let deposits = try (1...41).map { try PrivateBalanceFixtures.deposit(1, to: shielded, leafIndex: UInt64($0), of: .nativeSOL) }
-        let unqueued = AccountReplies.accounts(Array(repeating: nil, count: 40))
+        let deposits = try notes.enumerated().map { index, note in
+            try PrivateBalanceFixtures.deposit(note.amount, to: shielded, leafIndex: UInt64(index) + 1, tree: note.tree,
+                                               of: .nativeSOL)
+        }
+        let unqueued = AccountReplies.accounts(Array(repeating: nil, count: merged))
         let responses = HTTPResponses.privateNotes(registry: [unqueued], deposits: deposits, outputTreeID: 1,
                                                    prover: try IndexedProofs.prover())
         return (sender.account, sender.keys, sender.notes, responses)

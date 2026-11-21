@@ -140,9 +140,9 @@ enum PrivateBalanceFixtures {
         return AccountReplies.account(owner: try UserRegistry.address.value, lamports: 1_586_880, data: data)
     }
 
-    static func deposit(_ amount: UInt64, to account: ShieldedAccount, leafIndex: UInt64,
+    static func deposit(_ amount: UInt64, to account: ShieldedAccount, leafIndex: UInt64, tree treeID: UInt16 = 1,
                         of asset: PrivateAsset) throws -> String {
-        let utxo = try utxo(amount, of: account, leafIndex: leafIndex, asset: asset)
+        let utxo = try utxo(amount, of: account, leafIndex: leafIndex, treeID: treeID, asset: asset)
         var body = [0] + utxo.owner.bigEndianBytes + utxo.blinding.bigEndianBytes + utxo.asset.mintBytes
         body.append(littleEndian: amount)
         body += [UInt8](repeating: 0, count: 5) + [0]
@@ -157,7 +157,7 @@ enum PrivateBalanceFixtures {
     }
 
     static func spend(of lamports: UInt64, to account: ShieldedAccount, leafIndex: UInt64) throws -> String {
-        let utxo = try utxo(lamports, of: account, leafIndex: leafIndex, asset: .nativeSOL)
+        let utxo = try utxo(lamports, of: account, leafIndex: leafIndex, treeID: 1, asset: .nativeSOL)
         let nullifier = Base58.encode(utxo.nullifier(using: account.nullifierKey).bigEndianBytes)
         let signature = Base58.encode([UInt8](repeating: UInt8(truncatingIfNeeded: leafIndex + 101), count: 64))
         return IndexerReplies.transaction(signature: signature, slot: 4, nullifiers: [nullifier])
@@ -173,10 +173,10 @@ enum PrivateBalanceFixtures {
         return try plan.proofRequest(nullifierKey: account.nullifierKey)
     }
 
-    private static func utxo(_ amount: UInt64, of account: ShieldedAccount, leafIndex: UInt64,
+    private static func utxo(_ amount: UInt64, of account: ShieldedAccount, leafIndex: UInt64, treeID: UInt16,
                              asset: PrivateAsset) throws -> UTXO {
-        let blinding = ShieldedPool.depositBlinding(tree: try ShieldedPool.tree(id: 1), leafIndex: leafIndex)
+        let blinding = ShieldedPool.depositBlinding(tree: try ShieldedPool.tree(id: treeID), leafIndex: leafIndex)
         return UTXO(owner: try account.recipient.owner, asset: asset, amount: amount,
-                    blinding: blinding, treeID: 1)
+                    blinding: blinding, treeID: treeID)
     }
 }
