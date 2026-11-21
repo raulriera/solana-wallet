@@ -17,7 +17,7 @@ struct SteppedProposal: TransactionProposal {
 
     let payment: PaymentProposal
     let preliminaryCount: Int
-    let failingSimulations: [Int: RPCError]
+    let failingSimulations: [Int: any Swift.Error]
     let simulations = Simulations()
 
     var refreshInterval: Duration { payment.refreshInterval }
@@ -44,7 +44,7 @@ struct LocalSteppedReview {
     let sent = HTTPResponses.sending()
     let sockets = SocketSequence()
 
-    init(preliminaryCount: Int, failingSimulations: [Int: RPCError] = [:], statuses: [GetSignatureStatuses.Response],
+    init(preliminaryCount: Int, failingSimulations: [Int: any Swift.Error] = [:], statuses: [GetSignatureStatuses.Response],
          height: UInt64 = 500) throws {
         var fixture = try SigningFixture()
         fixture.simulation = SimulateTransaction.Response(context: Context(slot: 402), value: LocalPaymentReview.success)

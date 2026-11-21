@@ -192,7 +192,7 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     }
 
     /// Sends the proposal's preliminary transactions and then its own: it sends each transaction, waits for its
-    /// outcome, and prepares the next one, sending a dropped one again.
+    /// outcome, and prepares the next one, sending a dropped one again with the same preparation.
     ///
     /// - Parameters:
     ///   - first: The approved simulation of the first preliminary transaction.
@@ -207,9 +207,10 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
         while true {
             let sent = try await transactions.send(proposed.simulation, as: proposed.kind, from: account,
                                                    settling: proposed.settling, using: coordinator)
-            preparation = nil
             switch try? await transactions.watch(sent.id, for: sent.key) {
-            case .succeeded? where proposed.isPreliminary: resends = 0
+            case .succeeded? where proposed.isPreliminary:
+                resends = 0
+                preparation = nil
             case .dropped? where resends < Self.maximumResends: resends += 1
             case .succeeded?, .dropped?, .failed?, nil:
                 guard !proposed.isPreliminary else { throw Proposal.Error.notSent }
@@ -225,15 +226,21 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     /// Prepares and simulates the proposal's next transaction, trying again after an error that can clear by itself
     /// without preparing a transaction that's already prepared.
     ///
+    /// A dropped transaction's preparation is simulated again, and prepared again only if the proposal rejects it.
+    ///
     /// - Returns: The simulation of the next transaction.
     /// - Throws: A preparation or cancellation error.
     private func nextProposed() async throws -> ProposedTransaction<Proposal.Review> {
         var retries = 0
+        var reusesPreparation = preparation != nil
         while true {
             do {
                 return try await proposal.simulate(try await prepared(), with: coordinator, from: account)
             } catch let error as RPCError where error.isRecoverable && retries < Self.maximumRetries {
                 retries += 1
+            } catch is Proposal.Error where reusesPreparation {
+                reusesPreparation = false
+                preparation = nil
             }
         }
     }

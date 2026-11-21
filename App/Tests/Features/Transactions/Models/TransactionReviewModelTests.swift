@@ -178,7 +178,7 @@ struct TransactionReviewModelTests {
     }
 
     @Test
-    func `A preliminary transaction that keeps dropping is sent three times before the send ends`() async throws {
+    func `A preliminary transaction that keeps dropping is sent three times with one preparation`() async throws {
         let review = try LocalSteppedReview(preliminaryCount: .max, statuses: [.status(nil)], height: 600)
         let model = review.model
         try await model.runReview()
@@ -188,6 +188,25 @@ struct TransactionReviewModelTests {
 
         #expect(model.record == nil)
         #expect(model.error == .notSent)
+        #expect(model.proposal.simulations.prepareCount == 1)
+        #expect(await review.sent.requests.count == 3)
+        await review.sockets.waitUntilClosed()
+    }
+
+    @Test
+    func `A dropped transaction whose preparation the proposal rejects is prepared again`() async throws {
+        let review = try LocalSteppedReview(preliminaryCount: .max,
+                                            failingSimulations: [1: SendError.preparationFailed],
+                                            statuses: [.status(nil)], height: 600)
+        let model = review.model
+        try await model.runReview()
+
+        model.approve()
+        await model.run(model.attempt)
+
+        #expect(model.error == .notSent)
+        #expect(model.proposal.simulations.prepareCount == 2)
+        #expect(model.proposal.simulations.count == 4)
         #expect(await review.sent.requests.count == 3)
         await review.sockets.waitUntilClosed()
     }
