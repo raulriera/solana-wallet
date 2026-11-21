@@ -48,6 +48,8 @@ The app turns on Apple's [Enhanced Security](https://developer.apple.com/documen
 
 Recovery phrases stay in Keychain items on the device. Reading them needs Face ID, Touch ID, or the device passcode. They never sync to iCloud and are not in backups.
 
+To report a vulnerability, see [SECURITY.md](SECURITY.md).
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
@@ -59,3 +61,5 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 ## License
 
 MIT. See [LICENSE.md](LICENSE.md).
+
+Files copied from other projects keep their own licenses. Their license headers, or the license files next to them, name these licenses.
