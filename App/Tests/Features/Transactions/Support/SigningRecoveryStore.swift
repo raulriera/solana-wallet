@@ -7,6 +7,7 @@ actor SigningRecoveryStore: RecoveryStoring {
     private let error: (any Error)?
     private let gate: Suspension?
     private(set) var reads: [(recoveryID: UUID, reason: String)] = []
+    private(set) var shared: [(reason: String, store: SigningRecoveryStore)] = []
 
     init(recovery: Recovery, error: (any Error)? = nil, gate: Suspension? = nil) {
         stored = recovery
@@ -19,6 +20,14 @@ actor SigningRecoveryStore: RecoveryStoring {
         if let error { throw error }
         if let gate { await gate.suspend() }
         return stored
+    }
+
+    func withSharedAuthentication<Value: Sendable>(
+        reason: String, _ operation: @Sendable (any RecoveryStoring) async throws -> Value
+    ) async throws -> Value {
+        let store = SigningRecoveryStore(recovery: stored, error: error, gate: gate)
+        shared.append((reason, store))
+        return try await operation(store)
     }
 
     func save(_ recovery: Recovery, for recoveryID: UUID) async throws {

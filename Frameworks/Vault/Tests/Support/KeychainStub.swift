@@ -20,6 +20,7 @@ final class KeychainStub: KeychainAccessing {
         var queriedOnlyLocalItems = true
         var ranOffMainThread = true
         var promptReasons: [String] = []
+        var readContexts: [ObjectIdentifier] = []
         var hidesPasscode = false
         var reusesUnlock = false
         var readCount = 0
@@ -61,6 +62,7 @@ final class KeychainStub: KeychainAccessing {
         let context = query[kSecUseAuthenticationContext as String] as! LAContext
         let blocksRead = state.withLock {
             $0.promptReasons.append(context.localizedReason)
+            $0.readContexts.append(ObjectIdentifier(context))
             $0.hidesPasscode = $0.hidesPasscode || context.localizedFallbackTitle == ""
             $0.reusesUnlock = $0.reusesUnlock || context.touchIDAuthenticationAllowableReuseDuration != 0
             $0.readCount += 1

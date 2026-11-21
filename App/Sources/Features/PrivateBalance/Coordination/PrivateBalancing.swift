@@ -35,7 +35,9 @@ nonisolated protocol PrivateBalancing: Sendable {
     ///   - request: The deposit, send, withdrawal, code creation, redeem, or take-back.
     ///   - account: The account whose private balance changes.
     ///   - network: The network to run on.
-    /// - Returns: The transaction's instructions and authorities, and the change it makes once it succeeds.
+    /// - Returns: The transaction's instructions and authorities, and the change it makes once it succeeds. For a
+    ///   send or withdrawal that needs more notes than one transaction spends, this is a merge of the account's
+    ///   notes that other transactions follow.
     /// - Throws: A ``PrivateBalanceError`` when the transaction can't be prepared, or a validation, storage,
     ///   provider, proof, or cancellation error.
     func prepare(_ request: PrivateTransactionRequest, from account: Account, on network: Network) async throws

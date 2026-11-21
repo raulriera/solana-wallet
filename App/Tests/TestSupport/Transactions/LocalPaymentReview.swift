@@ -16,7 +16,9 @@ struct LocalPaymentReview {
     let model: TransactionReviewModel<PaymentProposal>
     let account: widgets.Account
     let transactions: TransactionStore
+    let recovery: SigningRecoveryStore
     let preparation: HTTPResponses
+    let sent: HTTPResponses
     let sockets: SocketSequence
 
     init(simulation: SimulateTransaction.Value = success, store: SigningRecoveryStore? = nil,
@@ -24,7 +26,8 @@ struct LocalPaymentReview {
          sockets: SocketSequence = SocketSequence(), sent: HTTPResponses = .sending()) throws {
         var fixture = try SigningFixture()
         fixture.simulation = SimulateTransaction.Response(context: Context(slot: 402), value: simulation)
-        let local = try LocalTransactions(fixture: fixture, recovery: store, statuses: statuses, height: height,
+        let recovery = store ?? SigningRecoveryStore(recovery: fixture.recovery)
+        let local = try LocalTransactions(fixture: fixture, recovery: recovery, statuses: statuses, height: height,
                                           sockets: sockets, sent: sent)
         let coordinator = local.coordinator
         let transactions = TransactionStore.inMemory { _ in coordinator }
@@ -35,7 +38,9 @@ struct LocalPaymentReview {
         model = try TransactionReviewModel(proposal, from: fixture.account, on: .devnet, transactions: transactions)
         account = fixture.account
         self.transactions = transactions
+        self.recovery = recovery
         preparation = local.preparation
+        self.sent = sent
         self.sockets = sockets
     }
 }

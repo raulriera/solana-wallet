@@ -30,11 +30,14 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
         }
     }
 
+    /// The localized reason for the authentication that signs a transaction.
+    private static var approvalReason: String { String(localized: "Approve transaction") }
+
     private let id = UUID()
     private let tokens: TokenTransfers
     private let configuration: Configuration?
     private let preparer: any TransactionPreparing
-    private let signer: any TransactionSigning
+    private var signer: any TransactionSigning
     private let submitter: any TransactionSubmitting
     private let confirmer: any TransactionConfirming
 
@@ -120,6 +123,16 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
         return try await submitter.submit(signed(simulation))
     }
 
+    func withSharedAuthentication<Value: Sendable>(
+        _ operation: @Sendable (any TransactionCoordinating) async throws -> Value
+    ) async throws -> Value {
+        try await signer.withSharedAuthentication(reason: Self.approvalReason) { signer in
+            var coordinator = self
+            coordinator.signer = signer
+            return try await operation(coordinator)
+        }
+    }
+
     func confirm(_ submission: Submission) async throws -> Confirmation {
         do {
             return try await confirmer.confirm(submission)
@@ -142,8 +155,7 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
             let preparation = Preparation(source: original.source, signer: try authority.address, transaction: transaction,
                 network: original.network, fee: original.fee, simulation: original.simulation,
                 requirements: original.requirements)
-            transaction = try await signer.sign(preparation, for: authority,
-                reason: String(localized: "Approve transaction")).transaction
+            transaction = try await signer.sign(preparation, for: authority, reason: Self.approvalReason).transaction
         }
         return SignedTransaction(preparation: simulation.preparation, transaction: transaction)
     }

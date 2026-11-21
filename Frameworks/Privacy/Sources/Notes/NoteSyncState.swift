@@ -72,6 +72,18 @@ public struct NoteSyncState: Sendable, Equatable, Codable, Redacted {
         pending.filter { $0.asset == asset }.reduce(0) { $0 + $1.amount }
     }
 
+    /// Returns whether an asset's pending amounts, once they count as notes, change the notes that one transaction's
+    /// inputs take largest first.
+    ///
+    /// - Parameter asset: The asset.
+    /// - Returns: `true` if a pending amount of the asset is larger than the smallest of the asset's largest notes that
+    ///   one transaction's inputs take, or if those inputs aren't full and an amount of the asset is pending. The
+    ///   answer doesn't consider the notes' trees.
+    public func pendingAmountChangesInputs(of asset: PrivateAsset) -> Bool {
+        let smallestInput = notes(of: asset).map(\.amount).sorted(by: >).dropFirst(TransactPlan.maximumInputs - 1).first
+        return pending.contains { $0.asset == asset && $0.amount > smallestInput ?? 0 }
+    }
+
     /// Returns the unspent notes of an asset that no unsettled claimed spend names.
     ///
     /// - Parameter asset: The asset.

@@ -8,7 +8,7 @@ struct NoteSyncStateSpendClaimsTests {
     @Test
     func `Claims that their transactions confirm prove the spent nullifiers`() async throws {
         let note = NoteFixtures.note(at: 1)
-        let state = try Self.state(holding: [note])
+        let state = try NoteFixtures.state(notes: [note])
         let transport = Self.transport(["spender": SpendTransactions.result(spending: [note.nullifier.bigEndianBytes])])
         var reads = SpendReads()
 
@@ -32,7 +32,7 @@ struct NoteSyncStateSpendClaimsTests {
         ])
         var reads = SpendReads()
 
-        let confirmed = try await Self.state(holding: notes).confirmedSpends(
+        let confirmed = try await NoteFixtures.state(notes: notes).confirmedSpends(
             in: [Self.claim("failed", of: [notes[0]]), Self.claim("unrelated", of: [notes[1]], slot: 6)], reads: &reads,
             using: SolanaRPC.devnet(transport: transport)
         )
@@ -44,7 +44,7 @@ struct NoteSyncStateSpendClaimsTests {
     @Test
     func `Claims whose transactions aren't found count a missing read, and the tenth refutes them`() async throws {
         let notes = [NoteFixtures.note(at: 1), NoteFixtures.note(at: 2)]
-        let state = try Self.state(holding: notes, missingReads: ["late": 9, "forgotten": 3])
+        let state = try NoteFixtures.state(notes: notes, missingSpendReads: ["late": 9, "forgotten": 3])
         var reads = SpendReads()
 
         let confirmed = try await state.confirmedSpends(
@@ -60,7 +60,7 @@ struct NoteSyncStateSpendClaimsTests {
     @Test
     func `Refuted claims that a claim still names stay refuted without a read`() async throws {
         let note = NoteFixtures.note(at: 1)
-        let state = try Self.state(holding: [note], rejected: ["named", "forgotten"])
+        let state = try NoteFixtures.state(notes: [note], rejectedSpends: ["named", "forgotten"])
         let transport = Self.transport([:])
         var reads = SpendReads()
 
@@ -77,7 +77,7 @@ struct NoteSyncStateSpendClaimsTests {
         let transport = Self.transport([:])
         var reads = SpendReads()
 
-        let confirmed = try await Self.state(holding: [NoteFixtures.note(at: 1)]).confirmedSpends(
+        let confirmed = try await NoteFixtures.state(notes: [NoteFixtures.note(at: 1)]).confirmedSpends(
             in: [Self.claim("other", of: [NoteFixtures.note(at: 2)])], reads: &reads,
             using: SolanaRPC.devnet(transport: transport)
         )
@@ -85,17 +85,6 @@ struct NoteSyncStateSpendClaimsTests {
         #expect(confirmed.proven.isEmpty)
         #expect(confirmed.rejected.isEmpty)
         #expect(await transport.requests.isEmpty)
-    }
-
-    private static func state(
-        holding notes: [ReceivedNote],
-        rejected: Set<String> = [],
-        missingReads: [String: Int] = [:]
-    ) throws -> NoteSyncState {
-        try NoteSyncState(
-            position: nil, notes: notes, unconfirmedNotes: [], outputTreeID: nil, pending: [], localSpends: [],
-            claimedSpends: [], rejectedSpends: rejected, missingSpendReads: missingReads
-        )
     }
 
     private static func claim(_ signature: String, of notes: [ReceivedNote], slot: UInt64 = 5) -> ShieldedTransaction {

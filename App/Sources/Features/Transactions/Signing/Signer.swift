@@ -39,6 +39,14 @@ nonisolated struct Signer: TransactionSigning {
         return SignedTransaction(preparation: preparation, transaction: transaction)
     }
 
+    func withSharedAuthentication<Value: Sendable>(
+        reason: String, _ operation: @Sendable (any TransactionSigning) async throws -> Value
+    ) async throws -> Value {
+        try await store.withSharedAuthentication(reason: reason) { store in
+            try await operation(Signer(validator: validator, store: store, wallet: wallet))
+        }
+    }
+
     /// Returns an authority's signature over a preparation's message.
     ///
     /// - Parameters:

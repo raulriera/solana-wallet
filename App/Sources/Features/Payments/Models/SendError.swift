@@ -8,6 +8,7 @@ nonisolated enum SendError: TransactionReviewError, CaseIterable {
     case amountTooSmall
     case preparationFailed
     case notSent
+    case notFinished
 
     var errorDescription: String? {
         switch self {
@@ -15,6 +16,7 @@ nonisolated enum SendError: TransactionReviewError, CaseIterable {
         case .amountTooSmall: String(localized: "Amount Too Small")
         case .preparationFailed: String(localized: "Couldn't Prepare Payment")
         case .notSent: String(localized: "Couldn't Send Payment")
+        case .notFinished: String(localized: "Couldn't Finish Payment")
         }
     }
 
@@ -28,13 +30,15 @@ nonisolated enum SendError: TransactionReviewError, CaseIterable {
             String(localized: "Try again in a moment.")
         case .notSent:
             String(localized: "Nothing left your wallet. Try again in a moment.")
+        case .notFinished:
+            String(localized: "Your payment was not sent. A network fee was paid for a step that was completed. Try again to continue.")
         }
     }
 
     var canRetry: Bool {
         switch self {
         case .notEnoughSOL, .amountTooSmall: false
-        case .preparationFailed, .notSent: true
+        case .preparationFailed, .notSent, .notFinished: true
         }
     }
 }

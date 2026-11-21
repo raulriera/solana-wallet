@@ -98,6 +98,22 @@ struct PrivateBalancesRedeemCodesTests {
     }
 
     @Test
+    func `Creating a code from too many notes fails without a proof`() async throws {
+        let sender = try await Self.sender()
+        let shielded = try sender.keys.shieldedAccount(for: sender.account.address)
+        let deposits = try (1...50).map {
+            try PrivateBalanceFixtures.deposit(1_000_000, to: shielded, leafIndex: UInt64($0), of: .nativeSOL)
+        }
+        let responses = try RedeemCodeFixtures.responses(accounts: [:], deposits: deposits)
+        let balances = try await Self.balances(responses, keys: sender.storedKeys, notes: sender.notes)
+
+        await #expect(throws: PrivateBalanceError.tooManyNotes) {
+            try await balances.prepare(.createCode(41_000_000), from: sender.account, on: .devnet)
+        }
+        #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 0)
+    }
+
+    @Test
     func `Creating a code without keys is turned off`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let responses = try RedeemCodeFixtures.responses(accounts: [:], deposits: [])
