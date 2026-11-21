@@ -11,8 +11,9 @@ public enum NoteMerge {
     ///   - rpc: The client of the account's network.
     ///   - prover: The prover of the account's network.
     /// - Returns: The proved merge, a transfer of the merged notes' total to the account's own shielded address.
-    /// - Throws: ``PrivateSpend/ValidationError/insufficientFunds`` without a note of the asset, or an error from
-    ///   ``NoteSyncState/spend(_:of:to:from:rpc:prover:)``.
+    /// - Throws: ``PrivateSpend/ValidationError/noOutputTree`` before a sync reports a tree,
+    ///   ``PrivateSpend/ValidationError/insufficientFunds`` without a note of the asset whose nullifier isn't queued,
+    ///   or an error from the client, the prover, or a proof check.
     @concurrent
     public static func spend(
         of asset: PrivateAsset,
@@ -44,9 +45,15 @@ public enum NoteMerge {
         prover: some ProofProviding,
         using generator: inout some RandomNumberGenerator
     ) async throws -> PrivateSpend {
-        let amount = try amount(merging: state.notes(of: asset))
-        return try await state.spend(amount, of: asset, to: .transfer(try account.recipient), from: account, rpc: rpc,
-                                     prover: prover, using: &generator)
+        guard let outputTreeID = state.outputTreeID else { throw PrivateSpend.ValidationError.noOutputTree }
+        let notes = try await state.unqueuedNotes(of: asset, using: rpc) { available in
+            try NoteSelection.notes(covering: try amount(merging: available), from: available, writingTo: outputTreeID)
+        }
+        let amount = notes.reduce(0) { $0 + $1.amount }
+        let transfer = TransactPlan.Transfer(recipient: try account.recipient, amount: amount)
+        return try await state.spend(notes, moving: amount, of: asset, transfer: transfer, withdrawal: nil,
+                                     openings: [], writingTo: outputTreeID, from: account, prover: prover,
+                                     using: &generator)
     }
 
     /// Returns the number of merges that an account needs before one transaction covers an amount of an asset.

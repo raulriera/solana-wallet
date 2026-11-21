@@ -1,5 +1,6 @@
 import ModularArithmetic
 public import RPC
+import Transactions
 
 extension NoteSyncState {
     /// Spends the account's notes into a private transfer, a public withdrawal, or both, and proves the spend.
@@ -56,10 +57,44 @@ extension NoteSyncState {
         let (transfer, withdrawal, openings) = try destination.parts(moving: amount, of: asset,
                                                                      paidBy: account.signingAddress)
         let covered = try TransactPlan.spentAmount(transfer: transfer, withdrawal: withdrawal, of: asset)
-        let selected = try await unqueuedNotes(of: asset, covering: covered, writingTo: outputTreeID, using: rpc)
+        let selected = try await unqueuedNotes(of: asset, using: rpc) { available in
+            try NoteSelection.notes(covering: covered, from: available, writingTo: outputTreeID)
+        }
+        return try await spend(selected, moving: amount, of: asset, transfer: transfer, withdrawal: withdrawal,
+                               openings: openings, writingTo: outputTreeID, from: account, prover: prover,
+                               using: &generator)
+    }
+
+    /// Spends chosen notes into a private transfer, a public withdrawal, or both, and proves the spend.
+    ///
+    /// - Parameters:
+    ///   - notes: The notes to spend, whose nullifiers aren't queued.
+    ///   - amount: The amount that the spend moves, in the asset's smallest unit.
+    ///   - asset: The asset to spend.
+    ///   - transfer: The private transfer, or `nil` for none.
+    ///   - withdrawal: The public withdrawal, or `nil` for none.
+    ///   - openings: The accounts that the spend opens, each with the instruction that opens it.
+    ///   - outputTreeID: The ID of the tree that receives the spend's outputs.
+    ///   - account: The account of this state.
+    ///   - prover: The prover of the account's network.
+    ///   - generator: The source of the padding, blindings, and salt.
+    /// - Returns: The proved spend.
+    /// - Throws: An error from the plan, the prover, or a proof check.
+    func spend(
+        _ notes: [ReceivedNote],
+        moving amount: UInt64,
+        of asset: PrivateAsset,
+        transfer: TransactPlan.Transfer?,
+        withdrawal: ExternalData.Withdrawal?,
+        openings: [(account: Address, instruction: Instruction)],
+        writingTo outputTreeID: UInt16,
+        from account: ShieldedAccount,
+        prover: some ProofProviding,
+        using generator: inout some RandomNumberGenerator
+    ) async throws -> PrivateSpend {
         let plan = try TransactPlan(
-            spending: selected.map(\.utxo), of: asset, sender: account, transfer: transfer, withdrawal: withdrawal, outputTreeID: outputTreeID,
-            using: &generator
+            spending: notes.map(\.utxo), of: asset, sender: account, transfer: transfer, withdrawal: withdrawal,
+            outputTreeID: outputTreeID, using: &generator
         )
         let sender = try account.recipient.owner
         let receivedAmount = plan.outputs.filter { $0.owner?.owner == sender }.reduce(0) { $0 + ($1.utxo?.amount ?? 0) }
@@ -68,26 +103,24 @@ extension NoteSyncState {
             instruction: try await plan.instruction(nullifierKey: account.nullifierKey, prover: prover),
             amount: amount, receivedAmount: receivedAmount,
             treeIDs: TransactPlan.writtenTreeIDs(inputs: plan.inputTreeIDs, output: plan.outputTreeID),
-            nullifiers: selected.map(\.nullifier), asset: asset
+            nullifiers: notes.map(\.nullifier), asset: asset
         )
     }
 
-    /// Selects notes of an asset that cover an amount, leaving out notes whose nullifiers the program already queued.
+    /// Selects notes of an asset, leaving out notes whose nullifiers the program already queued.
     ///
     /// - Parameters:
     ///   - asset: The asset of the notes.
-    ///   - amount: The amount to cover, in the asset's smallest unit.
-    ///   - outputTreeID: The ID of the tree that receives the spend's outputs.
     ///   - rpc: The client of the notes' network.
+    ///   - select: Selects notes from the asset's notes that aren't known to be queued.
     /// - Returns: The selected notes, whose nullifiers aren't queued.
-    /// - Throws: An error from ``NoteSelection/notes(covering:from:writingTo:)`` if the unqueued notes can't
-    ///   cover the amount, or from ``ShieldedPool/queuedNullifiers(of:using:)``.
-    private func unqueuedNotes(
-        of asset: PrivateAsset, covering amount: UInt64, writingTo outputTreeID: UInt16, using rpc: some RPC
+    /// - Throws: The selection's error, or an error from ``ShieldedPool/queuedNullifiers(of:using:)``.
+    func unqueuedNotes(
+        of asset: PrivateAsset, using rpc: some RPC, selecting select: ([ReceivedNote]) throws -> [ReceivedNote]
     ) async throws -> [ReceivedNote] {
         var available = notes(of: asset)
         while true {
-            let selected = try NoteSelection.notes(covering: amount, from: available, writingTo: outputTreeID)
+            let selected = try select(available)
             let queued = try await ShieldedPool.queuedNullifiers(of: selected, using: rpc)
             guard !queued.isEmpty else { return selected }
             available.removeAll { queued.contains($0.nullifier.bigEndianBytes) }

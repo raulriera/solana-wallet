@@ -44,10 +44,6 @@ struct NoteMergeTests {
     @Test
     func `Merges transfer the 40 largest notes to the sender as one note`() async throws {
         let notes = try notes([(0, Array(repeating: 1, count: 41))])
-        let state = try NoteSyncState(
-            position: nil, notes: notes, unconfirmedNotes: [], outputTreeID: 0, pending: [], localSpends: [],
-            claimedSpends: [], rejectedSpends: [], missingSpendReads: [:]
-        )
         let selected = Array(notes.prefix(40))
         var planGenerator = SeededGenerator(seed: 7)
         let plan = try TransactPlan(
@@ -59,14 +55,11 @@ struct NoteMergeTests {
         let context = TreeContext(
             utxoTreeRootIndex: IndexedProofs.utxoRootIndex, nullifierTreeRootIndex: IndexedProofs.nullifierRootIndex
         )
-        let prover = try IndexedProofs.prover()
-        let transport = StubTransport { request in
-            try prover.respond(to: request) ?? IndexerResponses.spendReads(answering: request, queued: [])
-        }
+        let transport = try Self.transport()
         var mergeGenerator = SeededGenerator(seed: 7)
 
         let result = try await NoteMerge.spend(
-            of: .nativeSOL, in: state, from: sender, rpc: SolanaRPC.devnet(transport: transport),
+            of: .nativeSOL, in: try Self.state(of: notes), from: sender, rpc: SolanaRPC.devnet(transport: transport),
             prover: StubProver.zolana(transport: transport), using: &mergeGenerator
         )
 
@@ -74,6 +67,37 @@ struct NoteMergeTests {
         #expect(result.nullifiers == selected.map(\.nullifier))
         #expect(result.amount == 40)
         #expect(result.receivedAmount == 40)
+    }
+
+    @Test
+    func `Merges leave out a note whose nullifier is queued and take the next largest`() async throws {
+        let notes = try notes([(0, [5] + Array(repeating: 1, count: 41))])
+        let queued = try ShieldedPool.nullifierAccount(tree: ShieldedPool.tree(id: 0), nullifier: notes[0].nullifier).value
+        let transport = try Self.transport(queued: [queued])
+        var generator = SeededGenerator(seed: 7)
+
+        let result = try await NoteMerge.spend(
+            of: .nativeSOL, in: try Self.state(of: notes), from: sender, rpc: SolanaRPC.devnet(transport: transport),
+            prover: StubProver.zolana(transport: transport), using: &generator
+        )
+
+        #expect(result.nullifiers == notes[1...40].map(\.nullifier))
+        #expect(result.amount == 40)
+        #expect(result.receivedAmount == 40)
+    }
+
+    private static func state(of notes: [ReceivedNote]) throws -> NoteSyncState {
+        try NoteSyncState(
+            position: nil, notes: notes, unconfirmedNotes: [], outputTreeID: 0, pending: [], localSpends: [],
+            claimedSpends: [], rejectedSpends: [], missingSpendReads: [:]
+        )
+    }
+
+    private static func transport(queued: Set<String> = []) throws -> StubTransport {
+        let prover = try IndexedProofs.prover()
+        return StubTransport { request in
+            try prover.respond(to: request) ?? IndexerResponses.spendReads(answering: request, queued: queued)
+        }
     }
 
     private func notes(_ trees: [(tree: UInt16, amounts: [UInt64])]) throws -> [ReceivedNote] {
