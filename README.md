@@ -1,6 +1,21 @@
+[![Two hands hold an iPhone Duo that shows the wallet app, under the words: Your keys. Your network.](.github/banner.jpg)](https://raul.xyz/wallet)
+
 # Solana Wallet
 
 A truly open and decentralized Solana wallet for iPhone and iPad. The app connects directly to Solana RPC providers, with no app backend or proxy. Recovery phrases and provider API keys stay on the device.
+
+Learn more at [raul.xyz/wallet](https://raul.xyz/wallet).
+
+## Features
+
+- **Send and receive.** Send SOL and tokens to contacts, your own accounts, or recent recipients. The review shows the balance changes and warns about look-alike addresses, program addresses, and first payments. Receive with a QR code.
+- **Your choice of RPC.** Use public Solana RPC with no key, a built-in provider with your own API key, or any HTTPS RPC URL.
+- **Private balances.** Hold SOL, USDC, and USDT in a private balance, and send privately to another person's private balance.
+- **No spam tokens.** Your list shows only the tokens you add, so airdropped spam never appears. SPL Token and Token-2022 both work.
+- **Prices on your terms.** Use the built-in price source, your own price server, or no prices at all. Values show in the currency you pick.
+- **Themes.** Choose a built-in theme, or make a theme pack with your own colors, font design, and images. See [Build a theme pack](Frameworks/Themes/README.md#build-a-theme-pack).
+- **Several accounts.** One recovery phrase holds several accounts. Add, rename, and delete them in Settings.
+- **Made for big screens.** Open several windows on iPad and iPhone Duo. Each window keeps its own account and its own place.
 
 ## Requirements
 
