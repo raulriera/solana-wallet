@@ -269,10 +269,9 @@ actor PrivateBalances: PrivateBalancing {
                     outcome = try await sharedSync(of: account, on: network)
                     continue
                 } catch PrivateSpend.ValidationError.tooManyNotes {
-                    let merge = try await NoteMerge.spend(of: asset, in: state, from: shielded, rpc: client,
-                                                          prover: client)
-                    let following = max(1, NoteMerge.count(covering: amount, of: asset, in: state))
-                    (instructions, effect) = (merge.instructions, .merge(merge, following: following))
+                    let merge = try await NoteMerge(covering: amount, of: asset, in: state, from: shielded,
+                                                    rpc: client, prover: client)
+                    (instructions, effect) = (merge.spend.instructions, .merge(merge.spend, following: merge.following))
                 }
             case .createCode, .redeem, .takeBack:
                 throw Transactions.ValidationError.invalidTransaction

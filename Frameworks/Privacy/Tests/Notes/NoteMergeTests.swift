@@ -99,10 +99,11 @@ struct NoteMergeTests {
         let transport = try Self.transport()
         var mergeGenerator = SeededGenerator(seed: 7)
 
-        let result = try await NoteMerge.spend(
-            of: .nativeSOL, in: try Self.state(of: notes), from: sender, rpc: SolanaRPC.devnet(transport: transport),
-            prover: StubProver.zolana(transport: transport), using: &mergeGenerator
-        )
+        let result = try await NoteMerge(
+            covering: 41, of: .nativeSOL, in: try Self.state(of: notes), from: sender,
+            rpc: SolanaRPC.devnet(transport: transport), prover: StubProver.zolana(transport: transport),
+            using: &mergeGenerator
+        ).spend
 
         #expect(result.instructions == [try plan.instruction(proof: proof, treeContexts: [context])])
         #expect(result.nullifiers == selected.map(\.nullifier))
@@ -117,14 +118,31 @@ struct NoteMergeTests {
         let transport = try Self.transport(queued: [queued])
         var generator = SeededGenerator(seed: 7)
 
-        let result = try await NoteMerge.spend(
-            of: .nativeSOL, in: try Self.state(of: notes), from: sender, rpc: SolanaRPC.devnet(transport: transport),
-            prover: StubProver.zolana(transport: transport), using: &generator
-        )
+        let result = try await NoteMerge(
+            covering: 46, of: .nativeSOL, in: try Self.state(of: notes), from: sender,
+            rpc: SolanaRPC.devnet(transport: transport), prover: StubProver.zolana(transport: transport),
+            using: &generator
+        ).spend
 
         #expect(result.nullifiers == notes[1...40].map(\.nullifier))
         #expect(result.amount == 40)
         #expect(result.receivedAmount == 40)
+    }
+
+    @Test
+    func `Merges report one following transaction when queued notes would cover the amount`() async throws {
+        let notes = try notes([(0, [10] + Array(repeating: 1, count: 41))])
+        let queued = try ShieldedPool.nullifierAccount(tree: ShieldedPool.tree(id: 0), nullifier: notes[0].nullifier).value
+        let transport = try Self.transport(queued: [queued])
+        var generator = SeededGenerator(seed: 7)
+
+        let merge = try await NoteMerge(
+            covering: 41, of: .nativeSOL, in: try Self.state(of: notes), from: sender,
+            rpc: SolanaRPC.devnet(transport: transport), prover: StubProver.zolana(transport: transport),
+            using: &generator
+        )
+
+        #expect(merge.following == 1)
     }
 
     private static func state(

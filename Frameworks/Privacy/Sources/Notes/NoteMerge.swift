@@ -1,67 +1,82 @@
 public import RPC
 
 /// A merge of an account's notes into one note of the account, so that a later spend needs fewer notes.
-public enum NoteMerge {
-    /// Merges the largest total of an asset's notes that one transaction spends into one note, and proves the merge.
+public struct NoteMerge: Sendable {
+    /// The proved merge, a transfer of the merged notes' total to the account's own shielded address.
+    public let spend: PrivateSpend
+
+    /// The number of transactions that the spend of the amount still needs after the merge: the later merges and the
+    /// spend itself.
+    ///
+    /// The number is at least 1, because the spend follows the merge even when the count, which also sees notes whose
+    /// nullifiers are queued, finds that one transaction covers the amount.
+    public let following: Int
+
+    /// Merges the largest total of an asset's notes that one transaction spends into one note, proves the merge, and
+    /// counts the transactions that a spend of an amount still needs after it.
     ///
     /// - Parameters:
+    ///   - amount: The amount that the account wants to spend, in the asset's smallest unit.
     ///   - asset: The asset to merge.
     ///   - state: The account's notes.
     ///   - account: The account of the notes.
     ///   - rpc: The client of the account's network.
     ///   - prover: The prover of the account's network.
-    /// - Returns: The proved merge, a transfer of the merged notes' total to the account's own shielded address.
     /// - Throws: ``PrivateSpend/ValidationError/noOutputTree`` before a sync reports a tree,
     ///   ``PrivateSpend/ValidationError/insufficientFunds`` without a note of the asset whose nullifier isn't queued,
     ///   or an error from the client, the prover, or a proof check.
     @concurrent
-    public static func spend(
+    public init(
+        covering amount: UInt64,
         of asset: PrivateAsset,
         in state: NoteSyncState,
         from account: ShieldedAccount,
         rpc: some RPC,
         prover: some ProofProviding
-    ) async throws -> PrivateSpend {
+    ) async throws {
         var generator = SystemRandomNumberGenerator()
-        return try await spend(of: asset, in: state, from: account, rpc: rpc, prover: prover, using: &generator)
+        try await self.init(covering: amount, of: asset, in: state, from: account, rpc: rpc, prover: prover,
+                            using: &generator)
     }
 
     /// Merges an account's notes with a source of randomness.
     ///
     /// - Parameters:
+    ///   - amount: The amount that the account wants to spend, in the asset's smallest unit.
     ///   - asset: The asset to merge.
     ///   - state: The account's notes.
     ///   - account: The account of the notes.
     ///   - rpc: The client of the account's network.
     ///   - prover: The prover of the account's network.
     ///   - generator: The source of the padding, blindings, and salt.
-    /// - Returns: The proved merge.
-    /// - Throws: An error as ``spend(of:in:from:rpc:prover:)`` describes.
-    static func spend(
+    /// - Throws: An error as ``init(covering:of:in:from:rpc:prover:)`` describes.
+    init(
+        covering amount: UInt64,
         of asset: PrivateAsset,
         in state: NoteSyncState,
         from account: ShieldedAccount,
         rpc: some RPC,
         prover: some ProofProviding,
         using generator: inout some RandomNumberGenerator
-    ) async throws -> PrivateSpend {
+    ) async throws {
         guard let outputTreeID = state.outputTreeID else { throw PrivateSpend.ValidationError.noOutputTree }
         let notes = try await state.unqueuedNotes(of: asset, using: rpc) { available in
-            try notes(merging: available, writingTo: outputTreeID)
+            try Self.notes(merging: available, writingTo: outputTreeID)
         }
-        let amount = notes.reduce(0) { $0 + $1.amount }
-        let transfer = TransactPlan.Transfer(recipient: try account.recipient, amount: amount)
-        return try await state.spend(notes, moving: amount, of: asset, transfer: transfer, withdrawal: nil,
-                                     openings: [], writingTo: outputTreeID, from: account, prover: prover,
-                                     using: &generator)
+        let total = notes.reduce(0) { $0 + $1.amount }
+        let transfer = TransactPlan.Transfer(recipient: try account.recipient, amount: total)
+        spend = try await state.spend(notes, moving: total, of: asset, transfer: transfer, withdrawal: nil,
+                                      openings: [], writingTo: outputTreeID, from: account, prover: prover,
+                                      using: &generator)
+        following = max(1, Self.count(covering: amount, of: asset, in: state))
     }
 
     /// Returns the number of merges that an account needs before one transaction covers an amount of an asset.
     ///
     /// The count follows the selection of a spend and of each merge: while the notes cover the amount but no choice of
-    /// trees covers it within one transaction's inputs, it merges the notes that ``spend(of:in:from:rpc:prover:)``
-    /// merges into one note in the output tree. It reads no nullifier, so it counts notes whose nullifiers are queued,
-    /// and is an estimate for them.
+    /// trees covers it within one transaction's inputs, it merges the notes that
+    /// ``init(covering:of:in:from:rpc:prover:)`` merges into one note in the output tree. It reads no nullifier, so it
+    /// counts notes whose nullifiers are queued, and is an estimate for them.
     ///
     /// - Parameters:
     ///   - amount: The amount to cover, in the asset's smallest unit.
@@ -69,7 +84,7 @@ public enum NoteMerge {
     ///   - state: The account's notes.
     /// - Returns: The number of merges, which is zero if one transaction's inputs cover the amount, if the notes don't
     ///   cover it, or before a sync reports a tree.
-    public static func count(covering amount: UInt64, of asset: PrivateAsset, in state: NoteSyncState) -> Int {
+    static func count(covering amount: UInt64, of asset: PrivateAsset, in state: NoteSyncState) -> Int {
         guard let outputTreeID = state.outputTreeID else { return 0 }
         let notes = state.notes(of: asset).map { SimulatedNote(amount: $0.amount, treeID: $0.treeID) }
         return simulatedMerges(of: notes, covering: amount, writingTo: outputTreeID).count
