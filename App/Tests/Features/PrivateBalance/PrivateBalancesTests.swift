@@ -848,12 +848,8 @@ struct PrivateBalancesTests {
     @Test
     func `A spend of too many notes prepares a merge of the 40 largest that another transaction follows`()
         async throws {
-        let sender = try await Self.fundedAccount(amount: 1, of: .nativeSOL)
-        let shielded = try await PrivateBalanceFixtures.keys(for: sender.account).shieldedAccount(for: sender.account.address)
-        let deposits = try (1...41).map { try PrivateBalanceFixtures.deposit(1, to: shielded, leafIndex: UInt64($0), of: .nativeSOL) }
-        let unqueued = AccountReplies.accounts(Array(repeating: nil, count: 40))
-        let responses = HTTPResponses.privateNotes(registry: [unqueued], deposits: deposits, outputTreeID: 1,
-                                                   prover: try IndexedProofs.prover())
+        let sender = try await Self.accountOfManyNotes()
+        let responses = sender.responses
         let balances = try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
 
         let prepared = try await balances.prepare(.withdraw(41, of: .nativeSOL, to: sender.account.address),
@@ -871,12 +867,8 @@ struct PrivateBalancesTests {
 
     @Test
     func `A spend that a pending amount would cover waits for it 20 times before it's insufficient`() async throws {
-        let sender = try await Self.fundedAccount(amount: 1, of: .nativeSOL)
-        let shielded = try await PrivateBalanceFixtures.keys(for: sender.account).shieldedAccount(for: sender.account.address)
-        let deposits = try (1...41).map { try PrivateBalanceFixtures.deposit(1, to: shielded, leafIndex: UInt64($0), of: .nativeSOL) }
-        let unqueued = AccountReplies.accounts(Array(repeating: nil, count: 40))
-        let responses = HTTPResponses.privateNotes(registry: [unqueued], deposits: deposits, outputTreeID: 1,
-                                                   prover: try IndexedProofs.prover())
+        let sender = try await Self.accountOfManyNotes()
+        let responses = sender.responses
         let clock = ManualClock()
         let balances = try await Self.balances(responses, keys: sender.keys, notes: sender.notes, clock: clock)
         let account = sender.account
@@ -891,6 +883,25 @@ struct PrivateBalancesTests {
         await #expect(throws: PrivateBalanceError.insufficientBalance) { try await spend.value }
         #expect(advanced == Array(repeating: .seconds(3), count: 20))
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 1)
+    }
+
+    @Test(arguments: [(UInt64(1), 0), (2, 20)])
+    func `A spend of too many notes waits only for a pending amount that one transaction would take`(
+        pending: UInt64, waits: Int
+    ) async throws {
+        let sender = try await Self.accountOfManyNotes()
+        let clock = ManualClock()
+        let balances = try await Self.balances(sender.responses, keys: sender.keys, notes: sender.notes, clock: clock)
+        _ = try await balances.complete(PrivateBalanceFixtures.preparedDeposit(pending, of: .nativeSOL, from: sender.account),
+                                        with: PrivateBalanceFixtures.confirmation(.succeeded))
+        let request = PrivateTransactionRequest.withdraw(41, of: .nativeSOL, to: sender.account.address)
+        var waitStream = clock.waits.makeAsyncIterator()
+
+        let spend = Task { try await balances.prepare(request, from: sender.account, on: .devnet) }
+        let advanced = try await clock.advanceWaits(&waitStream, count: waits)
+
+        #expect(try await spend.value.effect.merge?.following == 1)
+        #expect(advanced == Array(repeating: .seconds(3), count: waits))
     }
 
     @MainActor
@@ -919,6 +930,17 @@ struct PrivateBalancesTests {
         let id = PrivateBalances.noteID(of: registered.account, on: .devnet)
         return (registered.account, StoredValue([registered.account.address.value: registered.keys]),
                 StoredValue([id: NoteSyncState()]), id, registered.deposit)
+    }
+
+    private static func accountOfManyNotes() async throws -> (account: widgets.Account,
+        keys: StoredValue<PrivateBalances.Keys>, notes: StoredValue<PrivateBalances.Notes>, responses: HTTPResponses) {
+        let sender = try await fundedAccount(amount: 1, of: .nativeSOL)
+        let shielded = try await PrivateBalanceFixtures.keys(for: sender.account).shieldedAccount(for: sender.account.address)
+        let deposits = try (1...41).map { try PrivateBalanceFixtures.deposit(1, to: shielded, leafIndex: UInt64($0), of: .nativeSOL) }
+        let unqueued = AccountReplies.accounts(Array(repeating: nil, count: 40))
+        let responses = HTTPResponses.privateNotes(registry: [unqueued], deposits: deposits, outputTreeID: 1,
+                                                   prover: try IndexedProofs.prover())
+        return (sender.account, sender.keys, sender.notes, responses)
     }
 
     private static func tagReadStarts(of responses: HTTPResponses) async throws -> [Int?] {

@@ -31,6 +31,12 @@ actor PrivateBalances: PrivateBalancing {
         case synced(ShieldedAccount, NoteSyncState)
     }
 
+    /// How long a send or withdrawal waits before it reads a pending amount again.
+    private static let pendingInterval = Duration.seconds(3)
+
+    /// The most times that a send or withdrawal waits for a pending amount.
+    private static let maximumPendingWaits = 20
+
     private let recovery: any RecoveryStoring
     private let wallet: any PrivateBalanceKeyDeriving
     let keys: any ValueStoring<Keys>
@@ -38,12 +44,6 @@ actor PrivateBalances: PrivateBalancing {
     let codes: any ValueStoring<Codes>
     private let makeClient: @Sendable (Network) -> Client
     private let clock: any Clock<Duration>
-
-    /// How long a send or withdrawal waits before it reads a pending amount again.
-    private static let pendingInterval = Duration.seconds(3)
-
-    /// The most times that a send or withdrawal waits for a pending amount.
-    private static let maximumPendingWaits = 20
     private var clients: [Network: Client] = [:]
     private var syncs: [String: Task<SyncOutcome, any Error>] = [:]
     /// The latest outcome recording of each notes entry.
@@ -214,8 +214,8 @@ actor PrivateBalances: PrivateBalancing {
     /// Builds a deposit, send, or withdrawal after the shared sync of the account's notes, or the merge that a send
     /// or withdrawal of too many notes needs first.
     ///
-    /// A send or withdrawal that the spendable notes can't make waits while an amount of the asset is pending,
-    /// such as an earlier merge's note, so that it never merges the same notes again.
+    /// A send or withdrawal that the spendable notes can't make waits for a pending amount that can make it, such as
+    /// an earlier merge's note, so that it never merges the same notes again.
     ///
     /// - Parameters:
     ///   - request: The deposit, send, or withdrawal.
@@ -289,15 +289,14 @@ actor PrivateBalances: PrivateBalancing {
     ///   - amount: The amount to spend, in the asset's smallest unit.
     ///   - asset: The asset to spend.
     ///   - state: The account's notes.
-    /// - Returns: `true` while an amount of the asset is pending and the spend needs too many notes, or the
-    ///   spendable and pending amounts together cover it.
+    /// - Returns: `true` if the spend needs too many notes and a pending amount would change the notes that one
+    ///   transaction takes, or if an amount is pending and the spendable and pending amounts together cover the spend.
     private static func awaitsPending(after error: PrivateSpend.ValidationError, spending amount: UInt64,
                                       of asset: PrivateAsset, in state: NoteSyncState) -> Bool {
-        let pending = state.pendingAmount(of: asset)
-        guard pending > 0 else { return false }
+        let balance = asset.balance(in: state)
         return switch error {
-        case .tooManyNotes: true
-        case .insufficientFunds: state.spendableAmount(of: asset) + pending >= amount
+        case .tooManyNotes: state.pendingAmountChangesInputs(of: asset)
+        case .insufficientFunds: balance.pending > 0 && balance.available + balance.pending >= amount
         case .noOutputTree: false
         }
     }

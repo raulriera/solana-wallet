@@ -779,6 +779,28 @@ struct NoteSyncStateTests {
         #expect(state.pendingAmount(of: .nativeSOL) == 0)
     }
 
+    @Test(arguments: [
+        (Array(repeating: UInt64(1), count: 41), [UInt64(2)], true),
+        (Array(repeating: 1, count: 41), [1], false),
+        ([1], [1], true),
+        (Array(repeating: 1, count: 41), [], false),
+    ])
+    func `Pending amounts change the inputs only above the smallest of the largest notes`(
+        amounts: [UInt64], pendingAmounts: [UInt64], changesInputs: Bool
+    ) throws {
+        let notes = try amounts.enumerated().map { leaf, amount in
+            ReceivedNote(utxo: try PlanFixtures.utxo(amount: amount, asset: .nativeSOL), leafIndex: UInt64(leaf),
+                         signature: IndexerResponses.signature(1), slot: 1, nullifier: Poseidon.Element(UInt64(leaf)))
+        }
+        let state = try NoteSyncState(
+            position: nil, notes: notes, unconfirmedNotes: [], outputTreeID: nil,
+            pending: pendingAmounts.map { PendingAmount(signature: IndexerResponses.signature(2), asset: .nativeSOL, amount: $0) },
+            localSpends: [], claimedSpends: [], rejectedSpends: [], missingSpendReads: [:]
+        )
+
+        #expect(state.pendingAmountChangesInputs(of: .nativeSOL) == changesInputs)
+    }
+
     @Test
     func `Each asset's total has its own 64 bits`() throws {
         let largest = try largestState()
