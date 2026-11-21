@@ -67,7 +67,7 @@ nonisolated enum PrivateBalanceError: TransactionReviewError, CaseIterable {
         case .insufficientBalance:
             String(localized: "Your private balance doesn't cover this amount. Recently received funds can take a moment to become available.")
         case .tooManyNotes:
-            String(localized: "Your private balance is made of many small payments, and one transaction can use up to 40 of them. Use a smaller amount, then use the rest in another transaction.")
+            String(localized: "Your private balance is made of many small payments. Use a smaller amount, then use the rest in another transaction.")
         case .insufficientPublicBalance:
             String(localized: "Your public balance doesn't cover this amount and the fees. Try a smaller amount.")
         case .insufficientPublicBalanceForFees:
