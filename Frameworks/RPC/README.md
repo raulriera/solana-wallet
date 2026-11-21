@@ -2,6 +2,29 @@
 
 Typed Solana RPC, DAS asset queries, prices, exchange rates, and account and signature subscriptions. Clients connect directly to providers.
 
+## Subscription connection
+
+Each subscription stream has its own WebSocket connection, and the stream ends with the error that closes it. The client doesn't reconnect: the caller waits with `Backoff.reconnection` and subscribes again.
+
+```mermaid
+stateDiagram-v2
+    state "Connecting" as connecting
+    state "Subscribed" as subscribed
+    state "Waiting for a pong" as pinging
+    state "The caller waits" as waiting
+    state closed <<choice>>
+    [*] --> connecting: Open the WebSocket and<br/>send each subscription
+    connecting --> subscribed: The server acknowledges<br/>every subscription
+    connecting --> closed: An error, or no acknowledgment<br/>within 30 s
+    subscribed --> pinging: 30 s pass
+    pinging --> subscribed: A pong within 10 s
+    pinging --> closed: No pong within 10 s
+    subscribed --> closed: An error
+    closed --> waiting: A recoverable error
+    closed --> [*]: Any other error
+    waiting --> connecting: 2 s, doubling<br/>up to 60 s
+```
+
 ## Usage
 
 ```swift
