@@ -124,6 +124,11 @@ struct BalanceMoveProposal: TransactionProposal {
                                networkFee: networkFee) : nil
             review = Review(networkFee: networkFee, registrationFee: registrationFee, privacyFee: nil,
                             pendingChange: nil, accountDeposit: nil)
+        case .mergedDeposit:
+            let privacyFee = try otherFee(of: simulation, for: account, paying: movedLamports, receiving: 0,
+                                          networkFee: networkFee)
+            review = Review(networkFee: networkFee, registrationFee: nil, privacyFee: privacyFee.nonZero,
+                            pendingChange: nil, accountDeposit: nil)
         case .spend(let spend):
             let accountDeposit = spend.openedAccounts.compactMap { openingDeposit(of: $0, in: simulation) }
                 .reduce(0, +).nonZero

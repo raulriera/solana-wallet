@@ -214,6 +214,9 @@ actor PrivateBalances: PrivateBalancing {
     /// Builds a deposit, send, or withdrawal after the shared sync of the account's notes, or the merge that a send
     /// or withdrawal of too many notes needs first.
     ///
+    /// A deposit of an asset whose notes are more than one transaction spends also merges them, in the same
+    /// transaction.
+    ///
     /// A send or withdrawal that the spendable notes can't make waits for a pending amount that can make it, such as
     /// an earlier merge's note, so that it doesn't merge other notes while that amount is pending.
     ///
@@ -246,8 +249,10 @@ actor PrivateBalances: PrivateBalancing {
             case .deposit(let amount, let asset):
                 guard let treeID = state.outputTreeID else { throw PrivateBalanceError.unavailable }
                 let deposit = try ShieldedPool.deposit(amount, of: asset, from: account.address, to: shielded.recipient, treeID: treeID)
-                instructions = (registers ? [try shielded.register(paidBy: account.address)] : []) + [deposit]
-                effect = .deposit(amount, of: asset)
+                let merge = try await NoteMerge(of: asset, in: state, from: shielded, rpc: client, prover: client)
+                instructions = (registers ? [try shielded.register(paidBy: account.address)] : [])
+                    + (merge?.spend.instructions ?? []) + [deposit]
+                effect = merge.map { .mergedDeposit(amount, of: asset, merge: $0.spend) } ?? .deposit(amount, of: asset)
             case .send(let amount, let asset, _), .withdraw(let amount, let asset, _):
                 let destination: PrivateSpend.Destination =
                     if case .withdraw(_, _, let owner) = request {
@@ -358,6 +363,9 @@ actor PrivateBalances: PrivateBalancing {
 
     /// Records a settled outcome in an account's notes and codes, unless ``removeAll()`` ran after `generation`.
     ///
+    /// A succeeded deposit that merges notes spends the merged notes and keeps the merged total and the deposit
+    /// pending as the transaction's one pending amount.
+    ///
     /// - Parameters:
     ///   - transaction: The prepared transaction.
     ///   - outcome: Whether it succeeded, failed, or was dropped.
@@ -383,6 +391,9 @@ actor PrivateBalances: PrivateBalancing {
             let saved = entries[id] ?? NoteSyncState()
             let state = switch effect {
             case .deposit(let amount, let asset): try saved.recording(depositOf: amount, of: asset, signature: signature)
+            case .mergedDeposit(let amount, let asset, let merge):
+                try saved.recording(depositOf: amount + merge.receivedAmount, of: asset, signature: signature)
+                    .recording(merge, signature: signature)
             case .spend(let spend), .merge(let spend, _), .createCode(let spend, _, _):
                 try saved.recording(spend, signature: signature)
             case .redeem(let redemption): try saved.recording(depositOf: redemption.lamports, of: .nativeSOL, signature: signature)

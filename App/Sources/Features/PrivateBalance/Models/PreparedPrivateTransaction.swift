@@ -9,6 +9,9 @@ nonisolated struct PreparedPrivateTransaction: Sendable, Redacted {
     enum Effect: Sendable {
         /// A deposit of an amount of an asset, in its smallest unit, into the account's private balance.
         case deposit(UInt64, of: PrivateAsset)
+        /// A deposit of an amount of an asset, in its smallest unit, into the account's private balance, after a merge
+        /// of the account's notes of the asset into one note of the account in the same transaction.
+        case mergedDeposit(UInt64, of: PrivateAsset, merge: PrivateSpend)
         /// A spend of the account's notes into a private transfer or a public withdrawal.
         case spend(PrivateSpend)
         /// A spend of the account's notes into one note of the account, before a send or withdrawal that needs too

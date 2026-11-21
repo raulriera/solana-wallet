@@ -966,6 +966,63 @@ struct PrivateBalancesTests {
         #expect(advanced == Array(repeating: .seconds(3), count: waits))
     }
 
+    @Test(arguments: [PrivateAsset.nativeSOL, .token(.devnetUSDC)])
+    func `A deposit of an asset of more than 40 notes merges the 40 largest before the deposit in one transaction`(
+        asset: PrivateAsset
+    ) async throws {
+        let sender = try await Self.accountOfManyNotes(of: asset)
+        let responses = sender.responses
+        let balances = try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
+        let shielded = try await PrivateBalanceFixtures.keys(for: sender.account).shieldedAccount(for: sender.account.address)
+
+        let prepared = try await balances.prepare(.deposit(5_000, of: asset), from: sender.account, on: .devnet)
+
+        guard case .mergedDeposit(5_000, asset, let merge) = prepared.effect else {
+            Issue.record("Expected a deposit that merges notes.")
+            return
+        }
+        #expect(prepared.instructions == merge.instructions + [
+            try ShieldedPool.deposit(5_000, of: asset, from: sender.account.address, to: shielded.recipient, treeID: 1),
+        ])
+        #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 1)
+        #expect(try await balances.complete(prepared, with: PrivateBalanceFixtures.confirmation(.succeeded))
+            == .balance(available: 1, pending: 5_040, of: asset))
+    }
+
+    @Test
+    func `A deposit of an asset of 40 notes deposits only, without a proof`() async throws {
+        let sender = try await Self.account(holding: Array(repeating: (amount: 1, tree: 1), count: 40), of: .nativeSOL)
+        let responses = sender.responses
+        let balances = try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
+        let shielded = try await PrivateBalanceFixtures.keys(for: sender.account).shieldedAccount(for: sender.account.address)
+
+        let prepared = try await balances.prepare(.deposit(5_000, of: .nativeSOL), from: sender.account, on: .devnet)
+
+        guard case .deposit(5_000, .nativeSOL) = prepared.effect else {
+            Issue.record("Expected a deposit without a merge.")
+            return
+        }
+        #expect(prepared.instructions == [
+            try ShieldedPool.deposit(5_000, of: .nativeSOL, from: sender.account.address, to: shielded.recipient,
+                                     treeID: 1),
+        ])
+        #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 0)
+    }
+
+    @Test(arguments: [TransactionOutcome.failed, .dropped])
+    func `A deposit that merges notes records nothing when it fails or is dropped`(outcome: TransactionOutcome)
+        async throws {
+        let sender = try await Self.accountOfManyNotes(of: .nativeSOL)
+        let balances = try await Self.balances(sender.responses, keys: sender.keys, notes: sender.notes)
+        let prepared = try await balances.prepare(.deposit(5_000, of: .nativeSOL), from: sender.account, on: .devnet)
+        let saved = await sender.notes.value
+
+        let status = try await balances.complete(prepared, with: PrivateBalanceFixtures.confirmation(outcome))
+
+        #expect(status == .balance(available: 41, pending: 0, of: .nativeSOL))
+        #expect(await sender.notes.value == saved)
+    }
+
     @MainActor
     private static func balances(
         _ responses: HTTPResponses, provider: RPCSettings.Provider = .helius,

@@ -5,12 +5,62 @@ public struct NoteMerge: Sendable {
     /// The proved merge, a transfer of the merged notes' total to the account's own shielded address.
     public let spend: PrivateSpend
 
-    /// The number of transactions that the spend of the amount still needs after the merge: the later merges and the
-    /// spend itself.
+    /// The number of transactions that the spend of an amount still needs after the merge: the later merges and the
+    /// spend itself, or zero for a merge that no spend follows.
     ///
-    /// The number is at least 1, because the spend follows the merge even when the count, which also sees notes whose
-    /// nullifiers are queued, finds that one transaction covers the amount.
+    /// The number is at least 1 after a merge for a spend, because the spend follows the merge even when the count,
+    /// which also sees notes whose nullifiers are queued, finds that one transaction covers the amount.
     public let following: Int
+
+    /// Merges the largest total of an asset's notes that one transaction spends into one note and proves the merge,
+    /// or returns `nil` if one transaction spends all of the asset's notes.
+    ///
+    /// No transaction follows the merge, so ``following`` is zero. When the initializer returns `nil`, it reads
+    /// nothing.
+    ///
+    /// - Parameters:
+    ///   - asset: The asset to merge.
+    ///   - state: The account's notes.
+    ///   - account: The account of the notes.
+    ///   - rpc: The client of the account's network.
+    ///   - prover: The prover of the account's network.
+    /// - Throws: An error as ``init(covering:of:in:from:rpc:prover:)`` describes.
+    @concurrent
+    public init?(
+        of asset: PrivateAsset,
+        in state: NoteSyncState,
+        from account: ShieldedAccount,
+        rpc: some RPC,
+        prover: some ProofProviding
+    ) async throws {
+        var generator = SystemRandomNumberGenerator()
+        try await self.init(of: asset, in: state, from: account, rpc: rpc, prover: prover, using: &generator)
+    }
+
+    /// Merges an account's notes with a source of randomness, or returns `nil` if one transaction spends all of them.
+    ///
+    /// - Parameters:
+    ///   - asset: The asset to merge.
+    ///   - state: The account's notes.
+    ///   - account: The account of the notes.
+    ///   - rpc: The client of the account's network.
+    ///   - prover: The prover of the account's network.
+    ///   - generator: The source of the padding, blindings, and salt.
+    /// - Throws: An error as ``init(covering:of:in:from:rpc:prover:)`` describes.
+    init?(
+        of asset: PrivateAsset,
+        in state: NoteSyncState,
+        from account: ShieldedAccount,
+        rpc: some RPC,
+        prover: some ProofProviding,
+        using generator: inout some RandomNumberGenerator
+    ) async throws {
+        guard state.notes(of: asset).count > TransactPlan.maximumInputs else { return nil }
+        guard let outputTreeID = state.outputTreeID else { throw PrivateSpend.ValidationError.noOutputTree }
+        spend = try await Self.spend(merging: asset, in: state, writingTo: outputTreeID, from: account, rpc: rpc,
+                                     prover: prover, using: &generator)
+        following = 0
+    }
 
     /// Merges the largest total of an asset's notes that one transaction spends into one note, proves the merge, and
     /// counts the transactions that a spend of an amount still needs after it.
@@ -60,15 +110,41 @@ public struct NoteMerge: Sendable {
         using generator: inout some RandomNumberGenerator
     ) async throws {
         guard let outputTreeID = state.outputTreeID else { throw PrivateSpend.ValidationError.noOutputTree }
+        spend = try await Self.spend(merging: asset, in: state, writingTo: outputTreeID, from: account, rpc: rpc,
+                                     prover: prover, using: &generator)
+        following = max(1, Self.count(covering: amount, from: state.notes(of: asset), writingTo: outputTreeID))
+    }
+
+    /// Proves a transfer of the asset's notes that one merge spends, whose nullifiers aren't queued, to the account.
+    ///
+    /// - Parameters:
+    ///   - asset: The asset to merge.
+    ///   - state: The account's notes.
+    ///   - outputTreeID: The ID of the tree that receives the merged note.
+    ///   - account: The account of the notes.
+    ///   - rpc: The client of the account's network.
+    ///   - prover: The prover of the account's network.
+    ///   - generator: The source of the padding, blindings, and salt.
+    /// - Returns: The proved merge.
+    /// - Throws: ``PrivateSpend/ValidationError/insufficientFunds`` without a note of the asset whose nullifier isn't
+    ///   queued, or an error from the client, the prover, or a proof check.
+    private static func spend(
+        merging asset: PrivateAsset,
+        in state: NoteSyncState,
+        writingTo outputTreeID: UInt16,
+        from account: ShieldedAccount,
+        rpc: some RPC,
+        prover: some ProofProviding,
+        using generator: inout some RandomNumberGenerator
+    ) async throws -> PrivateSpend {
         let notes = try await state.unqueuedNotes(of: asset, using: rpc) { available in
             try Self.notes(merging: available, writingTo: outputTreeID)
         }
         let total = notes.reduce(0) { $0 + $1.amount }
         let parts = try PrivateSpend.Destination.transfer(try account.recipient)
             .parts(moving: total, of: asset, paidBy: account.signingAddress)
-        spend = try await PrivateSpend(spending: notes, moving: total, of: asset, parts: parts,
-                                       writingTo: outputTreeID, from: account, prover: prover, using: &generator)
-        following = max(1, Self.count(covering: amount, from: state.notes(of: asset), writingTo: outputTreeID))
+        return try await PrivateSpend(spending: notes, moving: total, of: asset, parts: parts,
+                                      writingTo: outputTreeID, from: account, prover: prover, using: &generator)
     }
 
     /// Returns the number of merges that notes need before one transaction covers an amount.

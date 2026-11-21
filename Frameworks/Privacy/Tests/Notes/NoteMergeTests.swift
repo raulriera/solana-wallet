@@ -129,4 +129,40 @@ struct NoteMergeTests {
 
         #expect(merge.following == 1)
     }
+
+    @Test(arguments: [(queued: [Int](), merged: 0..<40, amount: UInt64(80)), ([0], 1..<41, 79)])
+    func `A merge that no spend follows takes the 40 largest notes whose nullifiers aren't queued`(
+        queued: [Int], merged: Range<Int>, amount: UInt64
+    ) async throws {
+        let notes = try NoteFixtures.notes([(0, Array(repeating: 2, count: 40) + [1])], of: .nativeSOL)
+        let transport = try NoteFixtures.spendTransport(queued: queued.map { notes[$0] })
+        var generator = SeededGenerator(seed: 7)
+
+        let merge = try #require(try await NoteMerge(
+            of: .nativeSOL, in: try NoteFixtures.state(notes: notes, outputTreeID: 0), from: sender,
+            rpc: SolanaRPC.devnet(transport: transport), prover: StubProver.zolana(transport: transport),
+            using: &generator
+        ))
+
+        #expect(merge.following == 0)
+        #expect(merge.spend.nullifiers == notes[merged].map(\.nullifier))
+        #expect(merge.spend.amount == amount)
+        #expect(merge.spend.receivedAmount == amount)
+    }
+
+    @Test
+    func `A merge that no spend follows is nil for 40 notes, without a request`() async throws {
+        let notes = try NoteFixtures.notes([(0, Array(repeating: 1, count: 40))], of: .nativeSOL)
+        let transport = try NoteFixtures.spendTransport()
+        var generator = SeededGenerator(seed: 7)
+
+        let merge = try await NoteMerge(
+            of: .nativeSOL, in: try NoteFixtures.state(notes: notes, outputTreeID: 0), from: sender,
+            rpc: SolanaRPC.devnet(transport: transport), prover: StubProver.zolana(transport: transport),
+            using: &generator
+        )
+
+        #expect(merge == nil)
+        #expect(await transport.requests.isEmpty)
+    }
 }

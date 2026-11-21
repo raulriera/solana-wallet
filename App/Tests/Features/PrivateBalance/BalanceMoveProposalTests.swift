@@ -234,6 +234,32 @@ struct BalanceMoveProposalTests {
         }
     }
 
+    @Test(arguments: Self.assets)
+    func `A deposit that merges notes shows what its transaction pays beyond the deposit as the privacy fee`(
+        asset: PrivateAsset
+    ) async throws {
+        let deposit = try await LocalBalanceMove.deposit(of: asset, registered: false)
+        let send = try await LocalBalanceMove.send(of: asset)
+        let merge = try #require(try await send.model.proposal.prepare(from: send.account, on: .devnet).effect.spend)
+        let prepared = try await deposit.model.proposal.prepare(from: deposit.account, on: .devnet)
+        let mergedDeposit = PreparedPrivateTransaction(
+            instructions: prepared.instructions, account: prepared.account, network: prepared.network,
+            effect: .mergedDeposit(LocalBalanceMove.amount, of: asset, merge: merge), registers: false,
+            authorities: prepared.authorities
+        )
+
+        let proposed = try await deposit.model.proposal.simulate(
+            mergedDeposit, with: deposit.transactions.coordinator(for: .devnet), from: deposit.account
+        )
+
+        #expect(proposed.kind == .privateDeposit)
+        #expect(proposed.followingTransactions == 0)
+        #expect(proposed.review == BalanceMoveProposal.Review(
+            networkFee: LocalBalanceMove.networkFee, registrationFee: nil, privacyFee: LocalBalanceMove.registrationRent,
+            pendingChange: nil, accountDeposit: nil
+        ))
+    }
+
     @Test(arguments: [false, true])
     func `A send checks the recipient against the person's history`(paid: Bool) throws {
         let recipient = PaymentRecipient(address: try SigningFixture().transfer.accounts[1].address, name: nil)
