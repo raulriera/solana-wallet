@@ -33,7 +33,6 @@ struct UnavailableScreen<Action: View>: View {
                 action
             }
             .drawOnAppear()
-            .foregroundStyle(palette.text, palette.secondaryText)
             .frame(maxWidth: LayoutMetrics.readableWidth)
         }
         .defaultScrollAnchor(.center, for: .alignment)

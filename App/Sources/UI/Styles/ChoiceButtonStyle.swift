@@ -33,7 +33,7 @@ struct ChoiceButtonStyle: PrimitiveButtonStyle {
                     subviews.first
                     subviews.dropFirst()
                         .font(.subheadline)
-                        .foregroundStyle(palette.secondaryText)
+                        .foregroundStyle(.secondary)
                 }
             }
             Button(role: configuration.role, action: configuration.trigger) {
@@ -55,10 +55,10 @@ struct ChoiceButtonStyle: PrimitiveButtonStyle {
                         Image(systemName: "checkmark").foregroundStyle(palette.primary).accessibilityHidden(true)
                     }
                 }
-                .foregroundStyle(palette.text)
                 .contentShape(.rect)
             }
             .buttonStyle(.automatic)
+            .tint(.primary)
             .accessibilityAddTraits(isChecked ? [.isSelected] : [])
         } else {
             Button(configuration)
