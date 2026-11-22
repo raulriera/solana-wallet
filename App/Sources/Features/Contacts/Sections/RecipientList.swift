@@ -11,44 +11,51 @@ struct RecipientList: View {
     var body: some View {
         List(selection: $selection) {
             if let newPayment = selection, !lists.lists(newPayment) {
-                Section("New Payment") {
-                    RecipientRow(name: nil, address: newPayment, date: nil, systemImage: "square.and.pencil")
+                Section {
+                    RecipientRow(name: nil, address: newPayment, date: nil)
                         .tag(newPayment)
+                } header: {
+                    Text("New Payment")
+                        .foregroundStyle(.secondary)
                 }
             }
 
             if !lists.accounts.isEmpty {
-                Section("My Accounts") {
+                Section {
                     ForEach(lists.accounts) { account in
-                        RecipientRow(name: account.name, address: account.address, date: nil,
-                                     systemImage: "wallet.bifold")
+                        RecipientRow(name: account.name, address: account.address, date: nil)
                             .tag(account.address)
                             .swipeActions(edge: .leading) {
                                 FavoriteButton(contact: account)
                                     .swipeActionTint(.yellow)
                             }
                     }
+                } header: {
+                    Text("My Accounts")
+                        .foregroundStyle(.secondary)
                 }
             }
 
             if !lists.favorites.isEmpty {
-                Section("Favorites") {
+                Section {
                     ForEach(lists.favorites) { favorite in
-                        RecipientRow(name: favorite.name, address: favorite.address, date: nil, systemImage: "star")
+                        RecipientRow(name: favorite.name, address: favorite.address, date: nil)
                             .tag(favorite.address)
                             .swipeActions(edge: .leading) {
                                 FavoriteButton(contact: favorite)
                                     .swipeActionTint(.yellow)
                             }
                     }
+                } header: {
+                    Text("Favorites")
+                        .foregroundStyle(.secondary)
                 }
             }
 
             if !lists.contacts.isEmpty {
-                Section("Contacts") {
+                Section {
                     ForEach(lists.contacts) { contact in
-                        RecipientRow(name: contact.name, address: contact.address, date: nil,
-                                     systemImage: "person.crop.circle")
+                        RecipientRow(name: contact.name, address: contact.address, date: nil)
                             .tag(contact.address)
                             .swipeActions(edge: .leading) {
                                 FavoriteButton(contact: contact)
@@ -57,23 +64,29 @@ struct RecipientList: View {
                             .swipeDelete(contact, removal: $removal)
                             .contactDeletion(of: contact, removal: $removal)
                     }
+                } header: {
+                    Text("Contacts")
+                        .foregroundStyle(.secondary)
                 }
             }
 
             if !lists.recents.isEmpty {
-                Section("Recents") {
+                Section {
                     ForEach(lists.recents) { payment in
-                        RecipientRow(name: nil, address: payment.address, date: payment.date, systemImage: "clock")
+                        RecipientRow(name: nil, address: payment.address, date: payment.date)
                             .tag(payment.address)
                             .swipeActions(edge: .leading) {
                                 AddContactButton(address: payment.address)
                                     .swipeActionTint(.blue)
                             }
                     }
+                } header: {
+                    Text("Recents")
+                        .foregroundStyle(.secondary)
                 }
             }
         }
-        .listStyle(.sidebar)
+        .listStyle(.plain)
         .animation(.default, value: lists.isLoaded)
     }
 }
