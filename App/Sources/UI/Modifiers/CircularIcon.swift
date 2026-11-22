@@ -8,7 +8,7 @@ private struct CircularIcon<Background: ShapeStyle>: ViewModifier {
     func body(content: Content) -> some View {
         content
             .frame(width: diameter, height: diameter)
-            .background(background, in: .circle)
+            .background(background)
             .clipShape(.circle)
             .accessibilityHidden(true)
     }
@@ -21,5 +21,15 @@ extension View {
     /// - Returns: The icon in the circle, hidden from assistive technologies.
     func circularIcon(_ background: some ShapeStyle) -> some View {
         modifier(CircularIcon(background: background))
+    }
+
+    /// Shows letters, such as a name's initials, in white on a gray circle, as Contacts shows a person without a photo.
+    ///
+    /// - Returns: The letters in the circle, hidden from assistive technologies.
+    func monogramIcon() -> some View {
+        font(.headline)
+            .minimumScaleFactor(0.5)
+            .foregroundStyle(.white)
+            .circularIcon(.gray.gradient)
     }
 }

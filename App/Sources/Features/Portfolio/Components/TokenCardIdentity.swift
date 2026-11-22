@@ -12,12 +12,10 @@ struct TokenCardIdentity: View {
         Label {
             Text(symbol)
                 .font(.title3.bold())
-                .lineLimit(1)
                 .truncationMode(.middle)
             Text(name.localizedUppercase)
                 .font(.caption2.weight(.semibold))
                 .tracking(1.2)
-                .lineLimit(1)
                 .foregroundStyle(secondary)
                 .accessibilityLabel(name)
         } icon: {

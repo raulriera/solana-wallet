@@ -21,21 +21,15 @@ struct RecipientRow: View {
             Label {
                 if let name {
                     Text(name, format: .emphasizedGivenName)
-                    ShortAddress(address: address)
-                } else {
-                    ShortAddress(address: address)
                 }
+                ShortAddress(address: address)
             } icon: {
                 Text(PaymentRecipient(address: address, name: name), format: .monogram)
-                    .font(.headline)
-                    .minimumScaleFactor(0.5)
-                    .foregroundStyle(.white)
-                    .circularIcon(.gray.gradient)
+                    .monogramIcon()
             }
             .labelStyle(.subtitled)
         }
         .foregroundStyle(.selectionAware(.primary))
-        .lineLimit(1)
         .accessibilityElement(children: .combine)
     }
 }

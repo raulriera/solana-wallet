@@ -16,8 +16,7 @@ struct TokenIcon: View {
                 Color.clear
             default:
                 Text(symbol.prefix(1).uppercased())
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
+                    .monogramIcon()
             }
         }
         .id(imageURL)

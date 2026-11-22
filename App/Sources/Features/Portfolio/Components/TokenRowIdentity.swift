@@ -10,10 +10,8 @@ struct TokenRowIdentity: View {
         Label {
             Text(symbol)
                 .font(.headline)
-                .lineLimit(1)
                 .truncationMode(.middle)
             Text(name)
-                .lineLimit(1)
         } icon: {
             TokenIcon(symbol: symbol, imageURL: imageURL)
         }
