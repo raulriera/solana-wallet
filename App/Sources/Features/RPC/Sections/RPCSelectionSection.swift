@@ -22,7 +22,6 @@ struct RPCSelectionSection: View {
             Text("RPC Provider")
         } footer: {
             Text("Solana's public RPC is free and shared by everyone. It limits requests and isn't meant for heavy use.")
-                .foregroundStyle(palette.secondaryText)
         }
     }
 }

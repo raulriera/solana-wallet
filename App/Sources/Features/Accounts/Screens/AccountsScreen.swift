@@ -39,7 +39,6 @@ struct AccountsScreen: View {
             } footer: {
                 Text("Adding an account reads this wallet's recovery phrase, so you confirm it's you first.",
                      comment: "Footer under Add Account in Settings > Accounts. Adding asks for Face ID, Touch ID, or the passcode.")
-                    .foregroundStyle(palette.secondaryText)
             }
         }
         .formStyle(.choices(checkmark: .leading, descriptionSpacing: 2))

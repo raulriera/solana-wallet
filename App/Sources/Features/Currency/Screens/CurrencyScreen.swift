@@ -2,7 +2,6 @@ import SwiftUI
 
 /// Chooses the source of exchange rates and the currency that values show in.
 struct CurrencyScreen: View {
-    @Environment(\.palette) private var palette
     /// The currency choice, or `nil` until it's read.
     let settings: CurrencySettings?
     let choice: CurrencySettingsModel
@@ -32,7 +31,6 @@ struct CurrencyScreen: View {
             } footer: {
                 Text("The European Central Bank updates its rates once each working day, and Coinbase through the day. USD Only shows prices in US dollars, as they come.",
                      comment: "Footer under the rate source choices in Settings > Currency.")
-                    .foregroundStyle(palette.secondaryText)
             }
 
             if source != nil {

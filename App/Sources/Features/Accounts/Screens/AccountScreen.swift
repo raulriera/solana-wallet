@@ -4,7 +4,6 @@ import Wallet
 
 /// Renames an account, shows its whole address and its path, and deletes it.
 struct AccountScreen: View {
-    @Environment(\.palette) private var palette
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var isConfirmingDeletion = false
@@ -43,7 +42,6 @@ struct AccountScreen: View {
             } footer: {
                 Text("Leave the name empty to use \(account.defaultName).",
                      comment: "Footer under an account's name field. The variable is its numbered name, such as Account 2.")
-                    .foregroundStyle(palette.secondaryText)
             }
 
             Section("Address") {

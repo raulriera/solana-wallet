@@ -22,7 +22,6 @@ struct PriceSelectionSection: View {
             Text("Price Provider")
         } footer: {
             Text("Token prices come from the provider you choose. None turns prices off and makes no price requests.")
-                .foregroundStyle(palette.secondaryText)
         }
     }
 }
