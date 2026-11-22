@@ -11,51 +11,42 @@ struct RecipientList: View {
     var body: some View {
         List(selection: $selection) {
             if let newPayment = selection, !lists.lists(newPayment) {
-                Section {
-                    RecipientRow(name: nil, address: newPayment, date: nil)
+                Section("New Payment") {
+                    RecipientRow(name: nil, address: newPayment)
                         .tag(newPayment)
-                } header: {
-                    Text("New Payment")
-                        .foregroundStyle(.secondary)
                 }
             }
 
             if !lists.accounts.isEmpty {
-                Section {
+                Section("My Accounts") {
                     ForEach(lists.accounts) { account in
-                        RecipientRow(name: account.name, address: account.address, date: nil)
+                        RecipientRow(name: account.name, address: account.address)
                             .tag(account.address)
                             .swipeActions(edge: .leading) {
                                 FavoriteButton(contact: account)
                                     .swipeActionTint(.yellow)
                             }
                     }
-                } header: {
-                    Text("My Accounts")
-                        .foregroundStyle(.secondary)
                 }
             }
 
             if !lists.favorites.isEmpty {
-                Section {
+                Section("Favorites") {
                     ForEach(lists.favorites) { favorite in
-                        RecipientRow(name: favorite.name, address: favorite.address, date: nil)
+                        RecipientRow(name: favorite.name, address: favorite.address)
                             .tag(favorite.address)
                             .swipeActions(edge: .leading) {
                                 FavoriteButton(contact: favorite)
                                     .swipeActionTint(.yellow)
                             }
                     }
-                } header: {
-                    Text("Favorites")
-                        .foregroundStyle(.secondary)
                 }
             }
 
             if !lists.contacts.isEmpty {
-                Section {
+                Section("Contacts") {
                     ForEach(lists.contacts) { contact in
-                        RecipientRow(name: contact.name, address: contact.address, date: nil)
+                        RecipientRow(name: contact.name, address: contact.address)
                             .tag(contact.address)
                             .swipeActions(edge: .leading) {
                                 FavoriteButton(contact: contact)
@@ -64,14 +55,11 @@ struct RecipientList: View {
                             .swipeDelete(contact, removal: $removal)
                             .contactDeletion(of: contact, removal: $removal)
                     }
-                } header: {
-                    Text("Contacts")
-                        .foregroundStyle(.secondary)
                 }
             }
 
             if !lists.recents.isEmpty {
-                Section {
+                Section("Recents") {
                     ForEach(lists.recents) { payment in
                         RecipientRow(name: nil, address: payment.address, date: payment.date)
                             .tag(payment.address)
@@ -80,9 +68,6 @@ struct RecipientList: View {
                                     .swipeActionTint(.blue)
                             }
                     }
-                } header: {
-                    Text("Recents")
-                        .foregroundStyle(.secondary)
                 }
             }
         }

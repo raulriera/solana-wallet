@@ -7,7 +7,7 @@ struct RecipientRow: View {
     let name: String?
     let address: Address
     /// When the address was last paid, or `nil` when it never was.
-    let date: Date?
+    var date: Date?
 
     var body: some View {
         LabeledContent {
@@ -22,8 +22,6 @@ struct RecipientRow: View {
                 if let name {
                     Text(name, format: .emphasizedGivenName)
                     ShortAddress(address: address)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
                 } else {
                     ShortAddress(address: address)
                 }

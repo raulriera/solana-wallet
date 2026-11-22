@@ -13,8 +13,6 @@ struct TokenRowIdentity: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
             Text(name)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
                 .lineLimit(1)
         } icon: {
             TokenIcon(symbol: symbol, imageURL: imageURL)
