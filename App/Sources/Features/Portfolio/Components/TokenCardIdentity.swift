@@ -9,20 +9,20 @@ struct TokenCardIdentity: View {
     let secondary: ReadableSecondary
 
     var body: some View {
-        HStack(spacing: 12) {
+        Label {
+            Text(symbol)
+                .font(.title3.bold())
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Text(name.localizedUppercase)
+                .font(.caption2.weight(.semibold))
+                .tracking(1.2)
+                .lineLimit(1)
+                .foregroundStyle(secondary)
+                .accessibilityLabel(name)
+        } icon: {
             TokenIcon(symbol: symbol, imageURL: imageURL)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(symbol)
-                    .font(.title3.bold())
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                Text(name.localizedUppercase)
-                    .font(.caption2.weight(.semibold))
-                    .tracking(1.2)
-                    .lineLimit(1)
-                    .foregroundStyle(secondary)
-                    .accessibilityLabel(name)
-            }
         }
+        .labelStyle(.subtitled)
     }
 }
