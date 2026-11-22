@@ -1,5 +1,5 @@
 import SwiftUI
 
-extension EnvironmentValues {
+nonisolated extension EnvironmentValues {
     @Entry var palette = RenderedPalette(OriginalAppearance.palette)
 }

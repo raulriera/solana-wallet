@@ -1,6 +1,9 @@
 import SwiftUI
 
-/// A sidebar label style with a multicolor symbol that turns monochrome on a primary-colored selection.
+/// A sidebar label style with a multicolor symbol.
+///
+/// On a primary-colored selection, the title and a monochrome symbol take the theme's color for content on the primary
+/// color.
 struct SidebarLabelStyle: LabelStyle {
     @Environment(\.backgroundProminence) private var backgroundProminence
     /// The color for a symbol without colors of its own, or `nil` for the primary style.
@@ -17,6 +20,7 @@ struct SidebarLabelStyle: LabelStyle {
         }
         .labelStyle(.titleAndIcon)
         .symbolRenderingMode(isProminent ? .monochrome : .multicolor)
+        .foregroundStyle(.selectionAware(.primary))
     }
 }
 

@@ -3,7 +3,7 @@ import SwiftUI
 import Themes
 
 /// A theme's colors as SwiftUI colors.
-struct RenderedPalette: Equatable {
+nonisolated struct RenderedPalette: Equatable {
     private let palette: Palette
 
     var background: SwiftUI.Color { self[.background] }
@@ -34,7 +34,7 @@ struct RenderedPalette: Equatable {
     }
 }
 
-private extension SwiftUI.Color {
+nonisolated private extension SwiftUI.Color {
     /// Creates a SwiftUI color from a theme color.
     ///
     /// - Parameter color: The theme color.
@@ -47,7 +47,7 @@ private extension SwiftUI.Color {
     }
 }
 
-private extension Themes.Color.System {
+nonisolated private extension Themes.Color.System {
     /// The UIKit semantic color for this system color name.
     var uiColor: UIColor {
         switch self {
