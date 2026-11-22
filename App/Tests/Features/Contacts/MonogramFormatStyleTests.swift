@@ -4,8 +4,8 @@ import Transactions
 @testable import widgets
 
 struct MonogramFormatStyleTests {
-    @Test(arguments: [("Adam Okon" as String?, "AO"), (nil, "6D"), ("123", "6D")])
-    func `A recipient abbreviates to its name's initials, or else to its address's first two characters`(
+    @Test(arguments: [("Adam Okon" as String?, "AO"), ("Account 12", "A12"), ("Rent 2024", "R"), (nil, "6D"), ("123", "6D")])
+    func `A recipient abbreviates to its name's initials and trailing number, or else to its address's first two characters`(
         name: String?, monogram: String
     ) throws {
         let recipient = PaymentRecipient(address: try Address("6d8tEyrqPqVbEr6Jpuc7BEyYekeMUTyzHEwdmcAYEmtK"),
