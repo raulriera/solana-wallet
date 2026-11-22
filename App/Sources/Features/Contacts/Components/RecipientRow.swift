@@ -1,11 +1,9 @@
 import SwiftUI
 import Transactions
 
-/// A row that shows an address in a monogram circle, with the name it's saved under and when it was last paid.
+/// A row that shows a recipient in a monogram circle, with its name, its address, and when it was last paid.
 struct RecipientRow: View {
-    /// The name the address is saved under, or `nil` when it isn't saved.
-    let name: String?
-    let address: Address
+    let recipient: PaymentRecipient
     /// When the address was last paid, or `nil` when it never was.
     var date: Date?
 
@@ -19,12 +17,12 @@ struct RecipientRow: View {
             }
         } label: {
             Label {
-                if let name {
+                if let name = recipient.name {
                     Text(name, format: .emphasizedGivenName)
                 }
-                ShortAddress(address: address)
+                ShortAddress(address: recipient.address)
             } icon: {
-                Text(PaymentRecipient(address: address, name: name), format: .monogram)
+                Text(recipient, format: .monogram)
                     .monogramIcon()
             }
             .labelStyle(.subtitled)
@@ -36,10 +34,12 @@ struct RecipientRow: View {
 
 #Preview {
     if let alice = try? Address("6d8tEyrqPqVbEr6Jpuc7BEyYekeMUTyzHEwdmcAYEmtK"),
-       let recent = try? Address("44korouVTkSZ4u3SAT4BCg5S2AqJTV7osjVGVkjs3vtV") {
+       let recent = try? Address("44korouVTkSZ4u3SAT4BCg5S2AqJTV7osjVGVkjs3vtV"),
+       let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: .now),
+       let threeDaysAgo = Calendar.current.date(byAdding: .day, value: -3, to: .now) {
         List {
-            RecipientRow(name: "Alice Smith", address: alice, date: .now.addingTimeInterval(-24 * 60 * 60))
-            RecipientRow(name: nil, address: recent, date: .now.addingTimeInterval(-3 * 24 * 60 * 60))
+            RecipientRow(recipient: PaymentRecipient(address: alice, name: "Alice Smith"), date: yesterday)
+            RecipientRow(recipient: PaymentRecipient(address: recent, name: nil), date: threeDaysAgo)
         }
         .listStyle(.plain)
     }

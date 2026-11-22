@@ -1,6 +1,7 @@
 import Foundation
 
-/// A format style that keeps a name as typed and strongly emphasizes its given name, as Contacts shows Adam in Adam Okon.
+/// A format style that keeps a name as typed and strongly emphasizes its given name, as Contacts shows Adam in
+/// Adam Okon.
 nonisolated struct EmphasizedGivenNameFormatStyle: FormatStyle {
     func format(_ name: String) -> AttributedString {
         var formatted = AttributedString(name)
