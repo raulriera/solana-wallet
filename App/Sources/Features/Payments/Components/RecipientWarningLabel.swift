@@ -7,6 +7,6 @@ struct RecipientWarningLabel: View {
 
     var body: some View {
         Label(warning.message, systemImage: warning.systemImage)
-            .foregroundStyle(warning.isSerious ? palette.destructive : palette.secondaryText)
+            .foregroundStyle(warning.isSerious ? palette.destructive : .secondary)
     }
 }

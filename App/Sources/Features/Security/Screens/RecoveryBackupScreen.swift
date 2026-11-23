@@ -3,7 +3,6 @@ import Wallet
 
 /// Shows a wallet's recovery backup, or explains that it isn't on this device.
 struct RecoveryBackupScreen: View {
-    @Environment(\.palette) private var palette
     @Environment(\.canDisplayRecovery) private var canDisplayRecovery
     let display: RecoveryDisplay
     let coordinator: SecurityCoordinator
@@ -18,10 +17,8 @@ struct RecoveryBackupScreen: View {
                         CopyWordsButton(phrase: backup.phrase, pasteboard: coordinator.pasteboard)
                     } header: {
                         Text("Recovery Words")
-                            .foregroundStyle(palette.secondaryText)
                     } footer: {
                         Text("Write down these words in order and keep them somewhere safe. Anyone with them can control your wallet. Copied words stay on this device and clear from the clipboard after \(coordinator.pasteboard.lifetime, format: .units(allowed: [.minutes, .seconds], width: .wide)).")
-                            .foregroundStyle(palette.secondaryText)
                     }
 
                     Section {
@@ -37,9 +34,7 @@ struct RecoveryBackupScreen: View {
                         }
                     } footer: {
                         Text("You need these details with your words to restore this wallet.")
-                            .foregroundStyle(palette.secondaryText)
                     }
-                    .foregroundStyle(palette.text, palette.secondaryText)
                 }
             case .unavailable:
                 UnavailableScreen(title: "Recovery Phrase Unavailable",

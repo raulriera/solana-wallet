@@ -3,7 +3,6 @@ import SwiftUI
 
 /// Takes a pasted mint address and previews the token it names.
 struct TokenAdditionScreen: View {
-    @Environment(\.palette) private var palette
     let addition: TokenAdditionModel
 
     var body: some View {
@@ -13,13 +12,12 @@ struct TokenAdditionScreen: View {
                     Group {
                         if addition.text.isEmpty {
                             Text("Mint address")
-                                .foregroundStyle(palette.secondaryText)
+                                .foregroundStyle(.secondary)
                         } else {
                             Text(addition.text)
                                 .monospaced()
                                 .lineLimit(1)
                                 .truncationMode(.middle)
-                                .foregroundStyle(palette.text)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -36,7 +34,6 @@ struct TokenAdditionScreen: View {
                 }
             } footer: {
                 Text("Copy a token's mint address, then paste it here.")
-                    .foregroundStyle(palette.secondaryText)
             }
 
             if let preview = addition.preview {
@@ -46,7 +43,6 @@ struct TokenAdditionScreen: View {
                                    logoURL: token.logoURL)
                 } footer: {
                     Text("Anyone can name a token anything. Add only addresses you trust.")
-                        .foregroundStyle(palette.secondaryText)
                 }
             }
         }

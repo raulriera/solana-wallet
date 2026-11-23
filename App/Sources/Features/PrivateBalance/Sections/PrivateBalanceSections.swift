@@ -34,16 +34,13 @@ struct PrivateBalanceSections: View {
             } header: {
                 Text("Private Balance")
             } footer: {
-                Group {
-                    if isRegistered {
-                        Text("This account already uses private balances. Turn them on to see its private balance. Private balances hide amounts from others on the network. Addresses stay visible, and the service that finds your private payments can tell which ones are yours and when you spend them.",
-                             comment: "Footer under the button that turns private balances on, for an account that turned them on before, such as before its wallet was imported again.")
-                    } else {
-                        Text("Private balances hide amounts from others on the network. Addresses stay visible, and the service that finds your private payments can tell which ones are yours and when you spend them.",
-                             comment: "Footer under the button that turns private balances on.")
-                    }
+                if isRegistered {
+                    Text("This account already uses private balances. Turn them on to see its private balance. Private balances hide amounts from others on the network. Addresses stay visible, and the service that finds your private payments can tell which ones are yours and when you spend them.",
+                         comment: "Footer under the button that turns private balances on, for an account that turned them on before, such as before its wallet was imported again.")
+                } else {
+                    Text("Private balances hide amounts from others on the network. Addresses stay visible, and the service that finds your private payments can tell which ones are yours and when you spend them.",
+                         comment: "Footer under the button that turns private balances on.")
                 }
-                .foregroundStyle(palette.secondaryText)
             }
         case .balance?, .unregistered?:
             let balance = status?.balance(of: privateAsset) ?? .zero

@@ -2,7 +2,6 @@ import SwiftUI
 
 /// Asks for the final confirmation before a reset.
 struct ResetConfirmationScreen: View {
-    @Environment(\.palette) private var palette
     @State private var isConfirming = false
     let coordinator: SecurityCoordinator
 
@@ -17,7 +16,6 @@ struct ResetConfirmationScreen: View {
                     }
             } footer: {
                 Text("This can't be undone. It deletes everything this app saved on this device, including every wallet and recovery phrase. Every window will return to Welcome.")
-                    .foregroundStyle(palette.secondaryText)
             }
         }
         .navigationTitle("Reset App")

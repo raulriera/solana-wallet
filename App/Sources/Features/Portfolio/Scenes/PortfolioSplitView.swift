@@ -75,10 +75,8 @@ struct PortfolioSplitView: View {
                             .refreshable { await refreshDetail(of: holding) }
                     } else {
                         ContentUnavailableView("No Token Selected", systemImage: "wallet.bifold",
-                                               description: Text("Select a token to see its balance and value.")
-                                                .foregroundStyle(palette.secondaryText))
+                                               description: Text("Select a token to see its balance and value."))
                             .drawOnAppear()
-                            .foregroundStyle(palette.text, palette.secondaryText)
                             .background(palette.background)
                             .toolbarTitleDisplayMode(.inline)
                     }

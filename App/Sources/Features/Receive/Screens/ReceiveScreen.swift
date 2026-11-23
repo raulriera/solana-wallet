@@ -21,7 +21,6 @@ struct ReceiveScreen: View {
                 if network == .devnet {
                     Text("This address is on Devnet. Devnet tokens are for testing and have no monetary value.",
                          comment: "Footer under an account's QR code in a window on Devnet, Solana's test network.")
-                        .foregroundStyle(palette.secondaryText)
                 }
             }
 

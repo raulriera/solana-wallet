@@ -4,7 +4,6 @@ import Wallet
 
 /// Shows numbered recovery words in reading order in two columns.
 struct RecoveryWords: View {
-    @Environment(\.palette) private var palette
     @Environment(\.canDisplayRecovery) private var canDisplayRecovery
     let phrase: RecoveryPhrase
 
@@ -16,7 +15,6 @@ struct RecoveryWords: View {
                 RecoveryWordsRow(words: words)
             }
         }
-        .foregroundStyle(palette.text)
         .privacySensitive()
         .transaction { transaction in transaction.animation = nil }
     }
