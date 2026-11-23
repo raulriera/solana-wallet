@@ -4,7 +4,7 @@ public struct ValidationError: Error, Sendable, Equatable {
     enum Kind: Sendable {
         /// The value is missing, malformed, or of the wrong type.
         case invalid
-        /// The value names a format version, setting, or option that this version doesn't know.
+        /// The value names a format version or option that this version doesn't know.
         case unsupported
         /// The file or directory can't be read as what the package needs.
         case unreadable

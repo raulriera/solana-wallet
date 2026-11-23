@@ -22,7 +22,7 @@ struct Manifest: Sendable, Equatable {
         } catch {
             throw ValidationError(path: "manifest.json", kind: .invalid)
         }
-        let root = try object(json, at: "manifest.json", keys: ["version", "id", "name", "tokens", "assets"])
+        let root = try object(json, at: "manifest.json")
         let version = try number(root["version"], at: "version")
         guard version.doubleValue.rounded(.towardZero) == version.doubleValue else {
             throw ValidationError(path: "version", kind: .invalid)
@@ -38,14 +38,13 @@ struct Manifest: Sendable, Equatable {
         try validateName(name)
         var overrides = Tokens.Overrides()
         if let suppliedTokens = root["tokens"] {
-            let tokens = try object(suppliedTokens, at: "tokens", keys: ["colors", "fontDesign"])
+            let tokens = try object(suppliedTokens, at: "tokens")
             if let suppliedColors = tokens["colors"] {
-                let appearances = try object(suppliedColors, at: "tokens.colors",
-                                             keys: Appearance.allCases.map(\.rawValue))
+                let appearances = try object(suppliedColors, at: "tokens.colors")
                 for appearance in Appearance.allCases {
                     guard let suppliedPalette = appearances[appearance.rawValue] else { continue }
                     let path = "tokens.colors.\(appearance.rawValue)"
-                    let palette = try object(suppliedPalette, at: path, keys: Palette.Role.allCases.map(\.rawValue))
+                    let palette = try object(suppliedPalette, at: path)
                     var values: [Palette.Role: Color] = [:]
                     for role in Palette.Role.allCases {
                         if let value = palette[role.rawValue] {
@@ -103,21 +102,16 @@ struct Manifest: Sendable, Equatable {
         }
     }
 
-    /// Reads a JSON object and checks its keys.
+    /// Reads a JSON object.
     ///
     /// - Parameters:
     ///   - value: A decoded JSON value.
     ///   - path: The value's manifest location.
-    ///   - keys: The allowed keys, or `nil` to allow any key.
     /// - Returns: The JSON object.
-    /// - Throws: A validation error for a wrong type or unknown key.
-    private static func object(_ value: Any, at path: String, keys: [String]? = nil) throws -> [String: Any] {
+    /// - Throws: A validation error if the value isn't an object.
+    private static func object(_ value: Any, at path: String) throws -> [String: Any] {
         guard let object = value as? [String: Any] else {
             throw ValidationError(path: path, kind: .invalid)
-        }
-        if let keys, let unknown = object.keys.sorted().first(where: { !keys.contains($0) }) {
-            let prefix = path == "manifest.json" ? "" : "\(path)."
-            throw ValidationError(path: "\(prefix)\(unknown)", kind: .unsupported)
         }
         return object
     }
@@ -173,8 +167,8 @@ struct Manifest: Sendable, Equatable {
     /// - Returns: A system or opaque sRGB color.
     /// - Throws: A validation error for an invalid color.
     private static func color(_ value: Any, at path: String) throws -> Color {
-        let object = try object(value, at: path, keys: ["system", "srgb"])
-        guard object.count == 1 else {
+        let object = try object(value, at: path)
+        guard ["system", "srgb"].count(where: { object[$0] != nil }) == 1 else {
             throw ValidationError(path: path, kind: .invalid)
         }
         if let system = object["system"] {

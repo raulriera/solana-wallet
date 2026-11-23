@@ -74,4 +74,4 @@ To start, export a template from the app: it holds every default color, the defa
 - Every declared asset must exist.
 - Limits: 1 MiB for the manifest, 16 MiB and 16,777,216 pixels for each image, and 64 MiB of images for each pack.
 
-Import rejects explicit `null` values, unknown settings, wrong types, unsupported values, and invalid assets.
+Import ignores keys it doesn't know. It rejects invalid assets, and explicit `null` values, wrong types, and unsupported values in the keys it reads.

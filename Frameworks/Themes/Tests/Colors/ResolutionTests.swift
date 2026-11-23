@@ -2,8 +2,11 @@ import Testing
 import Themes
 
 struct ResolutionTests {
-    @Test(arguments: ["", #""tokens":{}"#, #""tokens":{"colors":{}}"#])
-    func `Omitted settings use defaults`(fields: String) async throws {
+    @Test(arguments: [
+        "", #""tokens":{}"#, #""tokens":{"colors":{}}"#,
+        #""tokens":{"colors":{"light":{"invented":{"system":"label"}}}}"#
+    ])
+    func `Omitted and unknown settings use defaults`(fields: String) async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         try fixture.manifest(fields)
@@ -25,6 +28,13 @@ struct ResolutionTests {
                 : baseline
             #expect(palette == expected)
         }
+    }
+
+    @Test func `Unknown keys in a color are ignored`() async throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        try fixture.manifest(#""tokens":{"colors":{"light":{"primary":{"system":"label","note":"Brand"}}}}"#)
+        #expect(try await fixture.resolved().colors.light[.primary] == .system(.label))
     }
 
     @Test(arguments: Themes.Color.System.allCases)

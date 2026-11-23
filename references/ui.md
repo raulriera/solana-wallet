@@ -32,7 +32,7 @@ The [Themes framework](../Frameworks/Themes/README.md) defines the package forma
 - Packs are data and assets, never executable UI. The app owns rendering, adaptation, navigation, action meanings, Dynamic Type, accessibility, and transaction review; a theme can't remove required transaction information or approval controls.
 - Built-in themes can't be edited or removed; custom themes can. One app-wide theme applies to every window.
 - Package I/O and validation run off the main actor and Swift's shared executor.
-- Validate only structure, supported settings and formats, and safe asset loading. Invalid settings fail with a clear error and leave the installed theme unchanged. Never reject a custom pack for contrast, aesthetics, or HIG conformance.
+- Validate only structure, supported values and formats, and safe asset loading; ignore unknown keys. Invalid settings fail with a clear error and leave the installed theme unchanged. Never reject a custom pack for contrast, aesthetics, or HIG conformance.
 
 ## Design approval
 
