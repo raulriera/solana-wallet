@@ -2,7 +2,6 @@ import SwiftUI
 
 /// Explains what a reset deletes before the final confirmation.
 struct ResetAppScreen: View {
-    @Environment(\.palette) private var palette
     let mode: ResetMode
     let account: Account
     let coordinator: SecurityCoordinator
@@ -25,7 +24,6 @@ struct ResetAppScreen: View {
             if mode == .standard {
                 Section {
                     Button("Show Recovery Phrase") { coordinator.showRecovery(for: account) }
-                        .foregroundStyle(palette.primary)
                 } footer: {
                     Text("Make sure you've written down your recovery phrase before you continue.")
                 }
@@ -33,7 +31,6 @@ struct ResetAppScreen: View {
 
             Section {
                 Button("Continue") { coordinator.confirmReset() }
-                    .foregroundStyle(palette.primary)
             }
         }
         .navigationTitle("Reset App")

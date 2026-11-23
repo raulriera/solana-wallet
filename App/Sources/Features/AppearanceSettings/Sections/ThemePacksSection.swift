@@ -3,7 +3,6 @@ import Themes
 
 /// A section that imports theme packs and exports the default template.
 struct ThemePacksSection: View {
-    @Environment(\.palette) private var palette
     @Bindable var settings: AppearanceSettingsModel
     @State private var isImporting = false
     @State private var isExporting = false
@@ -14,14 +13,12 @@ struct ThemePacksSection: View {
                 guard settings.canStartOperation else { return }
                 isImporting = true
             }
-                .foregroundStyle(palette.primary)
                 .fileImporter(isPresented: $isImporting, allowedContentTypes: [.themePack], onCompletion: completeImport)
                 .confirmation("Replace Theme?", action: "Replace", item: $settings.replacement,
                               perform: settings.replace) { replacement in
                     Text("Replace \(replacement.existing.name) with \(replacement.pack.name)? Windows using this theme will update.")
                 }
             Button("Export Default Template…", systemImage: "square.and.arrow.up") { settings.prepareExport() }
-                .foregroundStyle(palette.primary)
                 .onChange(of: settings.export != nil, initial: true) { _, isReady in isExporting = isReady }
                 .fileExporter(isPresented: $isExporting, item: settings.export, defaultFilename: "Theme.xtheme",
                               onCompletion: completeExport, onCancellation: settings.finishExport)

@@ -5,7 +5,6 @@ import Wallet
 
 /// Lists a wallet's accounts, selects one, and adds the wallet's next account.
 struct AccountsScreen: View {
-    @Environment(\.palette) private var palette
     let accounts: [Account]
     @Binding var selection: Account
     let addition: AccountAdditionModel
@@ -33,7 +32,6 @@ struct AccountsScreen: View {
                 Button { addition.add(to: selection.recoveryID) } label: {
                     PendingLabel(title: "Add Account", isPending: isAdding)
                 }
-                .foregroundStyle(palette.primary)
                 .lineLimit(1)
                 .disabled(isAdding)
             } footer: {

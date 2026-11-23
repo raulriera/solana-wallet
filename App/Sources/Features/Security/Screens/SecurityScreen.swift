@@ -2,7 +2,6 @@ import SwiftUI
 
 /// Explains what stays on this device and offers the wallet's backup and the app reset.
 struct SecurityScreen: View {
-    @Environment(\.palette) private var palette
     let coordinator: SecurityCoordinator
     let account: Account
 
@@ -18,7 +17,6 @@ struct SecurityScreen: View {
 
             Section {
                 Button("Show Recovery Phrase") { coordinator.showRecovery(for: account) }
-                    .foregroundStyle(palette.primary)
             } header: {
                 Text("Recovery Phrase")
             }
