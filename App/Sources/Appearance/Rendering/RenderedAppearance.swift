@@ -8,8 +8,6 @@ nonisolated struct RenderedPalette: Equatable {
 
     var background: SwiftUI.Color { self[.background] }
     var surface: SwiftUI.Color { self[.surface] }
-    var text: SwiftUI.Color { self[.text] }
-    var secondaryText: SwiftUI.Color { self[.secondaryText] }
     var separator: SwiftUI.Color { self[.separator] }
     var primary: SwiftUI.Color { self[.primary] }
     var onPrimary: SwiftUI.Color { self[.onPrimary] }

@@ -15,7 +15,7 @@ struct KeypadKeyButtonStyle: ButtonStyle {
             .minimumScaleFactor(0.5)
             .accessibilityShowsLargeContentViewer()
             .accessibilityAddTraits(.isKeyboardKey)
-            .foregroundStyle(palette[style.keyText].opacity(isEnabled ? 1 : 0.4))
+            .foregroundStyle(Color.primary.opacity(isEnabled ? 1 : 0.4))
             .opacity(configuration.isPressed && background != .glass ? 0.6 : 1)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .aspectRatio(1, contentMode: .fit)

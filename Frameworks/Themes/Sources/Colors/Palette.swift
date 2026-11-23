@@ -6,10 +6,6 @@ public struct Palette: Sendable, Equatable {
         case background
         /// The color of content layered on the background.
         case surface
-        /// The main text color.
-        case text
-        /// The supporting text color.
-        case secondaryText
         /// The color of content dividers.
         case separator
         /// The fill of primary buttons, and the color of links and controls without a fill.

@@ -49,8 +49,8 @@ struct ResolutionTests {
     @Test func `Matching foreground and background are accepted`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
-        try fixture.manifest(##""tokens":{"colors":{"light":{"background":{"srgb":"#000000"},"text":{"srgb":"#000000"}}}}"##)
+        try fixture.manifest(##""tokens":{"colors":{"light":{"primary":{"srgb":"#000000"},"onPrimary":{"srgb":"#000000"}}}}"##)
         let result = try await fixture.resolved()
-        #expect(result.colors.light[.background] == result.colors.light[.text])
+        #expect(result.colors.light[.primary] == result.colors.light[.onPrimary])
     }
 }

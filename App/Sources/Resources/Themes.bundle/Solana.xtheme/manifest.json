@@ -7,7 +7,6 @@
       "light": {
         "background": { "srgb": "#F3EFFB" },
         "surface": { "srgb": "#FFFFFF" },
-        "text": { "srgb": "#1B1528" },
         "separator": { "srgb": "#DDD3F0" },
         "primary": { "srgb": "#8635EC" },
         "onPrimary": { "srgb": "#FFFFFF" },
@@ -18,8 +17,6 @@
       "dark": {
         "background": { "srgb": "#0D0C11" },
         "surface": { "srgb": "#17151E" },
-        "text": { "srgb": "#FFFFFF" },
-        "secondaryText": { "srgb": "#ABABBA" },
         "separator": { "srgb": "#2E2A38" },
         "primary": { "srgb": "#14F195" },
         "onPrimary": { "srgb": "#000000" },
