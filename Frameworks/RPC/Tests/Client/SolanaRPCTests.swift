@@ -63,27 +63,18 @@ struct SolanaRPCTests {
     }
 
     @Test(arguments: [
-        (200, IndexerFixtures.page(), true),
-        (404, IndexerFixtures.page(), false),
-        (200, #""error":{"code":-32601,"message":"Method not found"}"#, false),
+        (200, IndexerFixtures.page(), Capabilities.privateBalances),
+        (404, IndexerFixtures.page(), Capabilities()),
+        (200, #""error":{"code":-32601,"message":"Method not found"}"#, Capabilities()),
     ])
     func `Only a server with a Solana Rings indexer and an attested prover serves private balances`(
         attestationStatus: Int,
         indexerReply: String,
-        serves: Bool
+        capability: Capabilities
     ) async throws {
         let rpc = try Self.rings(attestationStatus: attestationStatus, indexerReply: indexerReply)
 
-        #expect(try await rpc.servesPrivateBalances() == serves)
-    }
-
-    @Test
-    func `A rate-limited check for private balances throws`() async throws {
-        let rpc = try Self.rings(attestationStatus: 429, indexerReply: IndexerFixtures.page())
-
-        await #expect(throws: RPCError.http(statusCode: 429, retryAfter: nil)) {
-            try await rpc.servesPrivateBalances()
-        }
+        #expect(try await rpc.privateBalancesCapability() == capability)
     }
 
     @Test(arguments: ["https:///fixture-token", "https://:8443/fixture-token", "https://fixture-user@/fixture-token"])

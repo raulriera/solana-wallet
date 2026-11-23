@@ -26,20 +26,14 @@ extension LogoProviding {
         return try await assetLogos(for: Array(mints.uniqued()))
     }
 
-    /// Returns whether the provider's server serves copies of token logos, whatever capabilities the client declares.
+    /// Returns the ``Capabilities/logos`` capability when the provider's server serves copies of token logos, whatever
+    /// capabilities the client declares.
     ///
     /// - Parameter mint: A mint address whose token has a logo.
-    /// - Returns: Whether the server returns an HTTPS copy of the mint's logo.
+    /// - Returns: ``Capabilities/logos`` when the server returns an HTTPS copy of the mint's logo, or no capabilities.
     /// - Throws: A rate-limit ``RPCError``, or `CancellationError`.
-    public func servesLogos(checking mint: String) async throws -> Bool {
-        do {
-            return try await assetLogos(for: [mint])[mint] != nil
-        } catch let error as RPCError where error.isRateLimited {
-            throw error
-        } catch {
-            try Task.checkCancellation()
-            return false
-        }
+    public func logoCapability(checking mint: String) async throws -> Capabilities {
+        try await Capabilities(.logos) { try await assetLogos(for: [mint])[mint] != nil }
     }
 
     /// Looks up the provider's copies of the logos of assets with one DAS asset batch.

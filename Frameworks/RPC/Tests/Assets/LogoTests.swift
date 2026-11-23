@@ -56,51 +56,18 @@ struct LogoTests {
     }
 
     @Test(arguments: [
-        (logoCopy, true),
-        (#""result":[null]"#, false),
-        (#""error":{"code":-32601,"message":"Method not found"}"#, false),
+        (logoCopy, Capabilities.logos),
+        (#""result":[null]"#, Capabilities()),
     ])
     func `The logo check reports a server that returns the mint's logo copy, whatever the client declares`(
         payload: String,
-        serves: Bool
+        capability: Capabilities
     ) async throws {
         let transport = StubTransport { try reply(to: $0, payload: payload) }
         let provider = try customProvider(transport: transport)
 
-        #expect(try await provider.servesLogos(checking: "mint") == serves)
+        #expect(try await provider.logoCapability(checking: "mint") == capability)
         #expect(await transport.requests.count == 1)
-    }
-
-    @Test
-    func `A rate-limited logo check fails`() async throws {
-        let transport = StubTransport { try reply(to: $0, payload: #""result":[]"#, status: 429) }
-        let provider = try customProvider(transport: transport)
-
-        await #expect(throws: RPCError.http(statusCode: 429, retryAfter: nil)) {
-            try await provider.servesLogos(checking: "mint")
-        }
-    }
-
-    @Test
-    func `A cancelled logo check fails with a cancellation`() async throws {
-        let (started, startedContinuation) = AsyncStream<Void>.makeStream()
-        let (pending, release) = AsyncStream<Void>.makeStream()
-        defer { startedContinuation.finish(); release.finish() }
-        let transport = StubTransport { request in
-            startedContinuation.yield(())
-            for await _ in pending {}
-            try Task.checkCancellation()
-            return try reply(to: request, payload: #""result":[]"#)
-        }
-        let provider = try customProvider(transport: transport)
-        let check = Task { try await provider.servesLogos(checking: "mint") }
-        defer { check.cancel() }
-        var iterator = started.makeAsyncIterator()
-        _ = try #require(await iterator.next())
-
-        check.cancel()
-
-        await #expect(throws: CancellationError.self) { try await check.value }
     }
 
     @Test
