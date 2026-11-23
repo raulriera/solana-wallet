@@ -6,14 +6,11 @@ struct SubtitledLabelStyle: LabelStyle {
     func makeBody(configuration: Configuration) -> some View {
         HStack(spacing: 12) {
             configuration.icon
-            Group(subviews: configuration.title) { subviews in
-                VStack(alignment: .leading, spacing: 2) {
-                    subviews.first
-                    subviews.dropFirst()
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
+            LabeledContent {
+            } label: {
+                configuration.title
             }
+            .labeledContentStyle(.subtitled(spacing: 2))
             .lineLimit(1)
             .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
         }
