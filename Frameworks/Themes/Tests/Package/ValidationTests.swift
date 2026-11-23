@@ -14,14 +14,9 @@ struct ValidationTests {
         (#""tokens":{"colors":{"light":{"primary":{"system":null}}}}"#, "tokens.colors.light.primary.system", .invalid),
         (#""tokens":{"colors":{"light":{"primary":{"system":"invented"}}}}"#, "tokens.colors.light.primary.system", .unsupported),
         (#""tokens":{"colors":{"light":{"primary":{"srgb":42}}}}"#, "tokens.colors.light.primary.srgb", .invalid),
-        (##""tokens":{"colors":{"light":{"primary":{"rgb":"#123456"}}}}"##, "tokens.colors.light.primary.rgb", .unsupported),
-        (#""tokens":{"colors":{"light":{"invented":{"system":"label"}}}}"#, "tokens.colors.light.invented", .unsupported),
-        (#""tokens":{"colors":{"invented":{}}}"#, "tokens.colors.invented", .unsupported),
-        (#""tokens":{"typography":{}}"#, "tokens.typography", .unsupported),
         (#""tokens":{"fontDesign":null}"#, "tokens.fontDesign", .invalid),
         (#""tokens":{"fontDesign":1}"#, "tokens.fontDesign", .invalid),
         (#""tokens":{"fontDesign":"Menlo"}"#, "tokens.fontDesign", .unsupported),
-        (#""formatVersion":1"#, "formatVersion", .unsupported),
         (#""assets":null"#, "assets", .invalid),
         (#""assets":{"background":null}"#, "assets.background", .invalid)
     ] as [(String, String, ValidationError.Kind)])

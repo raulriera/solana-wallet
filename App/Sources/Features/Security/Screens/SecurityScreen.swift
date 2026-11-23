@@ -28,7 +28,6 @@ struct SecurityScreen: View {
                     .labelStyle(.warning)
             } footer: {
                 Text("Deletes everything this app saved on this device, including every wallet and recovery phrase.")
-                    .foregroundStyle(palette.secondaryText)
             }
         }
         .navigationTitle("Security & Privacy")

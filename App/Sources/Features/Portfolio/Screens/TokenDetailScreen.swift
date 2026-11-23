@@ -7,7 +7,6 @@ import Wallet
 
 /// Shows one token's balance and, when known, its value, price, and 24-hour change.
 struct TokenDetailScreen: View {
-    @Environment(\.palette) private var palette
     @Environment(PrivateBalanceStore.self) private var privateBalances
     @Environment(\.refresh) private var refresh
     let holding: Holding
@@ -64,24 +63,21 @@ struct TokenDetailScreen: View {
             } header: {
                 Text("Holdings")
             } footer: {
-                Group {
-                    if holding.otherOwner != nil {
-                        Label {
-                            Text("You don’t own this account. Funds sent here will be lost.",
-                                 comment: "Warning under a token whose account at the person's address another address controls.")
-                        } icon: {
-                            Image(systemName: "exclamationmark.circle.fill")
-                        }
-                        .labelStyle(.warning)
-                    } else if network == .devnet {
-                        Text("Devnet tokens are for testing and have no monetary value.",
-                             comment: "Footer under a token's balance in a window on Devnet, Solana's test network.")
-                    } else if let currency = holding.knownValue?.currency {
-                        Text("Values are quoted in \(currency).",
-                             comment: "Footer under a token's value and price. The variable is the quote currency code, such as USD.")
+                if holding.otherOwner != nil {
+                    Label {
+                        Text("You don’t own this account. Funds sent here will be lost.",
+                             comment: "Warning under a token whose account at the person's address another address controls.")
+                    } icon: {
+                        Image(systemName: "exclamationmark.circle.fill")
                     }
+                    .labelStyle(.warning)
+                } else if network == .devnet {
+                    Text("Devnet tokens are for testing and have no monetary value.",
+                         comment: "Footer under a token's balance in a window on Devnet, Solana's test network.")
+                } else if let currency = holding.knownValue?.currency {
+                    Text("Values are quoted in \(currency).",
+                         comment: "Footer under a token's value and price. The variable is the quote currency code, such as USD.")
                 }
-                .foregroundStyle(palette.secondaryText)
             }
 
             if let privateAsset, let publicBalance {

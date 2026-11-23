@@ -9,7 +9,7 @@ struct AmountCaption: View {
         let exceedsBalance = payment.exceedsBalance
         HStack(spacing: 6) {
             Text(exceedsBalance ? payment.source.warning : payment.balanceText)
-                .foregroundStyle(exceedsBalance ? palette.destructive : palette.secondaryText)
+                .foregroundStyle(exceedsBalance ? palette.destructive : .secondary)
             if payment.offersChoices {
                 Image(systemName: "chevron.up.chevron.down")
                     .imageScale(.small)
@@ -20,7 +20,7 @@ struct AmountCaption: View {
         .minimumScaleFactor(0.5)
         .lineLimit(1, reservesSpace: true)
         .truncationMode(.middle)
-        .foregroundStyle(palette.secondaryText)
+        .foregroundStyle(Color.secondary)
         .contentTransition(.numericText())
         .geometryGroup()
     }

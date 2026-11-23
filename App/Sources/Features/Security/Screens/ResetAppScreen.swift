@@ -20,7 +20,6 @@ struct ResetAppScreen: View {
         Form {
             Section {} footer: {
                 Text(message)
-                    .foregroundStyle(palette.secondaryText)
             }
 
             if mode == .standard {
@@ -29,7 +28,6 @@ struct ResetAppScreen: View {
                         .foregroundStyle(palette.primary)
                 } footer: {
                     Text("Make sure you've written down your recovery phrase before you continue.")
-                        .foregroundStyle(palette.secondaryText)
                 }
             }
 

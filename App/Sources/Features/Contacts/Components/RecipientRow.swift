@@ -27,9 +27,11 @@ struct RecipientRow: View {
                     }
                 }
             }
+            .foregroundStyle(.selectionAware(.primary))
         } icon: {
             Image(systemName: systemImage)
                 .symbolRenderingMode(.monochrome)
+                .foregroundStyle(.selectionAware(.tint))
         }
         .accessibilityElement(children: .combine)
     }

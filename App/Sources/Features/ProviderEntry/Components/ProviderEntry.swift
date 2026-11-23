@@ -8,7 +8,6 @@ struct ProviderEntry: View {
         case url
     }
 
-    @Environment(\.palette) private var palette
     @Binding var text: String
     @FocusState.Binding var isFocused: Bool
     let label: LocalizedStringResource
@@ -28,7 +27,6 @@ struct ProviderEntry: View {
                 }
             }
             .accessibilityLabel(Text(label))
-            .foregroundStyle(palette.text)
             .focused($isFocused)
             .submitLabel(.done)
             .onSubmit { isFocused = false }

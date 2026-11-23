@@ -17,12 +17,11 @@ struct TitleCardContent<Icon: View>: View {
 
             Text(title)
                 .font(.title2.bold())
-                .foregroundStyle(palette.text)
                 .accessibilityAddTraits(.isHeader)
 
             Text(message)
                 .font(.body)
-                .foregroundStyle(palette.secondaryText)
+                .foregroundStyle(.secondary)
         }
         .padding(.vertical, 8)
     }

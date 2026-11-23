@@ -3,7 +3,6 @@ import SwiftUI
 
 /// A screen that chooses the window's network.
 struct NetworkScreen: View {
-    @Environment(\.palette) private var palette
     @Binding var network: Network
 
     var body: some View {
@@ -26,7 +25,6 @@ struct NetworkScreen: View {
             } footer: {
                 Text("Only this window switches. Other windows keep their network, and new windows open on Mainnet.",
                      comment: "Footer under the Mainnet and Devnet choices in Settings > Network. Each app window has its own network.")
-                    .foregroundStyle(palette.secondaryText)
             }
         }
         .formStyle(.choices)

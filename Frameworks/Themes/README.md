@@ -60,7 +60,7 @@ To start, export a template from the app: it holds every default color, the defa
 ### Colors
 
 - Appearances under `tokens.colors`: `light` and `dark`.
-- Roles in each appearance: `background`, `surface`, `text`, `secondaryText`, `separator`, `primary`, `onPrimary`, `secondary`, `onSecondary`, `destructive`, `onDestructive`, `border`, and `sidebar`.
+- Roles in each appearance: `background`, `surface`, `separator`, `primary`, `onPrimary`, `secondary`, `onSecondary`, `destructive`, `onDestructive`, `border`, and `sidebar`.
 - `primary`, `secondary`, and `destructive` fill their buttons. Each `on` role colors the text and symbols on that fill. `primary` also colors links and controls without a fill, and `destructive` colors destructive text without a fill. `border` outlines buttons; use `clear` for none. `sidebar` fills sidebars; use `clear` for the system sidebar.
 - Each color is a [system color](Sources/Colors/Color.swift), such as `{ "system": "systemBackground" }`, or an opaque sRGB color, such as `{ "srgb": "#26643E" }`.
 
@@ -74,4 +74,4 @@ To start, export a template from the app: it holds every default color, the defa
 - Every declared asset must exist.
 - Limits: 1 MiB for the manifest, 16 MiB and 16,777,216 pixels for each image, and 64 MiB of images for each pack.
 
-Import rejects explicit `null` values, unknown settings, wrong types, unsupported values, and invalid assets.
+Import ignores keys it doesn't know. It rejects invalid assets, and explicit `null` values, wrong types, and unsupported values in the keys it reads.

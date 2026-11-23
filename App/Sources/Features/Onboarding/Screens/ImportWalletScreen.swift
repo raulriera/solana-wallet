@@ -2,7 +2,6 @@ import SwiftUI
 
 /// Collects and validates an existing wallet's recovery words for import.
 struct ImportWalletScreen: View {
-    @Environment(\.palette) private var palette
     @Environment(\.canDisplayRecovery) private var canDisplayRecovery
     @State private var input = RecoveryEntryModel()
     @FocusState private var focusedField: RecoveryEntryModel.Field?
@@ -30,10 +29,8 @@ struct ImportWalletScreen: View {
                 }
             } header: {
                 Text("Recovery Words")
-                    .foregroundStyle(palette.secondaryText)
             } footer: {
                 Text("Use your recovery words in their original order, separated by spaces. Keep your original words and any BIP-39 passphrase safe. Neither this app nor iCloud can recover them. You'll need your backup if you lose this device or remove its passcode.")
-                    .foregroundStyle(palette.secondaryText)
             }
 
             Section {
@@ -41,10 +38,8 @@ struct ImportWalletScreen: View {
                     .disabled(submission.isPending)
             } header: {
                 Text("BIP-39 Passphrase (Optional)")
-                    .foregroundStyle(palette.secondaryText)
             } footer: {
                 Text("Enter this only if your original wallet used one. This is separate from your app password or PIN. Capital letters and spaces matter. A different passphrase opens a different wallet.")
-                    .foregroundStyle(palette.secondaryText)
             }
         }
         .animation(.default, value: input.rejection)
@@ -58,7 +53,7 @@ struct ImportWalletScreen: View {
         .overlay {
             if !canDisplayRecovery {
                 Text("Recovery input hidden")
-                    .foregroundStyle(palette.secondaryText)
+                    .foregroundStyle(.secondary)
             }
         }
         .scrollDismissesKeyboard(.interactively)

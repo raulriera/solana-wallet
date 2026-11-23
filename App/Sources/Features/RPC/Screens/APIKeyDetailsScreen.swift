@@ -16,17 +16,15 @@ struct APIKeyDetailsScreen: View {
             Section {
                 if let keyPreview {
                     Text(verbatim: keyPreview)
-                        .foregroundStyle(palette.text)
                         .accessibilityLabel(Text(keyPreview, format: .spokenMasked))
                 } else {
                     Text("None", comment: "Shown in place of the RPC API key when no key is saved.")
-                        .foregroundStyle(palette.secondaryText)
+                        .foregroundStyle(.secondary)
                 }
             } header: {
                 Text("API Key")
             } footer: {
                 Text(footer)
-                    .foregroundStyle(palette.secondaryText)
             }
 
             Section {

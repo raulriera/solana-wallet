@@ -26,7 +26,6 @@ struct PrivateBalanceAmountSection: View {
             if let pending, pending.amount > 0 {
                 LabeledContent("Pending") {
                     TokenBalance(balance: pending, asset: asset)
-                        .foregroundStyle(palette.secondaryText)
                 }
             }
             if isStale {
@@ -52,7 +51,6 @@ struct PrivateBalanceAmountSection: View {
             if !isStale, let pending, pending.amount > 0 {
                 Text("Pending \(asset.displaySymbol) becomes available when the network reports it, usually within a minute.",
                      comment: "Footer under a private balance with a pending amount, such as a recent deposit. The variable is the token's symbol, such as SOL or USDC.")
-                    .foregroundStyle(palette.secondaryText)
             }
         }
     }

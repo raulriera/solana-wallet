@@ -2,7 +2,6 @@ import SwiftUI
 
 /// A form that collects a provider entry, shows why it was rejected, and submits it from the top toolbar.
 struct ProviderEntryForm<Submission: ProviderSubmitting, Intro: View, Help: View>: View {
-    @Environment(\.palette) private var palette
     @State private var input = ProviderEntryModel()
     @FocusState private var isFocused: Bool
     let title: LocalizedStringResource
@@ -34,11 +33,9 @@ struct ProviderEntryForm<Submission: ProviderSubmitting, Intro: View, Help: View
                 }
             } header: {
                 Text(header)
-                    .foregroundStyle(palette.secondaryText)
             } footer: {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(footer)
-                        .foregroundStyle(palette.secondaryText)
                     help
                 }
                 .font(.footnote)

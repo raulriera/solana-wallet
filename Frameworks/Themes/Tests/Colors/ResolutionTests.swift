@@ -2,8 +2,11 @@ import Testing
 import Themes
 
 struct ResolutionTests {
-    @Test(arguments: ["", #""tokens":{}"#, #""tokens":{"colors":{}}"#])
-    func `Omitted settings use defaults`(fields: String) async throws {
+    @Test(arguments: [
+        "", #""tokens":{}"#, #""tokens":{"colors":{}}"#,
+        #""tokens":{"colors":{"light":{"invented":{"system":"label"}}}}"#
+    ])
+    func `Omitted and unknown settings use defaults`(fields: String) async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         try fixture.manifest(fields)
@@ -27,6 +30,13 @@ struct ResolutionTests {
         }
     }
 
+    @Test func `Unknown keys in a color are ignored`() async throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        try fixture.manifest(#""tokens":{"colors":{"light":{"primary":{"system":"label","note":"Brand"}}}}"#)
+        #expect(try await fixture.resolved().colors.light[.primary] == .system(.label))
+    }
+
     @Test(arguments: Themes.Color.System.allCases)
     func `System references remain symbolic`(color: Themes.Color.System) async throws {
         let fixture = try Fixture()
@@ -39,8 +49,8 @@ struct ResolutionTests {
     @Test func `Matching foreground and background are accepted`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
-        try fixture.manifest(##""tokens":{"colors":{"light":{"background":{"srgb":"#000000"},"text":{"srgb":"#000000"}}}}"##)
+        try fixture.manifest(##""tokens":{"colors":{"light":{"primary":{"srgb":"#000000"},"onPrimary":{"srgb":"#000000"}}}}"##)
         let result = try await fixture.resolved()
-        #expect(result.colors.light[.background] == result.colors.light[.text])
+        #expect(result.colors.light[.primary] == result.colors.light[.onPrimary])
     }
 }

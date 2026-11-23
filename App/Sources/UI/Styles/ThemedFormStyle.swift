@@ -11,7 +11,6 @@ struct ThemedFormStyle: FormStyle {
                 .listRowSeparatorTint(palette.separator)
         }
         .formStyle(.grouped)
-        .foregroundStyle(palette.text, palette.secondaryText)
         .scrollContentBackground(.hidden)
         .readableContentWidth()
         .background(palette.background)

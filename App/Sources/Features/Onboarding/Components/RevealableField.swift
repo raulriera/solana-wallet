@@ -2,7 +2,6 @@ import SwiftUI
 
 /// A recovery field that switches between a secure field and one that shows its text.
 struct RevealableField<Revealed: View, Hidden: View>: View {
-    @Environment(\.palette) private var palette
     @Binding private var isRevealed: Bool
     @FocusState.Binding private var focusedField: RecoveryEntryModel.Field?
     private let field: RecoveryEntryModel.Field
@@ -51,7 +50,6 @@ struct RevealableField<Revealed: View, Hidden: View>: View {
                     }
                 }
                 .accessibilityLabel(label)
-                .foregroundStyle(palette.text)
                 .focused($focusedField, equals: field)
                 .transition(.opacity)
             }

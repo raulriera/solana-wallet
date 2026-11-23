@@ -74,12 +74,9 @@ struct PortfolioSplitView: View {
                             .animation(.default, value: portfolio?.snapshotRevision)
                             .refreshable { await refreshDetail(of: holding) }
                     } else {
-                        ContentUnavailableView("No Token Selected", systemImage: "wallet.bifold",
-                                               description: Text("Select a token to see its balance and value.")
-                                                .foregroundStyle(palette.secondaryText))
-                            .drawOnAppear()
-                            .foregroundStyle(palette.text, palette.secondaryText)
-                            .background(palette.background)
+                        UnavailableScreen(title: "No Token Selected",
+                                          message: "Select a token to see its balance and value.",
+                                          systemImage: "wallet.bifold") {}
                             .toolbarTitleDisplayMode(.inline)
                     }
                 }

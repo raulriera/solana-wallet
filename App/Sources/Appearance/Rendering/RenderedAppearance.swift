@@ -3,13 +3,11 @@ import SwiftUI
 import Themes
 
 /// A theme's colors as SwiftUI colors.
-struct RenderedPalette: Equatable {
+nonisolated struct RenderedPalette: Equatable {
     private let palette: Palette
 
     var background: SwiftUI.Color { self[.background] }
     var surface: SwiftUI.Color { self[.surface] }
-    var text: SwiftUI.Color { self[.text] }
-    var secondaryText: SwiftUI.Color { self[.secondaryText] }
     var separator: SwiftUI.Color { self[.separator] }
     var primary: SwiftUI.Color { self[.primary] }
     var onPrimary: SwiftUI.Color { self[.onPrimary] }
@@ -34,7 +32,7 @@ struct RenderedPalette: Equatable {
     }
 }
 
-private extension SwiftUI.Color {
+nonisolated private extension SwiftUI.Color {
     /// Creates a SwiftUI color from a theme color.
     ///
     /// - Parameter color: The theme color.
@@ -47,7 +45,7 @@ private extension SwiftUI.Color {
     }
 }
 
-private extension Themes.Color.System {
+nonisolated private extension Themes.Color.System {
     /// The UIKit semantic color for this system color name.
     var uiColor: UIColor {
         switch self {

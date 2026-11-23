@@ -3,7 +3,6 @@ import SwiftUI
 
 /// Pastes an address and names it for a new payment or a contact.
 struct RecipientEntryScreen: View {
-    @Environment(\.palette) private var palette
     @Bindable var entry: RecipientEntryModel
     let lists: ContactLists
 
@@ -16,10 +15,9 @@ struct RecipientEntryScreen: View {
                     Group {
                         if entry.text.isEmpty {
                             Text("Address")
-                                .foregroundStyle(palette.secondaryText)
+                                .foregroundStyle(.secondary)
                         } else {
                             FullAddress(text: entry.text)
-                                .foregroundStyle(palette.text)
                                 .accessibilityLabel(Text("Address"))
                                 .accessibilityValue(Text(entry.text).speechSpellsOutCharacters())
                         }
@@ -42,7 +40,6 @@ struct RecipientEntryScreen: View {
                 }
             } footer: {
                 Text("Copy an address, then paste it here.")
-                    .foregroundStyle(palette.secondaryText)
             }
 
             Section {
@@ -59,7 +56,6 @@ struct RecipientEntryScreen: View {
             } footer: {
                 if entry.purpose == .payment, entry.saved == nil {
                     Text("Add a name to save this address as a contact.")
-                        .foregroundStyle(palette.secondaryText)
                 }
             }
         }

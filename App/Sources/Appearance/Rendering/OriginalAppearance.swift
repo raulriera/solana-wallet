@@ -9,8 +9,6 @@ nonisolated enum OriginalAppearance {
         switch role {
         case .background: .system(.systemGroupedBackground)
         case .surface: .system(.secondarySystemGroupedBackground)
-        case .text: .system(.label)
-        case .secondaryText: .system(.secondaryLabel)
         case .separator: .system(.separator)
         case .primary: .system(.systemBlue)
         case .onPrimary: .system(.white)
