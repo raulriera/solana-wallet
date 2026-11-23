@@ -35,8 +35,16 @@ nonisolated struct SelectedRPCProvider: RPC, AccountChangeProviding, SignatureEv
         }
     }
 
+    var capabilities: Capabilities {
+        get async throws { try await perform { try await $0.capabilities } }
+    }
+
     func send<Request: RPCRequest>(_ request: Request) async throws -> Request.Response {
         try await perform { try await $0.send(request) }
+    }
+
+    func logos(for mints: [String]) async throws -> [String: URL] {
+        try await perform { try await ($0 as? any LogoProviding)?.logos(for: mints) ?? [:] }
     }
 
     func changedSlots(for addresses: [String]) async throws -> AsyncThrowingStream<UInt64, any Error> {
@@ -45,13 +53,6 @@ nonisolated struct SelectedRPCProvider: RPC, AccountChangeProviding, SignatureEv
 
     func events(for signature: String) async throws -> AsyncThrowingStream<SignatureEvent, any Error> {
         try await perform { try await $0.events(for: signature) }
-    }
-
-    func logos(for mints: [String]) async throws -> [String: URL] {
-        try await perform { client in
-            guard let client = client as? any LogoProviding else { return [:] }
-            return try await client.logos(for: mints)
-        }
     }
 
     func shieldedTransactions(taggedWith tags: [[UInt8]], after position: NoteSyncPosition?) async throws
@@ -77,7 +78,7 @@ nonisolated struct SelectedRPCProvider: RPC, AccountChangeProviding, SignatureEv
     /// - Returns: `true` for a provider with both capabilities.
     /// - Throws: The error of ``perform(_:)``.
     func servesPrivateBalances() async throws -> Bool {
-        try await perform { $0 is any PrivateNoteProviding & ProofProviding }
+        try await capabilities.contains(.privateBalances)
     }
 
     /// Runs a private-note read or proof on the selected provider's client.

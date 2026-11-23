@@ -110,7 +110,7 @@ Group files by concern in real folders that Xcode mirrors.
 
 - No app backend or proxy: the app connects directly to providers, and all RPC, DAS, and price traffic lives in the RPC framework.
 - Contracts are provider-neutral. Providers, such as public Solana RPC, Helius, and Jupiter, are interchangeable implementations behind protocols and return shared types.
-- Built in: public Solana RPC (no key) and Helius. People can add custom HTTPS RPC URLs that serve standard requests and account, signature, and root subscriptions. Each supports every standard wallet feature. Optional capabilities, such as CDN logos and private balances, are protocols; the app hides a feature the selected provider lacks.
+- Built in: public Solana RPC (no key) and Helius. People can add custom HTTPS RPC URLs that serve standard requests and account, signature, and root subscriptions. Each supports every standard wallet feature. Optional capabilities, such as CDN logos and private balances, are protocols that own their code; each provider declares in `capabilities` the ones its server serves, and a feature the selected provider lacks is skipped, with no request and no error.
 - Never ship provider API keys in the bundle or source. People enter them in the app; ignored local configuration supplies them to tests only.
 - Add RPC methods only as [references/rpc-scope.md](references/rpc-scope.md) allows.
 - Surface rate-limit errors; never retry automatically. Pace price batches within their request budgets; never throttle RPC or DAS requests.
