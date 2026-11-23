@@ -7,7 +7,7 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
 
     public var capabilities: Capabilities { [.logos, .privateBalances] }
 
-    public let rings: Zolana
+    public var rings: Zolana { rpc.rings }
 
     private let rpc: SolanaRPC
 
@@ -46,10 +46,8 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
         let socketEndpoint = URL(string: "wss://\(host)/")!
             .appending(queryItems: [URLQueryItem(name: "api-key", value: apiKey)])
         let redactor = SecretRedactor(urls: [endpoint, socketEndpoint])
-        rpc = SolanaRPC(network: network, endpoint: endpoint, socketEndpoint: socketEndpoint,
-                     redactor: redactor, transport: transport, socket: socket)
-        rings = Zolana(network: network, endpoint: endpoint.appending(path: "v1/spr"), redactor: redactor,
-                       transport: transport, verify: verify)
+        rpc = SolanaRPC(network: network, endpoint: endpoint, socketEndpoint: socketEndpoint, redactor: redactor,
+                        transport: transport, socket: socket, verify: verify)
     }
 
     public var description: String { "HeliusRPC(\(network))" }

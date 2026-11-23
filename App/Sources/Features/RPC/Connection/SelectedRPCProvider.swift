@@ -12,8 +12,9 @@ nonisolated struct SelectedRPCProvider: RPC, AccountChangeProviding, SignatureEv
         case custom(URL, capabilities: Capabilities)
     }
 
-    /// A provider's client for requests, account changes, signature watches, and logo lookups.
-    typealias Client = any RPC & AccountChangeProviding & SignatureEventProviding & LogoProviding
+    /// A provider's client for requests, account changes, signature watches, logo lookups, and private notes and
+    /// proofs.
+    typealias Client = any RPC & AccountChangeProviding & SignatureEventProviding & LogoProviding & RingsProviding
 
     let network: Network
     private let rpcStore: RPCStore
@@ -75,17 +76,16 @@ nonisolated struct SelectedRPCProvider: RPC, AccountChangeProviding, SignatureEv
         try await performRings { try await $0.proveTransfer(request) }
     }
 
-    /// Runs a private-note read or proof on the selected provider's client.
+    /// Runs a private-note read or proof on the selected provider's client, without a request when the provider
+    /// lacks private balances.
     ///
     /// - Parameter operation: The read or proof.
     /// - Returns: The operation's result.
-    /// - Throws: ``RPCProviderError/unsupportedNetwork`` for a provider without private notes and proofs, or the
-    ///   error of ``perform(_:)``.
-    private func performRings<Value: Sendable>(
-        _ operation: (any PrivateNoteProviding & ProofProviding) async throws -> Value
-    ) async throws -> Value {
+    /// - Throws: ``RPCProviderError/unsupportedNetwork`` for a provider without the
+    ///   ``Capabilities/privateBalances`` capability, or the error of ``perform(_:)``.
+    private func performRings<Value: Sendable>(_ operation: (Client) async throws -> Value) async throws -> Value {
         try await perform { client in
-            guard let client = client as? any PrivateNoteProviding & ProofProviding else {
+            guard try await client.capabilities.contains(.privateBalances) else {
                 throw RPCProviderError.unsupportedNetwork
             }
             return try await operation(client)

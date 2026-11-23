@@ -1,10 +1,12 @@
 public import Foundation
 
-/// A client for standard Solana RPC at a public or custom endpoint.
-public struct SolanaRPC: RPC, AccountChangeProviding, SignatureEventProviding, LogoProviding,
+/// A client for standard Solana RPC at a public or custom endpoint that sends Solana Rings requests to the endpoint's
+/// `v1/spr` path.
+public struct SolanaRPC: RPC, AccountChangeProviding, SignatureEventProviding, LogoProviding, RingsProviding,
                       CustomStringConvertible, CustomDebugStringConvertible {
     public let network: Network
     public let capabilities: Capabilities
+    public let rings: Zolana
 
     private let client: HTTPClient
     private let subscriptions: SubscriptionClient
@@ -51,17 +53,33 @@ public struct SolanaRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
     ///   - capabilities: The optional features that the endpoint's server serves.
     ///   - transport: The transport that performs HTTP requests.
     ///   - socket: The factory for a subscription connection.
-    init?(endpoint: URL, network: Network, capabilities: Capabilities = [], transport: any HTTPTransport,
-          socket: @escaping @Sendable (URL) -> any WebSocketConnection = { URLSessionSocket(endpoint: $0) }) {
+    ///   - verify: The check that returns the key a prover attestation binds to its nonce under the network's policy.
+    init?(
+        endpoint: URL,
+        network: Network,
+        capabilities: Capabilities = [],
+        transport: any HTTPTransport,
+        socket: @escaping @Sendable (URL) -> any WebSocketConnection = { URLSessionSocket(endpoint: $0) },
+        verify: @escaping AttestedProverKey.Verification = AttestedProverKey.verification
+    ) {
         guard let endpoint = endpoint.httpsEndpoint,
               var components = URLComponents(url: endpoint, resolvingAgainstBaseURL: false) else { return nil }
         components.scheme = "wss"
         guard let socketEndpoint = components.url else { return nil }
-        self.init(network: network, endpoint: endpoint, socketEndpoint: socketEndpoint, capabilities: capabilities,
-                  redactor: SecretRedactor(urls: [endpoint, socketEndpoint]), transport: transport, socket: socket)
+        self.init(
+            network: network,
+            endpoint: endpoint,
+            socketEndpoint: socketEndpoint,
+            capabilities: capabilities,
+            redactor: SecretRedactor(urls: [endpoint, socketEndpoint]),
+            transport: transport,
+            socket: socket,
+            verify: verify
+        )
     }
 
-    /// Creates a client for an HTTP endpoint and the WebSocket endpoint that serves its subscriptions.
+    /// Creates a client for an HTTP endpoint, the WebSocket endpoint that serves its subscriptions, and the Solana
+    /// Rings indexer and prover at the HTTP endpoint's `v1/spr` path.
     ///
     /// - Parameters:
     ///   - network: The network that the endpoints serve.
@@ -71,13 +89,28 @@ public struct SolanaRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
     ///   - redactor: The redactor that removes secrets from diagnostics.
     ///   - transport: The transport that performs HTTP requests.
     ///   - socket: The factory for a subscription connection.
-    init(network: Network, endpoint: URL, socketEndpoint: URL, capabilities: Capabilities = [],
-         redactor: SecretRedactor, transport: any HTTPTransport,
-         socket: @escaping @Sendable (URL) -> any WebSocketConnection) {
+    ///   - verify: The check that returns the key a prover attestation binds to its nonce under the network's policy.
+    init(
+        network: Network,
+        endpoint: URL,
+        socketEndpoint: URL,
+        capabilities: Capabilities = [],
+        redactor: SecretRedactor,
+        transport: any HTTPTransport,
+        socket: @escaping @Sendable (URL) -> any WebSocketConnection,
+        verify: @escaping AttestedProverKey.Verification = AttestedProverKey.verification
+    ) {
         self.network = network
         self.capabilities = capabilities
         client = HTTPClient(endpoint: endpoint, transport: transport, redactor: redactor)
         subscriptions = SubscriptionClient(endpoint: socketEndpoint, connect: socket, redactor: redactor)
+        rings = Zolana(
+            network: network,
+            endpoint: endpoint.appending(path: "v1/spr"),
+            redactor: redactor,
+            transport: transport,
+            verify: verify
+        )
     }
 
     public var description: String { "SolanaRPC(\(network))" }

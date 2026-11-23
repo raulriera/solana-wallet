@@ -185,7 +185,7 @@ struct SelectedRPCProviderTests {
     }
 
     @Test
-    func `Private-note reads and proofs fail on a custom RPC before sending anything`() async throws {
+    func `Private-note reads and proofs on a custom RPC without private balances send nothing`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let shielded = try await PrivateBalanceFixtures.keys(for: account).shieldedAccount(for: account.address)
         let responses = HTTPResponses.privateNotes(prover: try IndexedProofs.prover())
@@ -200,6 +200,26 @@ struct SelectedRPCProviderTests {
         await #expect(throws: error) { _ = try await client.merkleProofs(for: [tag], inTree: try ShieldedPool.tree(id: 1).value) }
         await #expect(throws: error) { _ = try await client.proveTransfer(request) }
         #expect(await responses.requests.isEmpty)
+    }
+
+    @Test
+    func `A custom RPC with private balances reads and proves at its own Solana Rings path`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let shielded = try await PrivateBalanceFixtures.keys(for: account).shieldedAccount(for: account.address)
+        let responses = HTTPResponses.privateNotes(prover: try IndexedProofs.prover())
+        let custom = try #require(URL(string: "https://rpc.example.com"))
+        let saved = RPCSettings.CustomRPC(url: custom, capabilities: .privateBalances)
+        let rpcStore = RPCStore.inMemory(StoredValue(RPCSettings(selection: .custom(custom), customRPCs: [saved])))
+        let client = responses.rpcProvider(network: .mainnet, rpcStore: rpcStore)
+        let request = try PrivateBalanceFixtures.proofRequest(spending: shielded)
+
+        _ = try await client.shieldedTransactions(spending: [[UInt8](repeating: 7, count: 32)])
+        _ = try await client.proveTransfer(request)
+
+        let requests = await responses.requests
+        #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 1)
+        #expect(requests.allSatisfy { $0.url?.host() == "rpc.example.com" })
+        #expect(requests.allSatisfy { $0.url?.path().hasPrefix("/v1/spr/") == true })
     }
 
     @Test
