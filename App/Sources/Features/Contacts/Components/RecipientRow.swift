@@ -1,37 +1,34 @@
 import SwiftUI
 import Transactions
 
-/// A row that shows an address with its name, or with when it was last paid.
+/// A row that shows a recipient in a monogram circle, with its name, its address, and when it was last paid.
 struct RecipientRow: View {
-    /// The name the address is saved under, or `nil` when it isn't saved.
-    let name: String?
-    let address: Address
-    /// When the address was last paid.
-    let date: Date?
-    let systemImage: String
+    let recipient: PaymentRecipient
+    /// When the address was last paid, or `nil` when it never was.
+    var date: Date?
 
     var body: some View {
-        Label {
-            VStack(alignment: .leading, spacing: 2) {
-                if let name {
-                    Text(name)
-                    ShortAddress(address: address)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                } else {
-                    ShortAddress(address: address)
-                    if let date {
-                        Text(date, format: .relative(presentation: .named))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+        LabeledContent {
+            if let date {
+                Text(date, format: Date.RelativeFormatStyle(presentation: .named,
+                                                             capitalizationContext: .beginningOfSentence))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.selectionAware(.primary))
             }
+        } label: {
+            Label {
+                if let name = recipient.name {
+                    Text(name, format: .emphasizedGivenName)
+                }
+                ShortAddress(address: recipient.address)
+            } icon: {
+                Text(recipient, format: .monogram)
+                    .fontWeight(.semibold)
+                    .monogramIcon()
+            }
+            .labelStyle(.subtitled)
             .foregroundStyle(.selectionAware(.primary))
-        } icon: {
-            Image(systemName: systemImage)
-                .symbolRenderingMode(.monochrome)
-                .foregroundStyle(.selectionAware(.tint))
         }
         .accessibilityElement(children: .combine)
     }
@@ -39,12 +36,12 @@ struct RecipientRow: View {
 
 #Preview {
     if let alice = try? Address("6d8tEyrqPqVbEr6Jpuc7BEyYekeMUTyzHEwdmcAYEmtK"),
-       let recent = try? Address("44korouVTkSZ4u3SAT4BCg5S2AqJTV7osjVGVkjs3vtV") {
+       let recent = try? Address("44korouVTkSZ4u3SAT4BCg5S2AqJTV7osjVGVkjs3vtV"),
+       let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: .now),
+       let threeDaysAgo = Calendar.current.date(byAdding: .day, value: -3, to: .now) {
         List {
-            RecipientRow(name: "Alice", address: alice, date: nil,
-                         systemImage: "person.crop.circle")
-            RecipientRow(name: nil, address: recent,
-                         date: .now.addingTimeInterval(-3 * 24 * 60 * 60), systemImage: "clock")
+            RecipientRow(recipient: PaymentRecipient(address: alice, name: "Alice Smith"), date: yesterday)
+            RecipientRow(recipient: PaymentRecipient(address: recent, name: nil), date: threeDaysAgo)
         }
         .listStyle(.sidebar)
     }

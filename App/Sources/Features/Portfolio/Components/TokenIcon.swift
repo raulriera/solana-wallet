@@ -2,7 +2,6 @@ import SwiftUI
 
 /// A token's round logo, or the first letter of its symbol when it has no logo or the logo can't load.
 struct TokenIcon: View {
-    @ScaledMetric(relativeTo: .headline) private var diameter = 40
     let symbol: String
     let imageURL: URL?
 
@@ -17,15 +16,11 @@ struct TokenIcon: View {
                 Color.clear
             default:
                 Text(symbol.prefix(1).uppercased())
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
+                    .monogramIcon()
             }
         }
         .id(imageURL)
-        .frame(width: diameter, height: diameter)
-        .background(.fill.tertiary, in: .circle)
-        .clipShape(.circle)
-        .accessibilityHidden(true)
+        .circularIcon(.fill.tertiary)
     }
 }
 

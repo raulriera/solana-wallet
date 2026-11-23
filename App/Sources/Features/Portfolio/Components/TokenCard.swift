@@ -20,17 +20,15 @@ struct TokenCard: View {
     var body: some View {
         let tint = CardTint(logo: logoColor ?? .placeholder, colors: style.colors)
         let shape = RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous)
-        let secondary: ReadableSecondary = .readableSecondary(tint.text, on: tint.textBackground)
 
         HStack(spacing: 12) {
-            TokenCardIdentity(symbol: symbol, name: name, imageURL: imageURL, secondary: secondary)
+            TokenIdentity(symbol: symbol, name: name, imageURL: imageURL)
                 .frame(maxWidth: .infinity, alignment: .leading)
             TokenFigures(balance: balance, value: value, change: change, isHeldPrivately: isHeldPrivately)
-                .foregroundStyle(tint.text, secondary)
                 .fixedSize()
         }
         .fontDesign(style.fontDesign)
-        .foregroundStyle(tint.text)
+        .foregroundStyle(tint.text, .readableSecondary(tint.text, on: tint.textBackground))
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
         .background {

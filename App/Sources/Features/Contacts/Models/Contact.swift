@@ -9,6 +9,9 @@ nonisolated struct Contact: Identifiable, Hashable, Codable, Sendable {
     /// Whether the address shows under Favorites.
     var isFavorite: Bool
 
+    /// The address as a payment's recipient, under the contact's name.
+    var recipient: PaymentRecipient { PaymentRecipient(address: address, name: name) }
+
     /// Creates a named address.
     ///
     /// - Parameters:

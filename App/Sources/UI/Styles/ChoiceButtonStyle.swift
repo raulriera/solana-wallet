@@ -28,14 +28,11 @@ struct ChoiceButtonStyle: PrimitiveButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         if let isChecked {
-            let label = Group(subviews: configuration.label) { subviews in
-                VStack(alignment: .leading, spacing: descriptionSpacing) {
-                    subviews.first
-                    subviews.dropFirst()
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
+            let label = LabeledContent {
+            } label: {
+                configuration.label
             }
+            .labeledContentStyle(.subtitled(spacing: descriptionSpacing))
             Button(role: configuration.role, action: configuration.trigger) {
                 HStack {
                     if placement == .leading {

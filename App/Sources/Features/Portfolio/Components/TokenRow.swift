@@ -16,7 +16,7 @@ struct TokenRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            TokenRowIdentity(symbol: symbol, name: name, imageURL: imageURL)
+            TokenIdentity(symbol: symbol, name: name, imageURL: imageURL)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .foregroundStyle(.selectionAware(.primary))
             TokenFigures(balance: balance, value: value, change: change, isHeldPrivately: isHeldPrivately)

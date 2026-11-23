@@ -12,7 +12,7 @@ struct RecipientList: View {
         List(selection: $selection) {
             if let newPayment = selection, !lists.lists(newPayment) {
                 Section("New Payment") {
-                    RecipientRow(name: nil, address: newPayment, date: nil, systemImage: "square.and.pencil")
+                    RecipientRow(recipient: PaymentRecipient(address: newPayment, name: nil))
                         .tag(newPayment)
                 }
             }
@@ -20,8 +20,7 @@ struct RecipientList: View {
             if !lists.accounts.isEmpty {
                 Section("My Accounts") {
                     ForEach(lists.accounts) { account in
-                        RecipientRow(name: account.name, address: account.address, date: nil,
-                                     systemImage: "wallet.bifold")
+                        RecipientRow(recipient: account.recipient)
                             .tag(account.address)
                             .swipeActions(edge: .leading) {
                                 FavoriteButton(contact: account)
@@ -34,7 +33,7 @@ struct RecipientList: View {
             if !lists.favorites.isEmpty {
                 Section("Favorites") {
                     ForEach(lists.favorites) { favorite in
-                        RecipientRow(name: favorite.name, address: favorite.address, date: nil, systemImage: "star")
+                        RecipientRow(recipient: favorite.recipient)
                             .tag(favorite.address)
                             .swipeActions(edge: .leading) {
                                 FavoriteButton(contact: favorite)
@@ -47,8 +46,7 @@ struct RecipientList: View {
             if !lists.contacts.isEmpty {
                 Section("Contacts") {
                     ForEach(lists.contacts) { contact in
-                        RecipientRow(name: contact.name, address: contact.address, date: nil,
-                                     systemImage: "person.crop.circle")
+                        RecipientRow(recipient: contact.recipient)
                             .tag(contact.address)
                             .swipeActions(edge: .leading) {
                                 FavoriteButton(contact: contact)
@@ -63,7 +61,8 @@ struct RecipientList: View {
             if !lists.recents.isEmpty {
                 Section("Recents") {
                     ForEach(lists.recents) { payment in
-                        RecipientRow(name: nil, address: payment.address, date: payment.date, systemImage: "clock")
+                        RecipientRow(recipient: PaymentRecipient(address: payment.address, name: nil),
+                                     date: payment.date)
                             .tag(payment.address)
                             .swipeActions(edge: .leading) {
                                 AddContactButton(address: payment.address)
