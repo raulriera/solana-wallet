@@ -4,8 +4,7 @@ import Transactions
 
 /// A service that looks up tokens by their mint addresses.
 struct TokenLookup: Sendable {
-    let rpc: any RPC
-    let logos: (any LogoProviding)?
+    let rpc: any LogoProviding
 
     /// Looks up a token and its logo by mint address.
     ///
@@ -14,7 +13,7 @@ struct TokenLookup: Sendable {
     /// - Throws: ``TokenLookupError`` when the address isn't a fungible token mint, or a validation or RPC error.
     @concurrent
     func preview(of mint: Address) async throws -> TokenPreview {
-        async let logoLookup = logos?.logos(for: [mint.value])
+        async let logoLookup = rpc.logos(for: [mint.value])
         let accounts = try await rpc.accounts(at: [mint.value, TokenMetadata.metaplexAccount(for: mint).value]).value
         guard let account = accounts[0], let owner = try? Address(account.owner),
               var decoded = try? Mint(address: mint, programAddress: owner, data: account.data) else {

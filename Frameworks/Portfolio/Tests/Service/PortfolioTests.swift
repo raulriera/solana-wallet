@@ -579,7 +579,7 @@ private struct Fixture {
     var store: FileSnapshotStore { FileSnapshotStore(directory: directory) }
     var tokenLists: FileTokenListStore { FileTokenListStore(directory: directory.appendingPathComponent("TokenLists")) }
 
-    func portfolio(rpc: any RPC, store: (any SnapshotStoring)? = nil) -> Portfolio {
+    func portfolio(rpc: any LogoProviding, store: (any SnapshotStoring)? = nil) -> Portfolio {
         Portfolio(rpc: rpc, store: store ?? self.store, tokenLists: tokenLists)
     }
 

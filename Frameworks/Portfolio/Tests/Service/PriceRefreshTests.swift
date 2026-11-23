@@ -140,7 +140,7 @@ private struct PricingFixture {
     let key = CacheKey(owner: testWallet, network: .mainnet)
     var store: FileSnapshotStore { FileSnapshotStore(directory: directory) }
 
-    func portfolio(rpc: any RPC, prices: (any PriceProviding)?) -> Portfolio {
+    func portfolio(rpc: any LogoProviding, prices: (any PriceProviding)?) -> Portfolio {
         Portfolio(rpc: rpc, store: store, tokenLists: isolatedTokenLists(), prices: prices)
     }
 
