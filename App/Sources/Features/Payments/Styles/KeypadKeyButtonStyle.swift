@@ -2,7 +2,6 @@ import SwiftUI
 
 /// A button style for a round keypad key drawn in the ``KeypadStyle``.
 struct KeypadKeyButtonStyle: ButtonStyle {
-    @Environment(\.palette) private var palette
     @Environment(\.keypadStyle) private var style
     @Environment(\.isEnabled) private var isEnabled
     /// Whether the key shows the style's background.
@@ -19,7 +18,6 @@ struct KeypadKeyButtonStyle: ButtonStyle {
             .opacity(configuration.isPressed && background != .glass ? 0.6 : 1)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .aspectRatio(1, contentMode: .fit)
-            .background(background == .filled ? palette[style.keyFill] : .clear, in: .circle)
             .contentShape(.circle)
             .glassEffect(background == .glass ? .regular.interactive() : .identity, in: .circle)
             .animation(.easeOut(duration: 0.15), value: configuration.isPressed)

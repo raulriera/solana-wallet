@@ -1,13 +1,10 @@
 import SwiftUI
-import Themes
 
 /// The look of the payment keypad.
 nonisolated struct KeypadStyle: Equatable, Sendable {
     /// The background of each digit key.
     nonisolated enum KeyBackground: Equatable, Sendable {
         case glass
-        /// A solid circle in the key fill color.
-        case filled
         case none
     }
 
@@ -20,8 +17,6 @@ nonisolated struct KeypadStyle: Equatable, Sendable {
     }
 
     var keyBackground = KeyBackground.glass
-    /// The color of filled key backgrounds.
-    var keyFill = Palette.Role.surface
     var amountLook = AmountLook.chrome
 }
 
