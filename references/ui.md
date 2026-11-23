@@ -6,8 +6,6 @@
 - Use a `TabView` with a fixed tab bar and a `NavigationSplitView` in each section. Onboarding is the approved exception: a linear `NavigationStack` in `OnboardingScene`.
 - A screen with two peer regions uses an `ArrangementView`, with scrolling inside each region where content can outgrow it.
 - A section with nothing to show in any column replaces its split view with one full-width empty screen and its one action.
-- Settings sidebar destinations use a native `Label` with a multicolor SF Symbol.
-- A What's New screen is a sheet with a bold title, up to three features, and one prominent Continue button, as Shortcuts shows it. Each feature is a tinted SF Symbol, a bold title, and one short sentence.
 - Preserve selection, navigation, scroll position, and unfinished input across resizing, folding, and theme changes.
 
 ## Layout
@@ -27,7 +25,7 @@
 
 ## Theme packs
 
-The [Themes framework](../Frameworks/Themes/README.md) defines the package format. Packs support color tokens, a font design, and images; other typography and component tokens are deferred.
+The [Themes framework](../Frameworks/Themes/README.md) defines the package format. Packs carry only color tokens, a font design, and images.
 
 - Packs are data and assets, never executable UI. The app owns rendering, adaptation, navigation, action meanings, Dynamic Type, accessibility, and transaction review; a theme can't remove required transaction information or approval controls.
 - Built-in themes can't be edited or removed; custom themes can. One app-wide theme applies to every window.
@@ -36,15 +34,7 @@ The [Themes framework](../Frameworks/Themes/README.md) defines the package forma
 
 ## Design approval
 
-- Before building a UI concern, agree with the user on its structure, content, actions, and states. Architecture and the HIG don't approve product design.
-- Mockups use sample data, stay outside the repository, and never approve production screens.
-- Review the applicable HIG for app-owned UI and built-in themes. The visual direction is native with a distinctive identity led by color and iOS fonts, with [Family](https://family.co/) as a reference; palettes and component designs need separate agreement.
+- Agree with the user on a UI concern's structure, content, actions, and states before building it; architecture and the HIG don't approve product design. Mockups use sample data and stay outside the repository.
+- Review the applicable [HIG](https://developer.apple.com/tutorials/data/design/human-interface-guidelines.md) for app-owned UI and built-in themes. The visual direction is native, with a distinctive identity led by color and iOS fonts; [Family](https://family.co/) is a reference. Palettes and component designs need separate agreement.
+- For iPhone Duo, follow [Designing for iPhone Duo](https://developer.apple.com/tutorials/data/design/human-interface-guidelines/designing-for-iphone-duo.md) and [Preparing your app for iPhone Duo](https://developer.apple.com/documentation/technologyoverviews/preparing-your-app-for-iphone-duo.md).
 - Verify Duo transitions, compact iPhones, iPad resizing, large text, VoiceOver, keyboard, contrast settings, and reduced motion.
-
-## Apple guidance
-
-- [Human Interface Guidelines](https://developer.apple.com/tutorials/data/design/human-interface-guidelines.md)
-- [Designing for iPhone Duo](https://developer.apple.com/tutorials/data/design/human-interface-guidelines/designing-for-iphone-duo.md)
-- [Preparing your app for iPhone Duo](https://developer.apple.com/documentation/technologyoverviews/preparing-your-app-for-iphone-duo.md)
-- [`contentMargins(for:edges:alignment:)`](https://developer.apple.com/documentation/swiftui/view/contentmargins(for:edges:alignment:).md)
-- [WindowGroup](https://developer.apple.com/documentation/swiftui/windowgroup.md)

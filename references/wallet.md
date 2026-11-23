@@ -11,6 +11,7 @@
 
 ## Discovery
 
+- Discover accounts with one SOL-only lookup for twenty addresses.
 - Make no follow-up, token, history, or DAS lookups.
 - Ignore zero-SOL and missing accounts, even when they hold tokens or history.
 - Errors fail the scan; never return an empty result for them.

@@ -2,7 +2,7 @@
 
 ## Coverage
 
-- Follow [Swift Testing Expert](https://github.com/AvdLee/Swift-Testing-Agent-Skill): Swift Testing for unit tests, XCTest for UI automation. XCUITests need explicit Objective-C selectors.
+- Use Swift Testing for unit tests and XCTest for UI automation. XCUITests need explicit Objective-C selectors.
 - Test only the app's own functionality, offline or in UI tests; never test a provider's API.
 - Test meaningful outcomes. Separate success and failure paths, cover shared behavior once, and skip initializer-assignment tests.
 - Test internal workflows in app-hosted tests with `@testable` imports. Use ordinary imports for framework APIs, and existing transport or storage seams without widening the production API.
@@ -16,7 +16,7 @@
 
 Pass the existing regular iPhone simulator to every command, such as `-destination 'platform=iOS Simulator,id=<UUID>'`.
 
-- `Unit`, the `widgets` scheme's default plan, runs the app and framework test bundles offline. Run it for every change: `xcodebuild test -scheme widgets`. Add every new test bundle to it.
+- `Unit`, the `widgets` scheme's default plan, runs the app and framework test bundles offline. Run it for every change: `xcodebuild test -scheme widgets -parallel-testing-enabled NO`; parallel clones shut down the shared simulators. Add every new test bundle to it.
 - `UI` runs `widgetsUITests`. Only the user runs it, on request.
 
 ## UI automation
