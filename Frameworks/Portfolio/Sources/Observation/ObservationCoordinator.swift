@@ -9,7 +9,7 @@ actor ObservationCoordinator {
 
     private let refresh: RefreshCoordinator
     private let tokenLists: TokenListCoordinator
-    private let changes: (any AccountChangeProviding)?
+    private let changes: any AccountChangeProviding
     private let clock: any Clock<Duration>
     private var watches: [String: Watch] = [:]
 
@@ -18,9 +18,9 @@ actor ObservationCoordinator {
     /// - Parameters:
     ///   - refresh: The refresh coordinator.
     ///   - tokenLists: The token lists whose accounts each subscription watches.
-    ///   - changes: The provider of finalized account changes, or `nil` if none.
+    ///   - changes: The provider of finalized account changes.
     ///   - clock: The clock that times change coalescing and reconnection waits.
-    init(refresh: RefreshCoordinator, tokenLists: TokenListCoordinator, changes: (any AccountChangeProviding)?,
+    init(refresh: RefreshCoordinator, tokenLists: TokenListCoordinator, changes: any AccountChangeProviding,
          clock: any Clock<Duration>) {
         self.refresh = refresh
         self.tokenLists = tokenLists
@@ -174,7 +174,6 @@ actor ObservationCoordinator {
     ///   - generation: The observation's generation.
     /// - Throws: The error that stopped or ended the subscriptions.
     private func watchChanges(owner: String, generation: UUID) async throws {
-        guard let changes else { throw ObservationError.providerUnavailable }
         let accounts = try await tokenLists.list(for: owner).accounts(of: Address(owner))
         let slots = try await changes.changedSlots(for: accounts.map(\.value))
         try Task.checkCancellation()

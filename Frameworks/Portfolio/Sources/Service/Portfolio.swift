@@ -12,12 +12,13 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
     /// Creates a portfolio service that saves token lists and caches holdings in the given directories.
     ///
     /// - Parameters:
-    ///   - rpc: The RPC client that reads balances and, when it has the logos capability, token logos.
+    ///   - rpc: The RPC client that reads balances, watches finalized account changes, and, when it has the logos
+    ///     capability, reads token logos.
     ///   - prices: The price provider for the RPC client's network, or `nil` for no prices.
     ///   - tokenListDirectory: The directory that saves token lists.
     ///   - cacheDirectory: The directory that caches holdings.
     public init(
-        rpc: any LogoProviding,
+        rpc: any LogoProviding & AccountChangeProviding,
         prices: (any PriceProviding)? = nil,
         tokenListDirectory: URL,
         cacheDirectory: URL
@@ -29,12 +30,13 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
     /// Creates a service with injected stores.
     ///
     /// - Parameters:
-    ///   - rpc: The RPC client that reads balances and, when it has the logos capability, token logos.
+    ///   - rpc: The RPC client that reads balances, watches finalized account changes, and, when it has the logos
+    ///     capability, reads token logos.
     ///   - store: The snapshot store.
     ///   - tokenLists: The token-list store.
     ///   - prices: The price provider, or `nil` for no prices.
     ///   - clock: The clock that times change coalescing and reconnection waits.
-    init(rpc: any LogoProviding, store: any SnapshotStoring,
+    init(rpc: any LogoProviding & AccountChangeProviding, store: any SnapshotStoring,
          tokenLists: FileTokenListStore,
          prices: (any PriceProviding)? = nil,
          clock: any Clock<Duration> = ContinuousClock()) {
@@ -44,8 +46,7 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
         lookup = TokenLookup(rpc: rpc)
         coordinator = RefreshCoordinator(source: BalanceReader(rpc: rpc), tokenLists: lists, store: store,
                                          prices: prices, logos: rpc)
-        observer = ObservationCoordinator(refresh: coordinator, tokenLists: lists,
-                                          changes: rpc as? any AccountChangeProviding, clock: clock)
+        observer = ObservationCoordinator(refresh: coordinator, tokenLists: lists, changes: rpc, clock: clock)
     }
 
     public func updates(for owner: String) async -> AsyncStream<Update> {

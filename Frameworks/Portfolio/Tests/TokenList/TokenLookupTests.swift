@@ -76,7 +76,7 @@ struct TokenLookupTests {
 
 private let metaplexProgram = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
 
-private func lookupPortfolio(_ rpc: any LogoProviding) -> Portfolio {
+private func lookupPortfolio(_ rpc: any LogoProviding & AccountChangeProviding) -> Portfolio {
     Portfolio(rpc: rpc, tokenListDirectory: .temporaryDirectory, cacheDirectory: .temporaryDirectory)
 }
 
