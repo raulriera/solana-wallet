@@ -1,9 +1,10 @@
 public import Foundation
 
 /// A client for standard Solana RPC at a public or custom endpoint.
-public struct SolanaRPC: RPC, AccountChangeProviding, SignatureEventProviding, CustomStringConvertible,
-                      CustomDebugStringConvertible {
+public struct SolanaRPC: RPC, AccountChangeProviding, SignatureEventProviding, LogoProviding,
+                      CustomStringConvertible, CustomDebugStringConvertible {
     public let network: Network
+    public let capabilities: Capabilities
 
     private let client: HTTPClient
     private let subscriptions: SubscriptionClient
@@ -20,8 +21,9 @@ public struct SolanaRPC: RPC, AccountChangeProviding, SignatureEventProviding, C
     /// - Parameters:
     ///   - endpoint: An HTTPS URL with a host.
     ///   - network: The network that the endpoint serves.
-    public init?(endpoint: URL, network: Network) {
-        self.init(endpoint: endpoint, network: network, transport: URLSessionTransport())
+    ///   - capabilities: The optional features that the endpoint's server serves.
+    public init?(endpoint: URL, network: Network, capabilities: Capabilities = []) {
+        self.init(endpoint: endpoint, network: network, capabilities: capabilities, transport: URLSessionTransport())
     }
 
     /// Creates a public endpoint client with an injected HTTP transport.
@@ -46,15 +48,16 @@ public struct SolanaRPC: RPC, AccountChangeProviding, SignatureEventProviding, C
     /// - Parameters:
     ///   - endpoint: An HTTPS URL with a host.
     ///   - network: The network that the endpoint serves.
+    ///   - capabilities: The optional features that the endpoint's server serves.
     ///   - transport: The transport that performs HTTP requests.
     ///   - socket: The factory for a subscription connection.
-    init?(endpoint: URL, network: Network, transport: any HTTPTransport,
+    init?(endpoint: URL, network: Network, capabilities: Capabilities = [], transport: any HTTPTransport,
           socket: @escaping @Sendable (URL) -> any WebSocketConnection = { URLSessionSocket(endpoint: $0) }) {
         guard let endpoint = endpoint.httpsEndpoint,
               var components = URLComponents(url: endpoint, resolvingAgainstBaseURL: false) else { return nil }
         components.scheme = "wss"
         guard let socketEndpoint = components.url else { return nil }
-        self.init(network: network, endpoint: endpoint, socketEndpoint: socketEndpoint,
+        self.init(network: network, endpoint: endpoint, socketEndpoint: socketEndpoint, capabilities: capabilities,
                   redactor: SecretRedactor(urls: [endpoint, socketEndpoint]), transport: transport, socket: socket)
     }
 
@@ -64,12 +67,15 @@ public struct SolanaRPC: RPC, AccountChangeProviding, SignatureEventProviding, C
     ///   - network: The network that the endpoints serve.
     ///   - endpoint: The HTTPS endpoint for requests.
     ///   - socketEndpoint: The WSS endpoint for subscriptions.
+    ///   - capabilities: The optional features that the endpoints serve.
     ///   - redactor: The redactor that removes secrets from diagnostics.
     ///   - transport: The transport that performs HTTP requests.
     ///   - socket: The factory for a subscription connection.
-    init(network: Network, endpoint: URL, socketEndpoint: URL, redactor: SecretRedactor,
-         transport: any HTTPTransport, socket: @escaping @Sendable (URL) -> any WebSocketConnection) {
+    init(network: Network, endpoint: URL, socketEndpoint: URL, capabilities: Capabilities = [],
+         redactor: SecretRedactor, transport: any HTTPTransport,
+         socket: @escaping @Sendable (URL) -> any WebSocketConnection) {
         self.network = network
+        self.capabilities = capabilities
         client = HTTPClient(endpoint: endpoint, transport: transport, redactor: redactor)
         subscriptions = SubscriptionClient(endpoint: socketEndpoint, connect: socket, redactor: redactor)
     }

@@ -40,12 +40,17 @@ struct LogoTests {
         #expect(await transport.requests.isEmpty)
     }
 
-    @Test
-    func `A provider without the logos capability skips lookups without accessing the network`() async throws {
+    @Test(arguments: [(Capabilities(), 0), (.logos, 1)])
+    func `A custom endpoint looks up logos only when it declares the capability`(
+        capabilities: Capabilities,
+        requests: Int
+    ) async throws {
         let transport = StubTransport { try reply(to: $0, payload: #""result":[]"#) }
-        let provider = ProviderWithoutLogos(rpc: SolanaRPC(network: .mainnet, transport: transport))
+        let endpoint = try #require(URL(string: "https://rpc.example.com"))
+        let provider = try #require(SolanaRPC(endpoint: endpoint, network: .mainnet, capabilities: capabilities,
+                                              transport: transport))
         #expect(try await provider.logos(for: ["mint"]).isEmpty)
-        #expect(await transport.requests.isEmpty)
+        #expect(await transport.requests.count == requests)
     }
 
     @Test
@@ -66,15 +71,5 @@ struct LogoTests {
         await #expect(throws: RPCError.decoding) {
             try await HeliusRPC(apiKey: "fixture-key", network: .mainnet, transport: transport).logos(for: ["mint"])
         }
-    }
-}
-
-private struct ProviderWithoutLogos: RPC, LogoProviding {
-    let rpc: SolanaRPC
-
-    var network: Network { rpc.network }
-
-    func send<Request: RPCRequest>(_ request: Request) async throws -> Request.Response {
-        try await rpc.send(request)
     }
 }

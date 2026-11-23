@@ -1,8 +1,9 @@
 import Algorithms
 public import Foundation
 
-/// A provider that can look up its copies of token logos on its own HTTPS image server.
-public protocol LogoProviding: Sendable {
+/// A provider that looks up its copies of token logos on its own HTTPS image server when it has the
+/// ``Capabilities/logos`` capability.
+public protocol LogoProviding: RPC {
     /// Looks up the provider's copies of token logos.
     ///
     /// - Parameter mints: At most 50 mint addresses on the provider's network.
@@ -11,7 +12,7 @@ public protocol LogoProviding: Sendable {
     func logos(for mints: [String]) async throws -> [String: URL]
 }
 
-extension LogoProviding where Self: RPC {
+extension LogoProviding {
     /// Looks up the provider's copies of token logos with one DAS asset batch, or returns none without a request when
     /// the provider lacks the ``Capabilities/logos`` capability.
     ///

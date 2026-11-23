@@ -12,8 +12,8 @@ nonisolated struct SelectedRPCProvider: RPC, AccountChangeProviding, SignatureEv
         case custom(URL)
     }
 
-    /// A provider's client for requests, account changes, and signature watches.
-    typealias Client = any RPC & AccountChangeProviding & SignatureEventProviding
+    /// A provider's client for requests, account changes, signature watches, and logo lookups.
+    typealias Client = any RPC & AccountChangeProviding & SignatureEventProviding & LogoProviding
 
     let network: Network
     private let rpcStore: RPCStore
@@ -47,7 +47,7 @@ nonisolated struct SelectedRPCProvider: RPC, AccountChangeProviding, SignatureEv
     }
 
     func logos(for mints: [String]) async throws -> [String: URL] {
-        try await perform { try await ($0 as? any LogoProviding)?.logos(for: mints) ?? [:] }
+        try await perform { try await $0.logos(for: mints) }
     }
 
     func changedSlots(for addresses: [String]) async throws -> AsyncThrowingStream<UInt64, any Error> {

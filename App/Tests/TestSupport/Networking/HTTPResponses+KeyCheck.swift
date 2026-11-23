@@ -23,7 +23,7 @@ extension HTTPResponses {
 
     nonisolated func client(for endpoint: SelectedRPCProvider.Endpoint, on network: Network,
                             socket: @escaping @Sendable (URL) -> any WebSocketConnection = { _ in SocketFixture() })
-        -> (any RPC & AccountChangeProviding & SignatureEventProviding)? {
+        -> SelectedRPCProvider.Client? {
         switch endpoint {
         case .solana: SolanaRPC(network: network, transport: self, socket: socket)
         case .helius(let key): HeliusRPC(apiKey: key, network: network, transport: self, socket: socket,
