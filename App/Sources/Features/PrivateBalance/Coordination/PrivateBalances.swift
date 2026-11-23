@@ -25,7 +25,7 @@ actor PrivateBalances: PrivateBalancing {
     nonisolated enum SyncOutcome: Sendable {
         /// This device has no keys for the account.
         case off
-        /// The selected provider doesn't serve the network.
+        /// The selected provider lacks private balances on the network.
         case unavailable
         case unregistered(ShieldedAccount)
         case synced(ShieldedAccount, NoteSyncState)
@@ -124,17 +124,16 @@ actor PrivateBalances: PrivateBalancing {
     /// - Parameters:
     ///   - account: The account to look up.
     ///   - network: The network of the account's private balance.
-    /// - Returns: ``PrivateBalanceStatus/unavailable`` where the selected provider doesn't serve the network, or
+    /// - Returns: ``PrivateBalanceStatus/unavailable`` where the selected provider lacks private balances, or
     ///   ``PrivateBalanceStatus/off(isRegistered:)`` with whether the registry holds the account's record, `false` if
     ///   it can't be read.
     /// - Throws: An ``RPCProviderError`` other than ``RPCProviderError/invalidKey`` when the selected provider
     ///   can't be used, or `CancellationError` if cancelled.
     private func offStatus(of account: Account, on network: Network) async throws -> PrivateBalanceStatus {
+        guard let client = try await client(for: network) else { return .unavailable }
         do {
-            let recipients = try await Recipient.lookup([account.address], using: client(for: network))
+            let recipients = try await Recipient.lookup([account.address], using: client)
             return .off(isRegistered: (recipients.first ?? nil) != nil)
-        } catch RPCProviderError.unsupportedNetwork {
-            return .unavailable
         } catch let error as RPCProviderError where error != .invalidKey {
             throw error
         } catch is CancellationError {
@@ -148,7 +147,7 @@ actor PrivateBalances: PrivateBalancing {
         -> PreparedPrivateTransaction {
         if case .redeem(let code) = request, code.network != network { throw PrivateBalanceError.codeForOtherNetwork }
         do {
-            let client = try await client(for: network)
+            guard let client = try await client(for: network) else { throw PrivateBalanceError.unavailable }
             switch request {
             case .deposit, .send, .withdraw:
                 return try await preparedTransfer(request, from: account, on: network, client: client)
@@ -159,8 +158,6 @@ actor PrivateBalances: PrivateBalancing {
             case .takeBack(let index):
                 return try await preparedTakeBack(at: index, into: account, on: network, client: client)
             }
-        } catch RPCProviderError.unsupportedNetwork {
-            throw PrivateBalanceError.unavailable
         } catch PrivateSpend.ValidationError.insufficientFunds {
             throw PrivateBalanceError.insufficientBalance
         } catch PrivateSpend.ValidationError.tooManyNotes {
@@ -197,18 +194,16 @@ actor PrivateBalances: PrivateBalancing {
         _ = try await (keysDeletion, notesDeletion, codesDeletion)
     }
 
-    /// Returns a network's client once the selected provider serves private balances, creating it the first time the
+    /// Returns a network's client when the selected provider serves private balances, creating it the first time the
     /// network is used.
     ///
     /// - Parameter network: The network whose client to return.
-    /// - Returns: The network's client.
-    /// - Throws: ``RPCProviderError/unsupportedNetwork`` for a provider without private balances, or another
-    ///   ``RPCProviderError`` when the selected provider can't be used.
-    func client(for network: Network) async throws -> Client {
+    /// - Returns: The network's client, or `nil` when the selected provider lacks private balances.
+    /// - Throws: An ``RPCProviderError`` when the selected provider can't be used, or `CancellationError`.
+    func client(for network: Network) async throws -> Client? {
         let client = clients[network] ?? makeClient(network)
         clients[network] = client
-        guard try await client.servesPrivateBalances() else { throw RPCProviderError.unsupportedNetwork }
-        return client
+        return try await client.capabilities.contains(.privateBalances) ? client : nil
     }
 
     /// Builds a deposit, send, or withdrawal after the shared sync of the account's notes, or the merge that a send
@@ -305,19 +300,16 @@ actor PrivateBalances: PrivateBalancing {
         }
     }
 
-    /// Reads an account's registration where the selected provider can read it.
+    /// Reads an account's registration where the selected provider has private balances.
     ///
     /// - Parameters:
     ///   - account: The account's shielded keys.
     ///   - network: The network whose registry to read.
-    /// - Returns: The registration, or `nil` where the provider can't read it.
+    /// - Returns: The registration, or `nil` where the provider lacks private balances.
     /// - Throws: A provider or cancellation error.
     private func registration(of account: ShieldedAccount, on network: Network) async throws -> Registration? {
-        do {
-            return try await account.registration(using: client(for: network))
-        } catch RPCProviderError.unsupportedNetwork {
-            return nil
-        }
+        guard let client = try await client(for: network) else { return nil }
+        return try await account.registration(using: client)
     }
 
     /// Joins or starts the shared sync of an account's notes on a network.
@@ -433,23 +425,19 @@ actor PrivateBalances: PrivateBalancing {
         async let savedNotes = rebuilding(\.notes, from: generation) { try await $0.load() }
         guard let record = try await savedKeys else { return .off }
         let shielded = try record.shieldedAccount(for: account.address)
-        do {
-            let client = try await client(for: network)
-            let saved = try await savedNotes?[id]
-            if saved == nil {
-                switch try await shielded.registration(using: client) {
-                case .unregistered: return .unregistered(shielded)
-                case .registeredWithOtherKeys: throw PrivateBalanceError.registeredWithOtherKeys
-                case .registered:
-                    try await update(\.notes, from: generation) { $0[id] = $0[id] ?? NoteSyncState() }
-                }
+        guard let client = try await client(for: network) else { return .unavailable }
+        let saved = try await savedNotes?[id]
+        if saved == nil {
+            switch try await shielded.registration(using: client) {
+            case .unregistered: return .unregistered(shielded)
+            case .registeredWithOtherKeys: throw PrivateBalanceError.registeredWithOtherKeys
+            case .registered:
+                try await update(\.notes, from: generation) { $0[id] = $0[id] ?? NoteSyncState() }
             }
-            let synced = try await (saved ?? NoteSyncState()).synced(for: shielded, rpc: client, indexer: client)
-            try await update(\.notes, from: generation) { $0[id] = synced }
-            return .synced(shielded, synced)
-        } catch RPCProviderError.unsupportedNetwork {
-            return .unavailable
         }
+        let synced = try await (saved ?? NoteSyncState()).synced(for: shielded, rpc: client, indexer: client)
+        try await update(\.notes, from: generation) { $0[id] = synced }
+        return .synced(shielded, synced)
     }
 
     /// Changes a store's entries, unless ``removeAll()`` ran after the operation started.

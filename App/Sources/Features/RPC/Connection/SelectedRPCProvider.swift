@@ -36,7 +36,10 @@ nonisolated struct SelectedRPCProvider: RPC, AccountChangeProviding, SignatureEv
     }
 
     var capabilities: Capabilities {
-        get async throws { try await perform { try await $0.capabilities } }
+        get async throws {
+            guard let endpoint = try await endpoint() else { return [] }
+            return try await clients.client(for: endpoint).capabilities
+        }
     }
 
     func send<Request: RPCRequest>(_ request: Request) async throws -> Request.Response {
@@ -72,15 +75,6 @@ nonisolated struct SelectedRPCProvider: RPC, AccountChangeProviding, SignatureEv
         try await performRings { try await $0.proveTransfer(request) }
     }
 
-    /// Returns whether the selected provider reads private notes and proves private transfers, without sending
-    /// anything.
-    ///
-    /// - Returns: `true` for a provider with both capabilities.
-    /// - Throws: The error of ``perform(_:)``.
-    func servesPrivateBalances() async throws -> Bool {
-        try await capabilities.contains(.privateBalances)
-    }
-
     /// Runs a private-note read or proof on the selected provider's client.
     ///
     /// - Parameter operation: The read or proof.
@@ -102,11 +96,12 @@ nonisolated struct SelectedRPCProvider: RPC, AccountChangeProviding, SignatureEv
     ///
     /// - Parameter operation: The work to send to the provider.
     /// - Returns: The operation's result.
-    /// - Throws: The operation's error, with Helius's key rejections as ``RPCProviderError/invalidKey``.
+    /// - Throws: ``RPCProviderError/unsupportedNetwork`` when a custom RPC is selected off mainnet, the error of
+    ///   ``endpoint()``, or the operation's error, with Helius's key rejections as ``RPCProviderError/invalidKey``.
     private func perform<Value: Sendable>(
         _ operation: (Client) async throws -> Value
     ) async throws -> Value {
-        let endpoint = try await endpoint()
+        guard let endpoint = try await endpoint() else { throw RPCProviderError.unsupportedNetwork }
         let client = try await clients.client(for: endpoint)
         do {
             return try await operation(client)
@@ -118,13 +113,12 @@ nonisolated struct SelectedRPCProvider: RPC, AccountChangeProviding, SignatureEv
 
     /// Reads the selected provider and, for Helius, its key.
     ///
-    /// - Returns: The endpoint that receives the next request.
+    /// - Returns: The endpoint that receives the next request, or `nil` when a custom RPC is selected off mainnet.
     /// - Throws: ``RPCProviderError/missingKey`` when Helius is selected without a key,
-    ///   ``RPCProviderError/unsupportedNetwork`` when a custom RPC is selected off mainnet,
     ///   ``RPCProviderError/settingsUnreadable`` when the choice or the key can't be read, or `CancellationError`.
-    private func endpoint() async throws -> Endpoint {
+    private func endpoint() async throws -> Endpoint? {
         let endpoint = try await rpcStore.loadedConnection()
-        if case .custom = endpoint, network != .mainnet { throw RPCProviderError.unsupportedNetwork }
+        if case .custom = endpoint, network != .mainnet { return nil }
         return endpoint
     }
 

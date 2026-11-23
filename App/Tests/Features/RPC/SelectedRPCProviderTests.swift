@@ -104,6 +104,7 @@ struct SelectedRPCProviderTests {
         await #expect(throws: RPCProviderError.unsupportedNetwork) { _ = try await client.changedSlots(for: [PublicWallet.address]) }
         await #expect(throws: RPCProviderError.unsupportedNetwork) { _ = try await client.events(for: ExternalFixture.signature) }
         await #expect(throws: RPCProviderError.unsupportedNetwork) { _ = try await client.logos(for: [asset]) }
+        #expect(try await client.capabilities.isEmpty)
         #expect(await responses.requests.isEmpty)
     }
 
@@ -132,12 +133,12 @@ struct SelectedRPCProviderTests {
         (RPCSettings.Provider.helius, true), (.solana, false),
         (.custom(URL(string: "https://rpc.example.com")!), false),
     ])
-    func `Only a provider with private notes and proofs serves private balances`(provider: RPCSettings.Provider,
-                                                                              serves: Bool) async throws {
+    func `Only a provider that declares private balances serves them`(provider: RPCSettings.Provider,
+                                                                   serves: Bool) async throws {
         let responses = HTTPResponses.keyCheck()
         let client = responses.rpcProvider(rpcStore: .inMemory(selection: provider, key: "fixture-key"))
 
-        #expect(try await client.servesPrivateBalances() == serves)
+        #expect(try await client.capabilities.contains(.privateBalances) == serves)
         #expect(await responses.requests.isEmpty)
     }
 

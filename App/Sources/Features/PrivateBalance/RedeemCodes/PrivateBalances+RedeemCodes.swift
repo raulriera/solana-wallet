@@ -12,44 +12,40 @@ extension PrivateBalances {
         let id = Self.noteID(of: account, on: network)
         async let savedKeys = keyRecord(of: account, from: generation)
         async let savedCodes = rebuilding(\.codes, from: generation) { try await $0.load() }
-        do {
-            let client = try await client(for: network)
-            guard let keys = try await savedKeys else { throw PrivateBalanceError.turnedOff }
-            var ledger = try await savedCodes?[id]
-            var known: (statuses: [UInt32: RedeemCodeScan.Status], lamports: [UInt32: UInt64]) = ([:], [:])
-            if ledger?.isDiscovered != true {
-                let discovery = try await discovered(from: keys, client: client)
-                known = (discovery.statuses, discovery.lamports)
-                ledger = try await update(\.codes, from: generation) { entries in
-                    entries[id, default: RedeemCodeLedger(isDiscovered: false)].merge(discovery.ledger)
-                    return entries[id]
-                }
+        guard let client = try await client(for: network) else { throw PrivateBalanceError.unavailable }
+        guard let keys = try await savedKeys else { throw PrivateBalanceError.turnedOff }
+        var ledger = try await savedCodes?[id]
+        var known: (statuses: [UInt32: RedeemCodeScan.Status], lamports: [UInt32: UInt64]) = ([:], [:])
+        if ledger?.isDiscovered != true {
+            let discovery = try await discovered(from: keys, client: client)
+            known = (discovery.statuses, discovery.lamports)
+            ledger = try await update(\.codes, from: generation) { entries in
+                entries[id, default: RedeemCodeLedger(isDiscovered: false)].merge(discovery.ledger)
+                return entries[id]
             }
-            guard var reconciled = ledger else { return [] }
-            let indices = (reconciled.records.map(\.index) + reconciled.pending.map(\.index)).sorted()
-            let unread = indices.filter { known.statuses[$0] == nil }
-            let addresses = try unread.map { try keys.oneTimeAddress(at: $0) }
-            async let statuses = RedeemCodeScan.statuses(of: unread, from: keys, rpc: client, indexer: client)
-            async let balances = Self.lamports(of: addresses, using: client)
-            let (read, readLamports) = try await (statuses, balances)
-            let found = known.statuses.merging(read) { $1 }
-            let lamports = known.lamports.merging(zip(unread, readLamports)) { $1 }
-            let now = Date.now
-            reconciled.reconcile(with: found, lamports: lamports, at: now)
-            if reconciled != ledger {
-                let local = reconciled
-                reconciled = try await update(\.codes, from: generation) { entries in
-                    entries[id]?.reconcile(with: found, lamports: lamports, at: now)
-                    return entries[id] ?? local
-                }
+        }
+        guard var reconciled = ledger else { return [] }
+        let indices = (reconciled.records.map(\.index) + reconciled.pending.map(\.index)).sorted()
+        let unread = indices.filter { known.statuses[$0] == nil }
+        let addresses = try unread.map { try keys.oneTimeAddress(at: $0) }
+        async let statuses = RedeemCodeScan.statuses(of: unread, from: keys, rpc: client, indexer: client)
+        async let balances = Self.lamports(of: addresses, using: client)
+        let (read, readLamports) = try await (statuses, balances)
+        let found = known.statuses.merging(read) { $1 }
+        let lamports = known.lamports.merging(zip(unread, readLamports)) { $1 }
+        let now = Date.now
+        reconciled.reconcile(with: found, lamports: lamports, at: now)
+        if reconciled != ledger {
+            let local = reconciled
+            reconciled = try await update(\.codes, from: generation) { entries in
+                entries[id]?.reconcile(with: found, lamports: lamports, at: now)
+                return entries[id] ?? local
             }
-            return try reconciled.records.map { record in
-                OutstandingRedeemCode(record: record, code: try RedeemCode(
-                    secret: keys.oneTimeAccount(at: record.index).secret, network: network
-                ))
-            }
-        } catch RPCProviderError.unsupportedNetwork {
-            throw PrivateBalanceError.unavailable
+        }
+        return try reconciled.records.map { record in
+            OutstandingRedeemCode(record: record, code: try RedeemCode(
+                secret: keys.oneTimeAccount(at: record.index).secret, network: network
+            ))
         }
     }
 
