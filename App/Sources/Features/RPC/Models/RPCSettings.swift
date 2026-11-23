@@ -60,7 +60,7 @@ nonisolated struct RPCSettings: Codable, Equatable, Sendable {
     /// - Parameters:
     ///   - url: The checked RPC URL.
     ///   - capabilities: The optional features that the RPC's server serves, saved only for a new RPC.
-    mutating func add(_ url: URL, capabilities: Capabilities = []) {
+    mutating func add(_ url: URL, capabilities: Capabilities) {
         if customRPC(for: url) == nil { customRPCs.append(CustomRPC(url: url, capabilities: capabilities)) }
         select(.custom(url))
     }

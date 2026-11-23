@@ -59,7 +59,7 @@ struct SelectedRPCProviderTests {
 
         _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset))
         _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset))
-        try await rpcStore.add(custom)
+        try await rpcStore.add(custom, capabilities: [])
         _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset))
         try await rpcStore.save(key: "first-key")
         try await rpcStore.select(.helius)

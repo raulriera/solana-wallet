@@ -105,14 +105,14 @@ final class RPCStore: Erasable {
         try await update { $0.select(provider) }
     }
 
-    /// Adds a checked custom RPC and chooses it.
+    /// Adds a checked custom RPC, if it's new, and chooses it.
     ///
     /// - Parameters:
     ///   - url: The checked HTTPS RPC URL.
-    ///   - capabilities: The optional features that the RPC's server serves.
+    ///   - capabilities: The optional features that the RPC's server serves, saved only for a new RPC.
     /// - Throws: ``RPCProviderError/settingsUnreadable`` when the settings can't be read, or a storage error after
     ///   undoing the change.
-    func add(_ url: URL, capabilities: Capabilities = []) async throws {
+    func add(_ url: URL, capabilities: Capabilities) async throws {
         try await update { $0.add(url, capabilities: capabilities) }
     }
 
