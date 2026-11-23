@@ -14,6 +14,9 @@ struct ContactsSplitView: View {
     let contacts: ContactsModel
     @State private var selection: Address?
     @State private var columnVisibility = NavigationSplitViewVisibility.all
+    /// The split view's width, which the detail column matches when the sidebar is hidden or covers it.
+    @State private var splitViewWidth = CGFloat.zero
+    @State private var detailWidth = CGFloat.zero
     @State private var preferredColumn = NavigationSplitViewColumn.sidebar
     @State private var payment = KeypadPayment.loading
     /// The review of the last sent payment.
@@ -35,32 +38,38 @@ struct ContactsSplitView: View {
                     }
                 }
             } detail: {
-                if let selection, !payment.isLoading {
-                    RecipientPaymentStack(recipient: lists.recipient(for: selection), payment: payment.model,
-                                          context: lists.recipientContext,
-                                          sender: PaymentSender(account: account, network: network,
-                                                                transactions: transactions, recents: recents),
-                                          review: $review) {
-                        RecipientScreen(address: selection, lists: lists)
+                Group {
+                    if let selection, !payment.isLoading {
+                        RecipientPaymentStack(recipient: lists.recipient(for: selection), payment: payment.model,
+                                              context: lists.recipientContext,
+                                              sender: PaymentSender(account: account, network: network,
+                                                                    transactions: transactions, recents: recents),
+                                              review: $review) {
+                            RecipientScreen(address: selection, lists: lists)
+                        }
+                            .id(selection)
+                    } else if selection != nil {
+                        Color.clear
+                    } else {
+                        UnavailableScreen(title: "No Recipient Selected",
+                                          message: "Choose who to pay, or paste an address for a new payment.",
+                                          systemImage: "person.crop.circle") {}
+                        .toolbarTitleDisplayMode(.inline)
                     }
-                        .id(selection)
-                } else if selection != nil {
-                    Color.clear
-                } else {
-                    UnavailableScreen(title: "No Recipient Selected",
-                                      message: "Choose who to pay, or paste an address for a new payment.",
-                                      systemImage: "person.crop.circle") {}
-                    .toolbarTitleDisplayMode(.inline)
                 }
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { detailWidth = $0 }
             }
             .navigationSplitViewStyle(.tabSection)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { splitViewWidth = $0 }
         }
         .keypadPayment(for: account, on: network, into: $payment)
         .clearsSentAmount(payment.model, review: $review)
         .environment(\.newPayment, NewPaymentAction(selection: $selection))
         .onChange(of: entry?.confirmation) { _, confirmation in
             guard confirmation?.purpose == .payment else { return }
-            columnVisibility = .detailOnly
+            if detailWidth >= splitViewWidth {
+                columnVisibility = .detailOnly
+            }
             preferredColumn = .detail
         }
     }
