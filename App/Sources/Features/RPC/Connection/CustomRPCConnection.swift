@@ -35,15 +35,17 @@ nonisolated struct CustomRPCConnection: ProviderConnecting {
         async let account = rpc.accounts(at: [Self.checkedAccount])
         async let liveUpdates: Void = Self.checkLiveUpdates(on: rpc)
         async let servesLogos = rpc.servesLogos(checking: Self.checkedAccount)
+        async let servesPrivateBalances = rpc.servesPrivateBalances()
         do {
             _ = try await account
         } catch {
             throw try Self.entryError(for: error, otherwise: .unreachable)
         }
-        let capabilities: Capabilities
+        var capabilities: Capabilities = []
         do {
             try await liveUpdates
-            capabilities = try await servesLogos ? .logos : []
+            if try await servesLogos { capabilities.insert(.logos) }
+            if try await servesPrivateBalances { capabilities.insert(.privateBalances) }
         } catch {
             throw try Self.entryError(for: error, otherwise: .noLiveUpdates)
         }

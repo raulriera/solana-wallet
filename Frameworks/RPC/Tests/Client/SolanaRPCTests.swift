@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import Testing
 @testable import RPC
@@ -61,6 +62,30 @@ struct SolanaRPCTests {
         #expect(await transport.requests.map { $0.url?.absoluteString } == [expected])
     }
 
+    @Test(arguments: [
+        (200, IndexerFixtures.page(), true),
+        (404, IndexerFixtures.page(), false),
+        (200, #""error":{"code":-32601,"message":"Method not found"}"#, false),
+    ])
+    func `Only a server with a Solana Rings indexer and an attested prover serves private balances`(
+        attestationStatus: Int,
+        indexerReply: String,
+        serves: Bool
+    ) async throws {
+        let rpc = try Self.rings(attestationStatus: attestationStatus, indexerReply: indexerReply)
+
+        #expect(try await rpc.servesPrivateBalances() == serves)
+    }
+
+    @Test
+    func `A rate-limited check for private balances throws`() async throws {
+        let rpc = try Self.rings(attestationStatus: 429, indexerReply: IndexerFixtures.page())
+
+        await #expect(throws: RPCError.http(statusCode: 429, retryAfter: nil)) {
+            try await rpc.servesPrivateBalances()
+        }
+    }
+
     @Test(arguments: ["https:///fixture-token", "https://:8443/fixture-token", "https://fixture-user@/fixture-token"])
     func `Custom endpoints require HTTPS and a host`(url: String) throws {
         let endpoint = try #require(URL(string: url))
@@ -83,5 +108,17 @@ struct SolanaRPCTests {
         }
         #expect(String(describing: rpc) == "SolanaRPC(mainnet)")
         #expect(String(reflecting: rpc) == "SolanaRPC(mainnet)")
+    }
+
+    private static func rings(attestationStatus: Int, indexerReply: String) throws -> SolanaRPC {
+        let key = Curve25519.KeyAgreement.PrivateKey().publicKey
+        let transport = StubTransport { request in
+            guard request.httpMethod == "GET" else { return try reply(to: request, payload: indexerReply) }
+            return try httpReply(to: request, body: StubProver.attestation(of: key), status: attestationStatus)
+        }
+        let endpoint = try #require(URL(string: "https://rpc.example.com"))
+        return try #require(
+            SolanaRPC(endpoint: endpoint, network: .mainnet, transport: transport, verify: StubProver.claimedKey)
+        )
     }
 }
