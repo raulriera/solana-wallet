@@ -3,7 +3,6 @@ import Transactions
 
 /// Shows an address in full and saves, edits, favorites, or deletes its contact.
 struct RecipientScreen: View {
-    @Environment(\.palette) private var palette
     @Environment(\.contactEntry) private var contactEntry
     let address: Address
     let lists: ContactLists
@@ -19,19 +18,16 @@ struct RecipientScreen: View {
             }
 
             Section {
-                Group {
-                    if let contact {
-                        Button("Edit Contact", systemImage: "pencil") { contactEntry?(editing: contact) }
-                    }
-                    if let saved {
-                        FavoriteButton(contact: saved)
-                    } else {
-                        AddContactButton(address: address)
-                    }
+                if let contact {
+                    Button("Edit Contact", systemImage: "pencil") { contactEntry?(editing: contact) }
                 }
-                .foregroundStyle(palette.primary)
-                .lineLimit(1)
+                if let saved {
+                    FavoriteButton(contact: saved)
+                } else {
+                    AddContactButton(address: address)
+                }
             }
+            .lineLimit(1)
 
             if let contact {
                 Section {
