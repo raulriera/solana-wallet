@@ -72,7 +72,7 @@ struct RecipientList: View {
                 }
             }
         }
-        .listStyle(.plain)
+        .listStyle(.sidebar)
         .animation(.default, value: lists.isLoaded)
     }
 }

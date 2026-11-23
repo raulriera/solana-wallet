@@ -14,6 +14,7 @@ struct RecipientRow: View {
                                                              capitalizationContext: .beginningOfSentence))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .foregroundStyle(.selectionAware(.primary))
             }
         } label: {
             Label {
@@ -23,11 +24,12 @@ struct RecipientRow: View {
                 ShortAddress(address: recipient.address)
             } icon: {
                 Text(recipient, format: .monogram)
+                    .fontWeight(.semibold)
                     .monogramIcon()
             }
             .labelStyle(.subtitled)
+            .foregroundStyle(.selectionAware(.primary))
         }
-        .foregroundStyle(.selectionAware(.primary))
         .accessibilityElement(children: .combine)
     }
 }
@@ -41,6 +43,6 @@ struct RecipientRow: View {
             RecipientRow(recipient: PaymentRecipient(address: alice, name: "Alice Smith"), date: yesterday)
             RecipientRow(recipient: PaymentRecipient(address: recent, name: nil), date: threeDaysAgo)
         }
-        .listStyle(.plain)
+        .listStyle(.sidebar)
     }
 }
