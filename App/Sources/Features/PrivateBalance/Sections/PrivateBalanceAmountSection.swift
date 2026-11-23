@@ -3,7 +3,6 @@ import Transactions
 
 /// Shows an asset's available and pending private amounts with their actions, or a failed read with a Try Again button.
 struct PrivateBalanceAmountSection: View {
-    @Environment(\.palette) private var palette
     @State private var isRefreshing = false
     /// The spendable private balance, or `nil` without a balance.
     let available: TokenAmount?
@@ -40,7 +39,6 @@ struct PrivateBalanceAmountSection: View {
                 } label: {
                     PendingLabel(title: "Try Again", isPending: isRefreshing)
                 }
-                .foregroundStyle(palette.primary)
                 .disabled(isRefreshing)
             } else if let available {
                 PrivateBalanceActions(available: available, asset: asset)

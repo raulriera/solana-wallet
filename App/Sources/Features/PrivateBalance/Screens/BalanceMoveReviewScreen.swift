@@ -3,7 +3,6 @@ import Transactions
 
 /// Shows a balance move's amount, recipient, balances, and fees for approval.
 struct BalanceMoveReviewScreen: TransactionReviewContent {
-    @Environment(\.palette) private var palette
     let review: TransactionReviewModel<BalanceMoveProposal>
 
     var body: some View {
@@ -60,7 +59,6 @@ struct BalanceMoveReviewScreen: TransactionReviewContent {
                 Button(action: review.approve) {
                     PendingLabel(title: move.title, isPending: review.attempt != nil || review.isSending)
                 }
-                .foregroundStyle(palette.primary)
                 .lineLimit(1)
                 .disabled(!review.canApprove)
             }

@@ -3,7 +3,6 @@ import Transactions
 
 /// Shows a payment's amount, token, recipient, warnings, and costs before the person sends it.
 struct PaymentReviewScreen: TransactionReviewContent {
-    @Environment(\.palette) private var palette
     let review: TransactionReviewModel<PaymentProposal>
 
     var body: some View {
@@ -42,7 +41,6 @@ struct PaymentReviewScreen: TransactionReviewContent {
                 Button(action: review.approve) {
                     PendingLabel(title: "Send", isPending: review.isSending)
                 }
-                .foregroundStyle(palette.primary)
                 .lineLimit(1)
                 .disabled(!review.canApprove)
             }

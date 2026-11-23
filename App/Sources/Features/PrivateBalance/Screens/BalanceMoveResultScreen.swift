@@ -2,7 +2,6 @@ import SwiftUI
 
 /// Shows how a sent balance move settled, with its explorer link, a retry for a dropped move, and a way to close it.
 struct BalanceMoveResultScreen: TransactionResultContent {
-    @Environment(\.palette) private var palette
     @Environment(\.dismissParentContainer) private var dismissParentContainer
     @AccessibilityFocusState private var isFocused: Bool
     let review: TransactionReviewModel<BalanceMoveProposal>
@@ -28,7 +27,6 @@ struct BalanceMoveResultScreen: TransactionResultContent {
                     Button("Done") { dismissParentContainer() }
                 }
             }
-            .foregroundStyle(palette.primary)
             .lineLimit(1)
         }
         .navigationTitle(Text(review.proposal.title))
