@@ -21,7 +21,9 @@ nonisolated struct CustomRPCConnection: ProviderConnecting {
     }
 
     func connect(_ entry: String) async throws {
-        guard let url = URL(string: entry), let rpc = client(.custom(url), .mainnet) else { throw CustomRPCError.notHTTPS }
+        guard let url = URL(string: entry), let rpc = client(.custom(url, capabilities: []), .mainnet) else {
+            throw CustomRPCError.notHTTPS
+        }
         let listed: [URL]
         do {
             listed = try await rpcStore.loadedSettings().customRPCs

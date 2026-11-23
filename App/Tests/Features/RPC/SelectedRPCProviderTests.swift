@@ -70,7 +70,9 @@ struct SelectedRPCProviderTests {
         #expect(await responses.requests.map { $0.url?.host() } == [
             "api.mainnet.solana.com", "api.mainnet.solana.com", "rpc.example.com", "mainnet.helius-rpc.com", "mainnet.helius-rpc.com",
         ])
-        #expect(created.withLock(\.self) == [.solana, .custom(custom), .helius(key: "first-key"), .helius(key: "second-key")])
+        #expect(created.withLock(\.self) == [
+            .solana, .custom(custom, capabilities: []), .helius(key: "first-key"), .helius(key: "second-key"),
+        ])
     }
 
     @Test(arguments: [
@@ -106,6 +108,14 @@ struct SelectedRPCProviderTests {
         await #expect(throws: RPCProviderError.unsupportedNetwork) { _ = try await client.logos(for: [asset]) }
         #expect(try await client.capabilities.isEmpty)
         #expect(await responses.requests.isEmpty)
+    }
+
+    @Test
+    func `A custom endpoint's client declares the endpoint's capabilities`() async throws {
+        let url = try #require(URL(string: "https://rpc.example.com"))
+        let client = try #require(SelectedRPCProvider.client(for: .custom(url, capabilities: .logos), on: .mainnet))
+
+        #expect(try await client.capabilities == .logos)
     }
 
     @Test

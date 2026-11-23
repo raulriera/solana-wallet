@@ -1,5 +1,5 @@
 /// The optional features that a provider's server serves.
-public struct Capabilities: OptionSet, Sendable {
+public struct Capabilities: OptionSet, Hashable, Sendable {
     public let rawValue: Int
 
     /// Creates a set of capabilities from its raw bits.

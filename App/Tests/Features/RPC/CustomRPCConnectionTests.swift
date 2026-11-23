@@ -20,7 +20,7 @@ struct CustomRPCConnectionTests {
             .connect("https://rpc.example.com/fixture-token")
 
         #expect(await settings.value == RPCSettings(selection: .custom(url), customRPCs: [url]))
-        #expect(rpcStore.connection == .custom(url))
+        #expect(rpcStore.connection == .custom(url, capabilities: []))
         #expect(await responses.requests.map(\.url) == [url])
         try #require(sockets.sockets.count == 2)
         let connections = try sockets.sockets.map { try $0.requests.map(Self.body(of:)) }

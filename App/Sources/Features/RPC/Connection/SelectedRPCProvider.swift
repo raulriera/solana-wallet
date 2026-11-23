@@ -9,7 +9,7 @@ nonisolated struct SelectedRPCProvider: RPC, AccountChangeProviding, SignatureEv
         /// Solana's public RPC.
         case solana
         case helius(key: String)
-        case custom(URL)
+        case custom(URL, capabilities: Capabilities)
     }
 
     /// A provider's client for requests, account changes, signature watches, and logo lookups.
@@ -133,7 +133,7 @@ nonisolated struct SelectedRPCProvider: RPC, AccountChangeProviding, SignatureEv
         switch endpoint {
         case .solana: SolanaRPC(network: network)
         case .helius(let key): HeliusRPC(apiKey: key, network: network)
-        case .custom(let url): SolanaRPC(endpoint: url, network: network)
+        case .custom(let url, let capabilities): SolanaRPC(endpoint: url, network: network, capabilities: capabilities)
         }
     }
 }

@@ -148,7 +148,7 @@ struct RPCStoreTests {
         try await store.add(custom)
 
         #expect(await settings.value == RPCSettings(selection: .custom(custom), customRPCs: [listed, custom]))
-        #expect(store.connection == .custom(custom))
+        #expect(store.connection == .custom(custom, capabilities: []))
     }
 
     @Test
@@ -188,7 +188,7 @@ struct RPCStoreTests {
 
         #expect(store.settings == RPCSettings(selection: .custom(kept), customRPCs: [kept]))
         #expect(await settings.value == store.settings)
-        #expect(store.connection == .custom(kept))
+        #expect(store.connection == .custom(kept, capabilities: []))
     }
 
     @Test

@@ -47,7 +47,7 @@ final class RPCStore: Erasable {
         switch settings?.selection {
         case .solana: .solana
         case .helius: key.map { .helius(key: $0) }
-        case .custom(let url): .custom(url)
+        case .custom(let url): .custom(url, capabilities: [])
         case nil: nil
         }
     }
