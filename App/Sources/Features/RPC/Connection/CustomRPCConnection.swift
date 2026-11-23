@@ -24,14 +24,14 @@ nonisolated struct CustomRPCConnection: ProviderConnecting {
         guard let url = URL(string: entry), let rpc = client(.custom(url, capabilities: []), .mainnet) else {
             throw CustomRPCError.notHTTPS
         }
-        let listed: [URL]
+        let isListed: Bool
         do {
-            listed = try await rpcStore.loadedSettings().customRPCs
+            isListed = try await rpcStore.loadedSettings().customRPC(for: url) != nil
         } catch {
             try Task.checkCancellation()
             throw CustomRPCError.unavailable
         }
-        guard !listed.contains(url) else { throw CustomRPCError.duplicate }
+        guard !isListed else { throw CustomRPCError.duplicate }
         do {
             _ = try await rpc.accounts(at: [Self.checkedAccount])
         } catch {
@@ -48,7 +48,7 @@ nonisolated struct CustomRPCConnection: ProviderConnecting {
         }
         try Task.checkCancellation()
         do {
-            try await rpcStore.add(url)
+            try await rpcStore.add(url, capabilities: [])
         } catch {
             try Task.checkCancellation()
             throw CustomRPCError.storageFailed

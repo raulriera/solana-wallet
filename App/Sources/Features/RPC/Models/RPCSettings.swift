@@ -1,4 +1,5 @@
 import Foundation
+import RPC
 
 /// The RPC provider in use and the custom RPCs a person added.
 nonisolated struct RPCSettings: Codable, Equatable, Sendable {
@@ -27,24 +28,40 @@ nonisolated struct RPCSettings: Codable, Equatable, Sendable {
         }
     }
 
+    /// A custom RPC and the optional features that its server served when it was added.
+    nonisolated struct CustomRPC: Codable, Equatable, Sendable {
+        let url: URL
+        let capabilities: Capabilities
+    }
+
     /// The provider in use.
     var selection = Provider.solana
-    /// The custom RPC URLs in the order they were added.
-    var customRPCs: [URL] = []
+    /// The custom RPCs in the order they were added.
+    var customRPCs: [CustomRPC] = []
+
+    /// Returns the listed custom RPC at a URL.
+    ///
+    /// - Parameter url: The custom RPC's URL.
+    /// - Returns: The custom RPC, or `nil` when the list doesn't hold the URL.
+    func customRPC(for url: URL) -> CustomRPC? {
+        customRPCs.first { $0.url == url }
+    }
 
     /// Chooses the provider in use.
     ///
     /// - Parameter provider: The provider to use; a custom RPC must already be in the list.
     mutating func select(_ provider: Provider) {
-        if case .custom(let url) = provider, !customRPCs.contains(url) { return }
+        if case .custom(let url) = provider, customRPC(for: url) == nil { return }
         selection = provider
     }
 
     /// Adds a custom RPC, if it's new, and chooses it.
     ///
-    /// - Parameter url: The checked RPC URL.
-    mutating func add(_ url: URL) {
-        if !customRPCs.contains(url) { customRPCs.append(url) }
+    /// - Parameters:
+    ///   - url: The checked RPC URL.
+    ///   - capabilities: The optional features that the RPC's server serves, saved only for a new RPC.
+    mutating func add(_ url: URL, capabilities: Capabilities = []) {
+        if customRPC(for: url) == nil { customRPCs.append(CustomRPC(url: url, capabilities: capabilities)) }
         select(.custom(url))
     }
 
@@ -52,7 +69,7 @@ nonisolated struct RPCSettings: Codable, Equatable, Sendable {
     ///
     /// - Parameter url: The RPC URL to remove.
     mutating func remove(_ url: URL) {
-        customRPCs.removeAll { $0 == url }
+        customRPCs.removeAll { $0.url == url }
         if selection == .custom(url) { selection = .solana }
     }
 }
