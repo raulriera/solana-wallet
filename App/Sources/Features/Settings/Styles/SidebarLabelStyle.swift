@@ -11,12 +11,11 @@ struct SidebarLabelStyle: LabelStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         let isProminent = backgroundProminence == .increased
-        let color = isProminent ? nil : tint
         Label {
             configuration.title
         } icon: {
             configuration.icon
-                .foregroundStyle(color.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.primary))
+                .foregroundStyle(.selectionAware(tint ?? .primary))
         }
         .labelStyle(.titleAndIcon)
         .symbolRenderingMode(isProminent ? .monochrome : .multicolor)

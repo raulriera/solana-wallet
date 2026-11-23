@@ -53,7 +53,7 @@ struct AmountDisplay: View {
                                          startPoint: UnitPoint(x: 0.25, y: 0.25),
                                          endPoint: UnitPoint(x: 0.75, y: 0.75)))
         case .plain:
-            AnyShapeStyle(.primary)
+            AnyShapeStyle(Color.primary)
         }
     }
 }
