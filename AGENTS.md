@@ -71,6 +71,7 @@ Group files by concern in real folders that Xcode mirrors.
 ## Code
 
 - Check how Apple solves a problem and mirror its API shape and names before inventing your own; extend the Apple type, such as `URL.persistentDirectory` beside `URL.cachesDirectory`, instead of adding a wrapper. Express intent with typed APIs; services hide serialization and transport.
+- Extend a system type only with what belongs to that type everywhere; domain rules stay with the domain type or protocol that owns them.
 - No module-name prefixes. Implementations end with their role, such as `JupiterPriceProvider`, as `JSONDecoder` does.
 - Error types and properties are `Error` and `error`, never `Failure` or `failure`. Never keep, pass, or show an error as a string, `localizedDescription` included. User-facing errors are payload-free `LocalizedError` enums, with the title in `errorDescription` and the message in `recoverySuggestion`, shown with `alert(error:)`.
 - Document production code with DocC: what each type, function, and initializer does, with its parameters, return value, and thrown errors; properties and cases only when their names aren't enough. Write no other comments, none in tests, and never history, sources, versions, rationale, or what other code does. Keep the license header of copied open-source code.
