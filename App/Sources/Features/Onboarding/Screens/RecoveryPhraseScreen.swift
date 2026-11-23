@@ -3,7 +3,6 @@ import Wallet
 
 /// Shows a new recovery phrase for backup.
 struct RecoveryPhraseScreen: View {
-    @Environment(\.palette) private var palette
     @State private var isConfirmingBackup = false
     @State private var phrase: RecoveryPhrase?
     let isSaved: Bool
@@ -51,7 +50,6 @@ struct RecoveryPhraseScreen: View {
 
             Section {
                 Button("Continue") { isConfirmingBackup = true }
-                    .foregroundStyle(palette.primary)
                     .confirmation("Have you saved your recovery words?", action: "Yes", role: .confirm,
                                   isPresented: $isConfirmingBackup, perform: continueSetup) {
                         Text("Make sure you've written down all the words in order and stored them somewhere safe.")

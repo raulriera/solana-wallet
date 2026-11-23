@@ -2,7 +2,6 @@ import SwiftUI
 
 /// Shows the saved API key, mostly hidden, and opens the screen that adds or changes it.
 struct APIKeyDetailsScreen: View {
-    @Environment(\.palette) private var palette
     /// The saved key with all but its first characters masked, or `nil` when no key is saved.
     let keyPreview: String?
     let actions: any RPCActions
@@ -29,7 +28,6 @@ struct APIKeyDetailsScreen: View {
 
             Section {
                 Button(RPCEntryPurpose(keyPreview: keyPreview).title, action: actions.changeKey)
-                    .foregroundStyle(palette.primary)
             }
         }
         .navigationTitle(Text(RPCSettings.Provider.helius.name))

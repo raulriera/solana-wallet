@@ -2,7 +2,6 @@ import SwiftUI
 
 /// Shows the RPC provider choice, with a button that opens the new wallet.
 struct RPCChoiceScreen: View {
-    @Environment(\.palette) private var palette
     let coordinator: RPCCoordinator
     /// The action that opens the saved wallet.
     let continueSetup: () -> Void
@@ -11,7 +10,6 @@ struct RPCChoiceScreen: View {
         RPCScreen(coordinator: coordinator) {
             Section {
                 Button("Continue", action: continueSetup)
-                    .foregroundStyle(palette.primary)
             }
         }
         .onChange(of: coordinator.completedKeyChoice) { _, choice in

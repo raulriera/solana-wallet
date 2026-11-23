@@ -4,7 +4,6 @@ import Transactions
 
 /// Shows an account's address as a QR code and as text, with a way to share it.
 struct ReceiveScreen: View {
-    @Environment(\.palette) private var palette
     let address: Address
     let network: Network
 
@@ -27,7 +26,6 @@ struct ReceiveScreen: View {
             Section("Address") {
                 FullAddress(text: address.value)
                 ShareLink(item: address.value)
-                    .foregroundStyle(palette.primary)
                     .lineLimit(1)
             }
         }

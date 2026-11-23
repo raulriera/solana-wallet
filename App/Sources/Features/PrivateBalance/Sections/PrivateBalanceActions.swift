@@ -3,7 +3,6 @@ import Transactions
 
 /// Shows the private balance's actions as button rows.
 struct PrivateBalanceActions: View {
-    @Environment(\.palette) private var palette
     @Environment(\.moveBalance) private var moveBalance
     @Environment(\.sendPrivately) private var sendPrivately
     /// The spendable private balance.
@@ -30,7 +29,6 @@ struct PrivateBalanceActions: View {
                 }
             }
         }
-        .foregroundStyle(palette.primary)
         .lineLimit(1)
     }
 }

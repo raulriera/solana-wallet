@@ -3,7 +3,6 @@ import SwiftUI
 /// Shows how a sent payment settled, with a link to its explorer page, a way to retry a dropped payment, and a way to
 /// start a new payment.
 struct PaymentResultScreen: TransactionResultContent {
-    @Environment(\.palette) private var palette
     @Environment(\.newPayment) private var newPayment
     @AccessibilityFocusState private var isFocused: Bool
     let review: TransactionReviewModel<PaymentProposal>
@@ -29,7 +28,6 @@ struct PaymentResultScreen: TransactionResultContent {
                     Button("New Payment") { newPayment() }
                 }
             }
-            .foregroundStyle(palette.primary)
             .lineLimit(1)
         }
         .navigationTitle(Text(verbatim: review.proposal.recipient.title))

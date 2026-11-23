@@ -2,7 +2,6 @@ import SwiftUI
 
 /// A section of choices for the RPC provider in use.
 struct RPCSelectionSection: View {
-    @Environment(\.palette) private var palette
     /// The provider in use, or `nil` before the choice is read.
     let selection: RPCSettings.Provider?
     let customRPCs: [URL]
@@ -16,7 +15,6 @@ struct RPCSelectionSection: View {
                 RPCRow(provider: .custom(url), isSelected: selection == .custom(url), actions: actions)
             }
             Button("Add Custom RPC…", systemImage: "plus", action: actions.addCustomRPC)
-                .foregroundStyle(palette.primary)
                 .lineLimit(1)
         } header: {
             Text("RPC Provider")

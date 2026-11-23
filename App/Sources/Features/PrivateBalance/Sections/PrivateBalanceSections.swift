@@ -5,7 +5,6 @@ import Transactions
 /// Shows an asset's private balance: a Turn On button while it's off, or the available and pending amounts with their
 /// actions.
 struct PrivateBalanceSections: View {
-    @Environment(\.palette) private var palette
     let isTurningOn: Bool
     let turnOn: PrivateBalanceTurnOnAction
     /// The account's private balance, or `nil` before the first read.
@@ -29,7 +28,6 @@ struct PrivateBalanceSections: View {
                 } label: {
                     PendingLabel(title: "Turn On Private Balance", isPending: isTurningOn)
                 }
-                .foregroundStyle(palette.primary)
                 .disabled(isTurningOn)
             } header: {
                 Text("Private Balance")

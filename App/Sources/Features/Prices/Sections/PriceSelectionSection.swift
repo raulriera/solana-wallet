@@ -2,7 +2,6 @@ import SwiftUI
 
 /// A section of choices for the price provider in use.
 struct PriceSelectionSection: View {
-    @Environment(\.palette) private var palette
     /// The price provider in use, or `nil` before the choice is read.
     let selection: PriceSettings.Provider?
     let customServers: [URL]
@@ -16,7 +15,6 @@ struct PriceSelectionSection: View {
                 PriceProviderRow(provider: .custom(url), isSelected: selection == .custom(url), actions: actions)
             }
             Button("Add Price Server…", systemImage: "plus", action: actions.addServer)
-                .foregroundStyle(palette.primary)
                 .lineLimit(1)
         } header: {
             Text("Price Provider")
