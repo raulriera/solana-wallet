@@ -20,7 +20,7 @@ struct ProviderEntry: View {
                 case .key:
                     SecureField(label, text: $text)
                 case .url:
-                    TextField(label, text: $text)
+                    TextField(label, text: $text, prompt: Text(verbatim: "https://www.example.com"))
                         .keyboardType(.URL)
                         .textContentType(.URL)
                         .writingToolsBehavior(.disabled)
