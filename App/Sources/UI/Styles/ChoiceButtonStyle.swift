@@ -33,6 +33,7 @@ struct ChoiceButtonStyle: PrimitiveButtonStyle {
                 configuration.label
             }
             .labeledContentStyle(.subtitled(spacing: descriptionSpacing))
+            .accessibilityRepresentation { configuration.label }
             Button(role: configuration.role, action: configuration.trigger) {
                 HStack {
                     if placement == .leading {
