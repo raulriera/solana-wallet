@@ -7,10 +7,6 @@ struct APIKeyDetailsScreen: View {
     let actions: any RPCActions
 
     var body: some View {
-        let footer: LocalizedStringResource = keyPreview == nil
-            ? "Your wallets use this key for balances and live updates."
-            : "Your wallets use this key for balances and live updates. It's stored only on this device, and most of it is hidden."
-
         Form {
             Section {
                 if let keyPreview {
@@ -23,7 +19,9 @@ struct APIKeyDetailsScreen: View {
             } header: {
                 Text("API Key")
             } footer: {
-                Text(footer)
+                if keyPreview != nil {
+                    Text("Part of the key is hidden.")
+                }
             }
 
             Section {

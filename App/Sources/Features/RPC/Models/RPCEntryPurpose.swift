@@ -36,12 +36,8 @@ nonisolated enum RPCEntryPurpose: Hashable, Sendable {
 
     var footer: LocalizedStringResource {
         switch self {
-        case .connect: "Your key is stored only on this device and is sent only to Helius."
-        case .add: "Your key is stored only on this device and is sent only to this provider."
-        case .change:
-            "The saved key stays until the new key is checked. Your key is stored only on this device and is sent only to this provider."
-        case .customRPC:
-            "Use your RPC's HTTPS URL. It must support live updates at the same URL. Custom RPCs serve mainnet. The URL stays on this device and is sent only to that RPC. Anyone can run an RPC. Add only RPCs you trust."
+        case .connect, .add, .change: "Your key is stored only on this device."
+        case .customRPC: "Custom RPCs serve mainnet. Anyone can run an RPC, add only RPCs you trust."
         }
     }
 

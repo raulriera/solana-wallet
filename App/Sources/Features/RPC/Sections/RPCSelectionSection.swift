@@ -19,7 +19,7 @@ struct RPCSelectionSection: View {
         } header: {
             Text("RPC Provider")
         } footer: {
-            Text("Solana's public RPC is free and shared by everyone. It limits requests and isn't meant for heavy use.")
+            Text("Solana's public RPC is shared and rate limited.")
         }
     }
 }
