@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Explains what a reset deletes before the final confirmation.
 struct ResetAppScreen: View {
+    @Environment(\.palette) private var palette
     let mode: ResetMode
     let account: Account
     let coordinator: SecurityCoordinator
@@ -9,7 +10,7 @@ struct ResetAppScreen: View {
     private var message: LocalizedStringResource {
         switch mode {
         case .standard:
-            "Resetting deletes everything this app saved on this device, including every wallet and recovery phrase. Every window returns to Welcome. Only your written recovery phrase can restore your wallets."
+            "Resetting deletes every wallet on this device. Only your written recovery phrase can restore them."
         case .recoveryUnavailable:
             "This device no longer has your wallet's recovery phrase, so resetting is the only fix. Resetting deletes everything this app saved on this device, including every wallet. Every window returns to Welcome. Then import your written backup."
         }
@@ -25,12 +26,13 @@ struct ResetAppScreen: View {
                 Section {
                     Button("Show Recovery Phrase") { coordinator.showRecovery(for: account) }
                 } footer: {
-                    Text("Make sure you've written down your recovery phrase before you continue.")
+                    Text("Back up your recovery phrase before you continue.")
                 }
             }
 
             Section {
                 Button("Continue") { coordinator.confirmReset() }
+                    .tint(palette.destructive)
             }
         }
         .navigationTitle("Reset App")

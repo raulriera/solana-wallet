@@ -18,7 +18,7 @@ struct RecoveryBackupScreen: View {
                     } header: {
                         Text("Recovery Words")
                     } footer: {
-                        Text("Write down these words in order and keep them somewhere safe. Anyone with them can control your wallet. Copied words stay on this device and clear from the clipboard after \(coordinator.pasteboard.lifetime, format: .units(allowed: [.minutes, .seconds], width: .wide)).")
+                        Text("Never share these words. Anyone with them can control your wallet.")
                     }
 
                     Section {
