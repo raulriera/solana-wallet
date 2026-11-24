@@ -12,7 +12,7 @@ struct ResetAppScreen: View {
         case .standard:
             "Resetting deletes every wallet on this device. Only your written recovery phrase can restore them."
         case .recoveryUnavailable:
-            "This device no longer has your wallet's recovery phrase, so resetting is the only fix. Resetting deletes everything this app saved on this device, including every wallet. Every window returns to Welcome. Then import your written backup."
+            "Resetting deletes every wallet on this device."
         }
     }
 

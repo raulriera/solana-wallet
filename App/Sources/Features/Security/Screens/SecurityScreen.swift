@@ -24,8 +24,6 @@ struct SecurityScreen: View {
             Section {
                 Button("Reset App", systemImage: "trash", role: .destructive) { coordinator.startReset(.standard) }
                     .labelStyle(.warning)
-            } footer: {
-                Text("Deletes everything this app saved on this device, including every wallet and recovery phrase.")
             }
         }
         .navigationTitle("Security & Privacy")
