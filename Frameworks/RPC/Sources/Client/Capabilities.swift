@@ -2,19 +2,16 @@
 public struct Capabilities: OptionSet, Codable, Hashable, Sendable {
     public let rawValue: Int
 
-    /// Creates a set of capabilities from its raw bits.
-    ///
-    /// - Parameter rawValue: The bits of the capabilities in the set.
     public init(rawValue: Int) {
         self.rawValue = rawValue
     }
 
-    /// Creates a set that holds a capability when a check finds that the server serves it, or an empty set when the
-    /// check fails for any reason but a rate limit or a cancellation.
+    /// Creates a set with the capability when the check returns `true`, and an empty set when it returns `false` or
+    /// fails.
     ///
     /// - Parameters:
-    ///   - capability: The capability that the check looks for.
-    ///   - check: The check, which returns whether the server serves the capability.
+    ///   - capability: The capability to check.
+    ///   - check: The check that returns whether the server serves the capability.
     /// - Throws: A rate-limit ``RPCError``, or `CancellationError`.
     init(_ capability: Capabilities, checking check: () async throws -> Bool) async throws {
         do {

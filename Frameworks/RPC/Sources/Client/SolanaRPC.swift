@@ -1,7 +1,6 @@
 public import Foundation
 
-/// A client for standard Solana RPC at a public or custom endpoint that sends Solana Rings requests to the endpoint's
-/// `v1/spr` path.
+/// A client for standard Solana RPC at a public or custom endpoint.
 public struct SolanaRPC: RPC, AccountChangeProviding, SignatureEventProviding, LogoProviding, RingsProviding,
                       CustomStringConvertible, CustomDebugStringConvertible {
     public let network: Network
@@ -19,6 +18,8 @@ public struct SolanaRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
     }
 
     /// Creates a client for a custom endpoint, or `nil` unless the endpoint uses HTTPS and has a host.
+    ///
+    /// The client sends Solana Rings requests to the endpoint's `v1/spr` path.
     ///
     /// - Parameters:
     ///   - endpoint: An HTTPS URL with a host.

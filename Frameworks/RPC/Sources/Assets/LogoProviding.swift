@@ -1,26 +1,19 @@
 import Algorithms
 public import Foundation
 
-/// A provider that looks up its copies of token logos on its own HTTPS image server when it has the
-/// ``Capabilities/logos`` capability.
+/// A provider that looks up its copies of token logos on its own HTTPS image server.
 public protocol LogoProviding: RPC {
     /// Looks up the provider's copies of token logos.
-    ///
-    /// - Parameter mints: At most 50 mint addresses on the provider's network.
-    /// - Returns: HTTPS logo URLs keyed by mint address.
-    /// - Throws: ``CapabilityError/missing(_:)`` without the ``Capabilities/logos`` capability,
-    ///   ``LogoError/tooManyMints`` for more than 50 mints, an ``RPCError``, or `CancellationError`.
-    func logos(for mints: [String]) async throws -> [String: URL]
-}
-
-extension LogoProviding {
-    /// Looks up the provider's copies of token logos with one DAS asset batch.
     ///
     /// - Parameter mints: At most 50 mint addresses on the provider's network.
     /// - Returns: HTTPS logo URLs keyed by mint address.
     /// - Throws: ``CapabilityError/missing(_:)`` without the ``Capabilities/logos`` capability, the error of
     ///   ``RPC/capabilities``, ``LogoError/tooManyMints`` for more than 50 mints, an ``RPCError``, or
     ///   `CancellationError`.
+    func logos(for mints: [String]) async throws -> [String: URL]
+}
+
+extension LogoProviding {
     public func logos(for mints: [String]) async throws -> [String: URL] {
         try await checkCapability(.logos)
         guard mints.count <= 50 else { throw LogoError.tooManyMints }
@@ -28,8 +21,7 @@ extension LogoProviding {
         return try await assetLogos(for: Array(mints.uniqued()))
     }
 
-    /// Returns the ``Capabilities/logos`` capability when the provider's server serves copies of token logos, whatever
-    /// capabilities the client declares.
+    /// Checks whether the provider's server serves copies of token logos, whatever the client declares.
     ///
     /// - Parameter mint: A mint address whose token has a logo.
     /// - Returns: ``Capabilities/logos`` when the server returns an HTTPS copy of the mint's logo, or no capabilities.
