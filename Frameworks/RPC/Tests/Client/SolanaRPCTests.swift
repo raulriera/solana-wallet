@@ -124,9 +124,6 @@ struct SolanaRPCTests {
             guard request.httpMethod == "GET" else { return try reply(to: request, payload: indexerReply) }
             return try httpReply(to: request, body: StubProver.attestation(of: key), status: attestationStatus)
         }
-        let endpoint = try #require(URL(string: "https://rpc.example.com"))
-        return try #require(
-            SolanaRPC(endpoint: endpoint, network: .mainnet, transport: transport, verify: StubProver.claimedKey)
-        )
+        return try SolanaRPC.custom(on: .mainnet, transport: transport, verify: StubProver.claimedKey)
     }
 }

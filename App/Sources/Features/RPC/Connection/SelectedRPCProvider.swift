@@ -14,7 +14,7 @@ nonisolated struct SelectedRPCProvider: RPC, AccountChangeProviding, SignatureEv
 
     /// A provider's client for requests, account changes, signature watches, logo lookups, and private notes and
     /// proofs.
-    typealias Client = any RPC & AccountChangeProviding & SignatureEventProviding & LogoProviding & RingsProviding
+    typealias Client = any AccountChangeProviding & SignatureEventProviding & LogoProviding & RingsProviding
 
     let network: Network
     private let rpcStore: RPCStore

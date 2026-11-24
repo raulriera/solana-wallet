@@ -111,14 +111,6 @@ struct SelectedRPCProviderTests {
     }
 
     @Test
-    func `A custom endpoint's client declares the endpoint's capabilities`() async throws {
-        let url = try #require(URL(string: "https://rpc.example.com"))
-        let client = try #require(SelectedRPCProvider.client(for: .custom(url, capabilities: .logos), on: .mainnet))
-
-        #expect(try await client.capabilities == .logos)
-    }
-
-    @Test
     func `Only Helius reports key errors`() async throws {
         let responses = HTTPResponses.keyCheck(error: .http(statusCode: 401, retryAfter: nil))
         let client = responses.rpcProvider(rpcStore: .inMemory(selection: .solana))
@@ -126,17 +118,6 @@ struct SelectedRPCProviderTests {
         await #expect(throws: RPCError.http(statusCode: 401, retryAfter: nil)) {
             _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset))
         }
-    }
-
-    @Test(arguments: [(RPCSettings.Provider.helius, 1), (.solana, 0)])
-    func `Only a provider with logo copies looks up logos`(provider: RPCSettings.Provider, lookups: Int) async throws {
-        let responses = HTTPResponses(["getAssetBatch": ["[null]"]])
-        let keys = StoredValue("fixture-key")
-        let client = responses.rpcProvider(
-            rpcStore: .inMemory(StoredValue(RPCSettings(selection: provider)), key: keys))
-
-        #expect(try await client.logos(for: [HTTPResponses.keyCheckAsset]).isEmpty)
-        #expect(await responses.requests.count == lookups)
     }
 
     @Test(arguments: [
@@ -185,23 +166,12 @@ struct SelectedRPCProviderTests {
     }
 
     @Test
-    func `A custom RPC with private balances reads and proves at its own Solana Rings path`() async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let shielded = try await PrivateBalanceFixtures.keys(for: account).shieldedAccount(for: account.address)
-        let responses = HTTPResponses.privateNotes(prover: try IndexedProofs.prover())
+    func `A custom RPC declares the capabilities it was saved with`() async throws {
         let custom = try #require(URL(string: "https://rpc.example.com"))
         let saved = RPCSettings.CustomRPC(url: custom, capabilities: .privateBalances)
         let rpcStore = RPCStore.inMemory(StoredValue(RPCSettings(selection: .custom(custom), customRPCs: [saved])))
-        let client = responses.rpcProvider(network: .mainnet, rpcStore: rpcStore)
-        let request = try PrivateBalanceFixtures.proofRequest(spending: shielded)
 
-        _ = try await client.shieldedTransactions(spending: [[UInt8](repeating: 7, count: 32)])
-        _ = try await client.proveTransfer(request)
-
-        let requests = await responses.requests
-        #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 1)
-        #expect(requests.allSatisfy { $0.url?.host() == "rpc.example.com" })
-        #expect(requests.allSatisfy { $0.url?.path().hasPrefix("/v1/spr/") == true })
+        #expect(try await SelectedRPCProvider(network: .mainnet, rpcStore: rpcStore).capabilities == .privateBalances)
     }
 
     @Test

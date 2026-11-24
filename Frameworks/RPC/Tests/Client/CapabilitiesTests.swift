@@ -25,23 +25,15 @@ struct CapabilitiesTests {
     }
 
     @Test
-    func `A cancelled check throws a cancellation`() async throws {
-        let (started, startedContinuation) = AsyncStream<Void>.makeStream()
-        let (pending, release) = AsyncStream<Void>.makeStream()
-        defer {
-            startedContinuation.finish()
-            release.finish()
-        }
+    func `A cancelled check throws a cancellation`() async {
+        let gate = Suspension()
         let check = Task {
             try await Capabilities(.logos) {
-                startedContinuation.yield(())
-                for await _ in pending {}
+                await gate.suspend()
                 throw URLError(.cancelled)
             }
         }
-        defer { check.cancel() }
-        var iterator = started.makeAsyncIterator()
-        _ = try #require(await iterator.next())
+        await gate.waitUntilStarted()
 
         check.cancel()
 

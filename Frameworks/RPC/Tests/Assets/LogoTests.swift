@@ -44,15 +44,13 @@ struct LogoTests {
         #expect(await transport.requests.isEmpty)
     }
 
-    @Test(arguments: [(Capabilities(), 0), (.logos, 1)])
-    func `A custom endpoint looks up logos only when it declares the capability`(
-        capabilities: Capabilities,
-        requests: Int
-    ) async throws {
-        let transport = StubTransport { try reply(to: $0, payload: #""result":[]"#) }
-        let provider = try customProvider(transport: transport, capabilities: capabilities)
-        #expect(try await provider.logos(for: ["mint"]).isEmpty)
-        #expect(await transport.requests.count == requests)
+    @Test
+    func `A client without logos sends no logo request`() async {
+        let transport = StubTransport { _ in throw CancellationError() }
+        let provider = SolanaRPC.devnet(transport: transport)
+
+        await #expect(throws: CapabilityError.missing(.logos)) { try await provider.logos(for: ["mint"]) }
+        #expect(await transport.requests.isEmpty)
     }
 
     @Test(arguments: [
@@ -64,7 +62,7 @@ struct LogoTests {
         capability: Capabilities
     ) async throws {
         let transport = StubTransport { try reply(to: $0, payload: payload) }
-        let provider = try customProvider(transport: transport)
+        let provider = try SolanaRPC.custom(on: .mainnet, transport: transport)
 
         #expect(try await provider.logoCapability(checking: "mint") == capability)
         #expect(await transport.requests.count == 1)
@@ -88,12 +86,5 @@ struct LogoTests {
         await #expect(throws: RPCError.decoding) {
             try await HeliusRPC(apiKey: "fixture-key", network: .mainnet, transport: transport).logos(for: ["mint"])
         }
-    }
-
-    private func customProvider(transport: StubTransport, capabilities: Capabilities = []) throws -> SolanaRPC {
-        let endpoint = try #require(URL(string: "https://rpc.example.com"))
-        return try #require(
-            SolanaRPC(endpoint: endpoint, network: .mainnet, capabilities: capabilities, transport: transport)
-        )
     }
 }

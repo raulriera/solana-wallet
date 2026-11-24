@@ -8,21 +8,23 @@ public protocol LogoProviding: RPC {
     ///
     /// - Parameter mints: At most 50 mint addresses on the provider's network.
     /// - Returns: HTTPS logo URLs keyed by mint address.
-    /// - Throws: ``LogoError/tooManyMints`` for more than 50 mints, an ``RPCError``, or `CancellationError`.
+    /// - Throws: ``CapabilityError/missing(_:)`` without the ``Capabilities/logos`` capability,
+    ///   ``LogoError/tooManyMints`` for more than 50 mints, an ``RPCError``, or `CancellationError`.
     func logos(for mints: [String]) async throws -> [String: URL]
 }
 
 extension LogoProviding {
-    /// Looks up the provider's copies of token logos with one DAS asset batch, or returns none without a request when
-    /// the provider lacks the ``Capabilities/logos`` capability.
+    /// Looks up the provider's copies of token logos with one DAS asset batch.
     ///
     /// - Parameter mints: At most 50 mint addresses on the provider's network.
     /// - Returns: HTTPS logo URLs keyed by mint address.
-    /// - Throws: ``LogoError/tooManyMints`` for more than 50 mints, the error of ``RPC/capabilities``, an ``RPCError``,
-    ///   or `CancellationError`.
+    /// - Throws: ``CapabilityError/missing(_:)`` without the ``Capabilities/logos`` capability, the error of
+    ///   ``RPC/capabilities``, ``LogoError/tooManyMints`` for more than 50 mints, an ``RPCError``, or
+    ///   `CancellationError`.
     public func logos(for mints: [String]) async throws -> [String: URL] {
+        try await checkCapability(.logos)
         guard mints.count <= 50 else { throw LogoError.tooManyMints }
-        guard !mints.isEmpty, try await capabilities.contains(.logos) else { return [:] }
+        guard !mints.isEmpty else { return [:] }
         return try await assetLogos(for: Array(mints.uniqued()))
     }
 
