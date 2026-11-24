@@ -32,7 +32,7 @@ struct PaymentReviewScreen: TransactionReviewContent {
                 }
             } footer: {
                 if costs?.accountDeposit != nil {
-                    Text("A one-time deposit opens \(payment.recipient.title)'s \(payment.asset.displaySymbol) account. It goes to that account, not to this app.",
+                    Text("A one-time deposit opens \(payment.recipient.title)'s \(payment.asset.displaySymbol) account.",
                          comment: "Footer under the deposit that opens a recipient's token account. The variables are the recipient's name or short address and the token's symbol, such as USDC.")
                 }
             }

@@ -29,7 +29,7 @@ struct CurrencyScreen: View {
             } header: {
                 Text("Exchange Rate Source", comment: "Header of the rate source choices in Settings > Currency.")
             } footer: {
-                Text("The European Central Bank updates its rates once each working day, and Coinbase through the day. USD Only shows prices in US dollars, as they come.",
+                Text("Each source updates its rates on its own schedule.",
                      comment: "Footer under the rate source choices in Settings > Currency.")
             }
 

@@ -32,8 +32,6 @@ struct TokenAdditionScreen: View {
                         .contentTransition(.opacity)
                         .transition(.opacity)
                 }
-            } footer: {
-                Text("Copy a token's mint address, then paste it here.")
             }
 
             if let preview = addition.preview {

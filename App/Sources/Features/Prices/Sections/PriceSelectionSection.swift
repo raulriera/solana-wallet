@@ -19,7 +19,7 @@ struct PriceSelectionSection: View {
         } header: {
             Text("Price Provider")
         } footer: {
-            Text("Token prices come from the provider you choose. None turns prices off and makes no price requests.")
+            Text("None turns prices off and makes no price requests.")
         }
     }
 }

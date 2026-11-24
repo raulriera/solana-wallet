@@ -38,8 +38,6 @@ struct RecipientEntryScreen: View {
                     RecipientWarningLabel(warning: warning)
                         .transition(.opacity)
                 }
-            } footer: {
-                Text("Copy an address, then paste it here.")
             }
 
             Section {

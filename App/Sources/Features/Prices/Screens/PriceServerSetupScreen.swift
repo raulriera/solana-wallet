@@ -10,7 +10,7 @@ struct PriceServerSetupScreen<Submission: ProviderSubmitting>: ProviderSetupScre
             label: "Price Server URL",
             kind: .url,
             header: "URL",
-            footer: "Use your server's HTTPS URL. It must answer with prices in this app's format. The URL stays on this device and is sent only to that server. Add only servers you trust.",
+            footer: "Add only servers you trust.",
             action: "Add Server",
             submission: submission
         ) {} help: {}

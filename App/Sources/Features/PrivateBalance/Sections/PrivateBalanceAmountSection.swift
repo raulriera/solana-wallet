@@ -45,11 +45,6 @@ struct PrivateBalanceAmountSection: View {
             }
         } header: {
             Text("Private Balance")
-        } footer: {
-            if !isStale, let pending, pending.amount > 0 {
-                Text("Pending \(asset.displaySymbol) becomes available when the network reports it, usually within a minute.",
-                     comment: "Footer under a private balance with a pending amount, such as a recent deposit. The variable is the token's symbol, such as SOL or USDC.")
-            }
         }
     }
 }

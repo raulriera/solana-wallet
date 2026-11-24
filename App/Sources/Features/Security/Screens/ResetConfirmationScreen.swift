@@ -15,7 +15,7 @@ struct ResetConfirmationScreen: View {
                         Text("This deletes everything this app saved on this device, including every wallet and recovery phrase. Every window will return to Welcome.")
                     }
             } footer: {
-                Text("This can't be undone. It deletes everything this app saved on this device, including every wallet and recovery phrase. Every window will return to Welcome.")
+                Text("You can't undo this action.")
             }
         }
         .navigationTitle("Reset App")

@@ -14,7 +14,7 @@ struct CustomRPCDetailsScreen: View {
         MaskedURLDetails(
             url: url,
             title: RPCSettings.Provider.custom(url).name,
-            footer: "Your wallets use this RPC for balances and live updates. Part of its URL is hidden because it can contain a key.",
+            footer: "Part of the URL is hidden because it can contain a key.",
             isListed: isListed
         ) {
             Button("Delete RPC", systemImage: "trash", role: .destructive) { removal = url }

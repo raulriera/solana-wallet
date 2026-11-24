@@ -14,7 +14,7 @@ struct PriceServerDetailsScreen: View {
         MaskedURLDetails(
             url: url,
             title: PriceSettings.Provider.custom(url).name,
-            footer: "Your wallets use this server for token prices. Part of its URL is hidden because it can contain a key.",
+            footer: "Part of the URL is hidden because it can contain a key.",
             isListed: isListed
         ) {
             Button("Delete Server", systemImage: "trash", role: .destructive) { removal = url }

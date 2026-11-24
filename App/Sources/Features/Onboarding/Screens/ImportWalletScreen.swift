@@ -30,7 +30,7 @@ struct ImportWalletScreen: View {
             } header: {
                 Text("Recovery Words")
             } footer: {
-                Text("Use your recovery words in their original order, separated by spaces. Keep your original words and any BIP-39 passphrase safe. Neither this app nor iCloud can recover them. You'll need your backup if you lose this device or remove its passcode.")
+                Text("Neither this app nor iCloud can recover your words.")
             }
 
             Section {
@@ -39,7 +39,7 @@ struct ImportWalletScreen: View {
             } header: {
                 Text("BIP-39 Passphrase (Optional)")
             } footer: {
-                Text("Enter this only if your original wallet used one. This is separate from your app password or PIN. Capital letters and spaces matter. A different passphrase opens a different wallet.")
+                Text("A different passphrase opens a different wallet.")
             }
         }
         .animation(.default, value: input.rejection)
