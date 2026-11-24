@@ -53,13 +53,30 @@ struct SolanaRPCTests {
     func `Private-note reads on a custom endpoint keep its path and query below the Solana Rings path`() async throws {
         let transport = StubTransport { try reply(to: $0, payload: IndexerFixtures.page()) }
         let endpoint = try #require(URL(string: "https://rpc.example.com:8443/fixture-token/?api-key=fixture-key"))
-        let rpc = try #require(SolanaRPC(endpoint: endpoint, network: .mainnet, transport: transport))
+        let rpc = try #require(
+            SolanaRPC(endpoint: endpoint, network: .mainnet, capabilities: .privateBalances, transport: transport)
+        )
         let expected =
             "https://rpc.example.com:8443/fixture-token/v1/spr/getShieldedTransactionsByNullifiers?api-key=fixture-key"
 
         _ = try await rpc.shieldedTransactions(spending: [IndexerFixtures.bytes(1)])
 
         #expect(await transport.requests.map { $0.url?.absoluteString } == [expected])
+    }
+
+    @Test
+    func `A client without private balances sends no Solana Rings request`() async throws {
+        let transport = StubTransport { _ in throw CancellationError() }
+        let rpc = SolanaRPC.devnet(transport: transport)
+        let tag = IndexerFixtures.bytes(1)
+        let request = try ProofFixtures.indexedRequest()
+        let missing = CapabilityError.missing(.privateBalances)
+
+        await #expect(throws: missing) { _ = try await rpc.shieldedTransactions(taggedWith: [tag], after: nil) }
+        await #expect(throws: missing) { _ = try await rpc.shieldedTransactions(spending: [tag]) }
+        await #expect(throws: missing) { _ = try await rpc.merkleProofs(for: [tag], inTree: IndexerFixtures.hash(9)) }
+        await #expect(throws: missing) { _ = try await rpc.proveTransfer(request) }
+        #expect(await transport.requests.isEmpty)
     }
 
     @Test(arguments: [

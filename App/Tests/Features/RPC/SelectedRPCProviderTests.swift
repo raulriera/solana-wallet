@@ -185,24 +185,6 @@ struct SelectedRPCProviderTests {
     }
 
     @Test
-    func `Private-note reads and proofs on a custom RPC without private balances send nothing`() async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let shielded = try await PrivateBalanceFixtures.keys(for: account).shieldedAccount(for: account.address)
-        let responses = HTTPResponses.privateNotes(prover: try IndexedProofs.prover())
-        let custom = try #require(URL(string: "https://rpc.example.com"))
-        let client = responses.rpcProvider(network: .mainnet, rpcStore: .inMemory(selection: .custom(custom)))
-        let tag = [UInt8](repeating: 7, count: 32)
-        let request = try PrivateBalanceFixtures.proofRequest(spending: shielded)
-        let error = RPCProviderError.unsupportedNetwork
-
-        await #expect(throws: error) { _ = try await client.shieldedTransactions(taggedWith: [tag], after: nil) }
-        await #expect(throws: error) { _ = try await client.shieldedTransactions(spending: [tag]) }
-        await #expect(throws: error) { _ = try await client.merkleProofs(for: [tag], inTree: try ShieldedPool.tree(id: 1).value) }
-        await #expect(throws: error) { _ = try await client.proveTransfer(request) }
-        #expect(await responses.requests.isEmpty)
-    }
-
-    @Test
     func `A custom RPC with private balances reads and proves at its own Solana Rings path`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let shielded = try await PrivateBalanceFixtures.keys(for: account).shieldedAccount(for: account.address)

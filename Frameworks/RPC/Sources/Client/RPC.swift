@@ -36,6 +36,15 @@ public protocol RPCRequest: Encodable, Sendable {
 extension RPC {
     /// No optional features.
     public var capabilities: Capabilities { [] }
+
+    /// Throws when the provider doesn't declare a capability.
+    ///
+    /// - Parameter capability: The capability that the next request needs.
+    /// - Throws: ``CapabilityError/missing(_:)`` for a provider without the capability, or the error of
+    ///   ``capabilities``.
+    func checkCapability(_ capability: Capabilities) async throws {
+        guard try await capabilities.contains(capability) else { throw CapabilityError.missing(capability) }
+    }
 }
 
 extension RPCRequest {

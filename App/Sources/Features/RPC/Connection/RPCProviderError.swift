@@ -4,7 +4,7 @@ nonisolated enum RPCProviderError: Error, Equatable {
     case invalidKey
     /// The saved custom RPC URL can't be used.
     case unusableEndpoint
-    /// The selected provider doesn't serve the requested network, or lacks the requested capability.
+    /// The selected provider doesn't serve the requested network.
     case unsupportedNetwork
     /// The provider choice or its key can't be read.
     case settingsUnreadable

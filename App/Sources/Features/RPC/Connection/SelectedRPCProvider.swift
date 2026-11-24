@@ -61,35 +61,19 @@ nonisolated struct SelectedRPCProvider: RPC, AccountChangeProviding, SignatureEv
 
     func shieldedTransactions(taggedWith tags: [[UInt8]], after position: NoteSyncPosition?) async throws
         -> ShieldedTransactionBatch {
-        try await performRings { try await $0.shieldedTransactions(taggedWith: tags, after: position) }
+        try await perform { try await $0.shieldedTransactions(taggedWith: tags, after: position) }
     }
 
     func shieldedTransactions(spending nullifiers: [[UInt8]]) async throws -> [ShieldedTransaction] {
-        try await performRings { try await $0.shieldedTransactions(spending: nullifiers) }
+        try await perform { try await $0.shieldedTransactions(spending: nullifiers) }
     }
 
     func merkleProofs(for leaves: [[UInt8]], inTree tree: String) async throws -> [MerkleProof] {
-        try await performRings { try await $0.merkleProofs(for: leaves, inTree: tree) }
+        try await perform { try await $0.merkleProofs(for: leaves, inTree: tree) }
     }
 
     func proveTransfer(_ request: IndexedTransferProofRequest) async throws -> IndexedTransferProof {
-        try await performRings { try await $0.proveTransfer(request) }
-    }
-
-    /// Runs a private-note read or proof on the selected provider's client, without a request when the provider
-    /// lacks private balances.
-    ///
-    /// - Parameter operation: The read or proof.
-    /// - Returns: The operation's result.
-    /// - Throws: ``RPCProviderError/unsupportedNetwork`` for a provider without the
-    ///   ``Capabilities/privateBalances`` capability, or the error of ``perform(_:)``.
-    private func performRings<Value: Sendable>(_ operation: (Client) async throws -> Value) async throws -> Value {
-        try await perform { client in
-            guard try await client.capabilities.contains(.privateBalances) else {
-                throw RPCProviderError.unsupportedNetwork
-            }
-            return try await operation(client)
-        }
+        try await perform { try await $0.proveTransfer(request) }
     }
 
     /// Runs an operation on the selected provider's client.
