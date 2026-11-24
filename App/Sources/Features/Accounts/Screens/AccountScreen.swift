@@ -39,9 +39,6 @@ struct AccountScreen: View {
                 .disabled(isRenaming)
             } header: {
                 Text("Name", comment: "Header of an account's name field in Settings > Accounts.")
-            } footer: {
-                Text("Leave the name empty to use \(account.defaultName).",
-                     comment: "Footer under an account's name field. The variable is its numbered name, such as Account 2.")
             }
 
             Section("Address") {
