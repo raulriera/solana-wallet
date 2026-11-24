@@ -8,7 +8,7 @@ actor RefreshCoordinator {
     private let tokenLists: TokenListCoordinator
     private let store: any SnapshotStoring
     private let pricer: SnapshotPricer?
-    private let logos: LogoReader?
+    private let logos: LogoReader
     private var flights: [CacheKey: Flight] = [:]
     private var revision: UInt64 = 0
     private var snapshotRevisions: [CacheKey: UInt64] = [:]
@@ -20,14 +20,14 @@ actor RefreshCoordinator {
     ///   - tokenLists: The token lists to read balances for.
     ///   - store: The snapshot store.
     ///   - prices: The price provider, or `nil` for no prices.
-    ///   - logos: The logo provider, or `nil` for no logos.
+    ///   - logos: The logo provider.
     init(source: BalanceReader, tokenLists: TokenListCoordinator, store: any SnapshotStoring,
-         prices: (any PriceProviding)?, logos: (any LogoProviding)?) {
+         prices: (any PriceProviding)?, logos: any LogoProviding) {
         self.source = source
         self.tokenLists = tokenLists
         self.store = store
         pricer = prices.map { SnapshotPricer(provider: $0) }
-        self.logos = logos.map { LogoReader(provider: $0) }
+        self.logos = LogoReader(provider: logos)
     }
 
     /// Adds an update stream and starts or joins the wallet's refresh.
@@ -195,10 +195,10 @@ actor RefreshCoordinator {
             let list = try await tokenLists.list(for: key.owner)
             let holdings = list.holdingIDs
             async let balances = source.snapshot(of: list, for: key.owner, minContextSlot: flight.minContextSlot)
-            async let logoLookup = logos?.logos(for: holdings, keeping: cached)
+            async let logoLookup = logos.logos(for: holdings, keeping: cached)
             async let quoteLookup = pricer?.quotes(for: holdings)
             var snapshot = try await balances
-            if let found = await logoLookup { snapshot = snapshot.replacingLogos(with: found) }
+            snapshot = snapshot.replacingLogos(with: await logoLookup)
             var priceError: (any Error)?
             if let pricer {
                 let quotes: [String: Quote]

@@ -9,11 +9,12 @@ nonisolated struct SelectedRPCProvider: RPC, AccountChangeProviding, SignatureEv
         /// Solana's public RPC.
         case solana
         case helius(key: String)
-        case custom(URL)
+        case custom(URL, capabilities: Capabilities)
     }
 
-    /// A provider's client for requests, account changes, and signature watches.
-    typealias Client = any RPC & AccountChangeProviding & SignatureEventProviding
+    /// A provider's client for requests, account changes, signature watches, logo lookups, and private notes and
+    /// proofs.
+    typealias Client = any AccountChangeProviding & SignatureEventProviding & LogoProviding & RingsProviding
 
     let network: Network
     private let rpcStore: RPCStore
@@ -35,8 +36,19 @@ nonisolated struct SelectedRPCProvider: RPC, AccountChangeProviding, SignatureEv
         }
     }
 
+    var capabilities: Capabilities {
+        get async throws {
+            guard let endpoint = try await endpoint() else { return [] }
+            return try await clients.client(for: endpoint).capabilities
+        }
+    }
+
     func send<Request: RPCRequest>(_ request: Request) async throws -> Request.Response {
         try await perform { try await $0.send(request) }
+    }
+
+    func logos(for mints: [String]) async throws -> [String: URL] {
+        try await perform { try await $0.logos(for: mints) }
     }
 
     func changedSlots(for addresses: [String]) async throws -> AsyncThrowingStream<UInt64, any Error> {
@@ -47,65 +59,33 @@ nonisolated struct SelectedRPCProvider: RPC, AccountChangeProviding, SignatureEv
         try await perform { try await $0.events(for: signature) }
     }
 
-    func logos(for mints: [String]) async throws -> [String: URL] {
-        try await perform { client in
-            guard let client = client as? any LogoProviding else { return [:] }
-            return try await client.logos(for: mints)
-        }
-    }
-
     func shieldedTransactions(taggedWith tags: [[UInt8]], after position: NoteSyncPosition?) async throws
         -> ShieldedTransactionBatch {
-        try await performRings { try await $0.shieldedTransactions(taggedWith: tags, after: position) }
+        try await perform { try await $0.shieldedTransactions(taggedWith: tags, after: position) }
     }
 
     func shieldedTransactions(spending nullifiers: [[UInt8]]) async throws -> [ShieldedTransaction] {
-        try await performRings { try await $0.shieldedTransactions(spending: nullifiers) }
+        try await perform { try await $0.shieldedTransactions(spending: nullifiers) }
     }
 
     func merkleProofs(for leaves: [[UInt8]], inTree tree: String) async throws -> [MerkleProof] {
-        try await performRings { try await $0.merkleProofs(for: leaves, inTree: tree) }
+        try await perform { try await $0.merkleProofs(for: leaves, inTree: tree) }
     }
 
     func proveTransfer(_ request: IndexedTransferProofRequest) async throws -> IndexedTransferProof {
-        try await performRings { try await $0.proveTransfer(request) }
-    }
-
-    /// Returns whether the selected provider reads private notes and proves private transfers, without sending
-    /// anything.
-    ///
-    /// - Returns: `true` for a provider with both capabilities.
-    /// - Throws: The error of ``perform(_:)``.
-    func servesPrivateBalances() async throws -> Bool {
-        try await perform { $0 is any PrivateNoteProviding & ProofProviding }
-    }
-
-    /// Runs a private-note read or proof on the selected provider's client.
-    ///
-    /// - Parameter operation: The read or proof.
-    /// - Returns: The operation's result.
-    /// - Throws: ``RPCProviderError/unsupportedNetwork`` for a provider without private notes and proofs, or the
-    ///   error of ``perform(_:)``.
-    private func performRings<Value: Sendable>(
-        _ operation: (any PrivateNoteProviding & ProofProviding) async throws -> Value
-    ) async throws -> Value {
-        try await perform { client in
-            guard let client = client as? any PrivateNoteProviding & ProofProviding else {
-                throw RPCProviderError.unsupportedNetwork
-            }
-            return try await operation(client)
-        }
+        try await perform { try await $0.proveTransfer(request) }
     }
 
     /// Runs an operation on the selected provider's client.
     ///
     /// - Parameter operation: The work to send to the provider.
     /// - Returns: The operation's result.
-    /// - Throws: The operation's error, with Helius's key rejections as ``RPCProviderError/invalidKey``.
+    /// - Throws: ``RPCProviderError/unsupportedNetwork`` when a custom RPC is selected off mainnet, the error of
+    ///   ``endpoint()``, or the operation's error, with Helius's key rejections as ``RPCProviderError/invalidKey``.
     private func perform<Value: Sendable>(
         _ operation: (Client) async throws -> Value
     ) async throws -> Value {
-        let endpoint = try await endpoint()
+        guard let endpoint = try await endpoint() else { throw RPCProviderError.unsupportedNetwork }
         let client = try await clients.client(for: endpoint)
         do {
             return try await operation(client)
@@ -117,13 +97,12 @@ nonisolated struct SelectedRPCProvider: RPC, AccountChangeProviding, SignatureEv
 
     /// Reads the selected provider and, for Helius, its key.
     ///
-    /// - Returns: The endpoint that receives the next request.
+    /// - Returns: The endpoint that receives the next request, or `nil` when a custom RPC is selected off mainnet.
     /// - Throws: ``RPCProviderError/missingKey`` when Helius is selected without a key,
-    ///   ``RPCProviderError/unsupportedNetwork`` when a custom RPC is selected off mainnet,
     ///   ``RPCProviderError/settingsUnreadable`` when the choice or the key can't be read, or `CancellationError`.
-    private func endpoint() async throws -> Endpoint {
+    private func endpoint() async throws -> Endpoint? {
         let endpoint = try await rpcStore.loadedConnection()
-        if case .custom = endpoint, network != .mainnet { throw RPCProviderError.unsupportedNetwork }
+        if case .custom = endpoint, network != .mainnet { return nil }
         return endpoint
     }
 
@@ -138,7 +117,7 @@ nonisolated struct SelectedRPCProvider: RPC, AccountChangeProviding, SignatureEv
         switch endpoint {
         case .solana: SolanaRPC(network: network)
         case .helius(let key): HeliusRPC(apiKey: key, network: network)
-        case .custom(let url): SolanaRPC(endpoint: url, network: network)
+        case .custom(let url, let capabilities): SolanaRPC(endpoint: url, network: network, capabilities: capabilities)
         }
     }
 }

@@ -1,7 +1,7 @@
 import Foundation
 import RPC
 
-/// Checks a custom RPC URL, then adds and chooses it.
+/// Checks a custom RPC URL and the optional features its server serves, then adds and chooses it.
 nonisolated struct CustomRPCConnection: ProviderConnecting {
     typealias EntryError = CustomRPCError
 
@@ -21,36 +21,62 @@ nonisolated struct CustomRPCConnection: ProviderConnecting {
     }
 
     func connect(_ entry: String) async throws {
-        guard let url = URL(string: entry), let rpc = client(.custom(url), .mainnet) else { throw CustomRPCError.notHTTPS }
-        let listed: [URL]
+        guard let url = URL(string: entry), let rpc = client(.custom(url, capabilities: []), .mainnet) else {
+            throw CustomRPCError.notHTTPS
+        }
+        let isListed: Bool
         do {
-            listed = try await rpcStore.loadedSettings().customRPCs
+            isListed = try await rpcStore.loadedSettings().customRPC(for: url) != nil
         } catch {
             try Task.checkCancellation()
             throw CustomRPCError.unavailable
         }
-        guard !listed.contains(url) else { throw CustomRPCError.duplicate }
+        guard !isListed else { throw CustomRPCError.duplicate }
+        async let account = rpc.accounts(at: [Self.checkedAccount])
+        async let liveUpdates: Void = Self.checkLiveUpdates(on: rpc)
+        async let logos = rpc.logoCapability(checking: Self.checkedAccount)
+        async let privateBalances = rpc.privateBalancesCapability()
         do {
-            _ = try await rpc.accounts(at: [Self.checkedAccount])
+            _ = try await account
         } catch {
-            try Task.checkCancellation()
-            throw (error as? RPCError)?.isRateLimited == true ? CustomRPCError.rateLimited : .unreachable
+            throw try Self.entryError(for: error, otherwise: .unreachable)
         }
+        let capabilities: Capabilities
         do {
-            async let accounts = rpc.changedSlots(for: [Self.checkedAccount])
-            async let watch = rpc.events(for: Self.checkedSignature)
-            _ = try await (accounts, watch)
+            try await liveUpdates
+            capabilities = try await logos.union(privateBalances)
         } catch {
-            try Task.checkCancellation()
-            throw (error as? RPCError)?.isRateLimited == true ? CustomRPCError.rateLimited : .noLiveUpdates
+            throw try Self.entryError(for: error, otherwise: .noLiveUpdates)
         }
         try Task.checkCancellation()
         do {
-            try await rpcStore.add(url)
+            try await rpcStore.add(url, capabilities: capabilities)
         } catch {
             try Task.checkCancellation()
             throw CustomRPCError.storageFailed
         }
+    }
+
+    /// Opens the account and signature subscriptions that every RPC must serve, then closes them.
+    ///
+    /// - Parameter rpc: The RPC to check.
+    /// - Throws: The subscriptions' error, or `CancellationError`.
+    private static func checkLiveUpdates(on rpc: SelectedRPCProvider.Client) async throws {
+        async let changes = rpc.changedSlots(for: [checkedAccount])
+        async let watch = rpc.events(for: checkedSignature)
+        _ = try await (changes, watch)
+    }
+
+    /// Returns the error that a failed check shows.
+    ///
+    /// - Parameters:
+    ///   - error: The check's error.
+    ///   - fallback: The error to show unless the RPC is rate-limited.
+    /// - Returns: ``CustomRPCError/rateLimited`` for a rate limit, or the fallback.
+    /// - Throws: `CancellationError` when the check was cancelled.
+    private static func entryError(for error: any Error, otherwise fallback: CustomRPCError) throws -> CustomRPCError {
+        try Task.checkCancellation()
+        return (error as? RPCError)?.isRateLimited == true ? .rateLimited : fallback
     }
 
     /// A well-formed signature that no transaction carries.

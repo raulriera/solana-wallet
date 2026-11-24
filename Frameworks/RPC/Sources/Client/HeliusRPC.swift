@@ -1,12 +1,13 @@
-import Algorithms
-public import Foundation
+import Foundation
 
 /// A client that sends typed JSON-RPC requests to Helius on a selected Solana network.
 public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, LogoProviding, RingsProviding,
                          CustomStringConvertible, CustomDebugStringConvertible {
     public var network: Network { rpc.network }
 
-    public let rings: Zolana
+    public var capabilities: Capabilities { [.logos, .privateBalances] }
+
+    public var rings: Zolana { rpc.rings }
 
     private let rpc: SolanaRPC
 
@@ -45,10 +46,8 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
         let socketEndpoint = URL(string: "wss://\(host)/")!
             .appending(queryItems: [URLQueryItem(name: "api-key", value: apiKey)])
         let redactor = SecretRedactor(urls: [endpoint, socketEndpoint])
-        rpc = SolanaRPC(network: network, endpoint: endpoint, socketEndpoint: socketEndpoint,
-                     redactor: redactor, transport: transport, socket: socket)
-        rings = Zolana(network: network, endpoint: endpoint.appending(path: "v1/spr"), redactor: redactor,
-                       transport: transport, verify: verify)
+        rpc = SolanaRPC(network: network, endpoint: endpoint, socketEndpoint: socketEndpoint, redactor: redactor,
+                        transport: transport, socket: socket, verify: verify)
     }
 
     public var description: String { "HeliusRPC(\(network))" }
@@ -65,18 +64,5 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
 
     public func events(for signature: String) async throws -> AsyncThrowingStream<SignatureEvent, any Error> {
         try await rpc.events(for: signature)
-    }
-
-    public func logos(for mints: [String]) async throws -> [String: URL] {
-        let unique = Array(mints.uniqued())
-        let requested = Set(unique)
-        var logos: [String: URL] = [:]
-        for batch in unique.chunks(ofCount: 1_000) {
-            try Task.checkCancellation()
-            for case let asset? in try await send(GetAssetBatch(ids: Array(batch))) where requested.contains(asset.id) {
-                logos[asset.id] = asset.imageURL
-            }
-        }
-        return logos
     }
 }

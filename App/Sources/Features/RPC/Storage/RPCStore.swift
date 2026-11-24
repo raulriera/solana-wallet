@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import RPC
 import Storage
 
 /// The RPC provider choice, the custom RPCs, and Helius's API key.
@@ -47,7 +48,7 @@ final class RPCStore: Erasable {
         switch settings?.selection {
         case .solana: .solana
         case .helius: key.map { .helius(key: $0) }
-        case .custom(let url): .custom(url)
+        case .custom(let url): settings?.customRPC(for: url).map { .custom($0.url, capabilities: $0.capabilities) }
         case nil: nil
         }
     }
@@ -104,13 +105,15 @@ final class RPCStore: Erasable {
         try await update { $0.select(provider) }
     }
 
-    /// Adds a checked custom RPC and chooses it.
+    /// Adds a checked custom RPC, if it's new, and chooses it.
     ///
-    /// - Parameter url: The checked HTTPS RPC URL.
+    /// - Parameters:
+    ///   - url: The checked HTTPS RPC URL.
+    ///   - capabilities: The optional features that the RPC's server serves, saved only for a new RPC.
     /// - Throws: ``RPCProviderError/settingsUnreadable`` when the settings can't be read, or a storage error after
     ///   undoing the change.
-    func add(_ url: URL) async throws {
-        try await update { $0.add(url) }
+    func add(_ url: URL, capabilities: Capabilities) async throws {
+        try await update { $0.add(url, capabilities: capabilities) }
     }
 
     /// Deletes a custom RPC, choosing Solana if it was in use.

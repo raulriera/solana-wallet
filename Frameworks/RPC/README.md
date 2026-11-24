@@ -46,6 +46,6 @@ let prices = CustomPriceProvider(endpoint: URL(string: "https://prices.example.c
 
 ## Add a provider
 
-A provider is a type in this module that conforms to [`RPC`](Sources/Client/RPC.swift) and sends each `RPCRequest` to its endpoint. Wrap a `SolanaRPC` client for an endpoint that speaks standard Solana RPC, as `HeliusRPC` does. Conform to the optional capability protocols for the features that the provider serves.
+A provider is a type in this module that conforms to [`RPC`](Sources/Client/RPC.swift) and sends each `RPCRequest` to its endpoint. Wrap a `SolanaRPC` client for an endpoint that speaks standard Solana RPC, as `HeliusRPC` does. Conform to the optional capability protocols that the provider can speak, and declare in `capabilities` the ones its server serves; a feature that the provider lacks sends no request.
 
 Throw `RPCError` for failures, and send each request once: callers handle rate limits and retries.

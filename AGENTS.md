@@ -71,6 +71,7 @@ Group files by concern in real folders that Xcode mirrors.
 ## Code
 
 - Check how Apple solves a problem and mirror its API shape and names before inventing your own; extend the Apple type, such as `URL.persistentDirectory` beside `URL.cachesDirectory`, instead of adding a wrapper. Express intent with typed APIs; services hide serialization and transport.
+- Extend a system type only with what belongs to that type everywhere; domain rules stay with the domain type or protocol that owns them.
 - No module-name prefixes. Implementations end with their role, such as `JupiterPriceProvider`, as `JSONDecoder` does.
 - Error types and properties are `Error` and `error`, never `Failure` or `failure`. Never keep, pass, or show an error as a string, `localizedDescription` included. User-facing errors are payload-free `LocalizedError` enums, with the title in `errorDescription` and the message in `recoverySuggestion`, shown with `alert(error:)`.
 - Document production code with DocC: what each type, function, and initializer does, with its parameters, return value, and thrown errors; properties and cases only when their names aren't enough. Write no other comments, none in tests, and never history, sources, versions, rationale, or what other code does. Keep the license header of copied open-source code.
@@ -110,7 +111,7 @@ Group files by concern in real folders that Xcode mirrors.
 
 - No app backend or proxy: the app connects directly to providers, and all RPC, DAS, and price traffic lives in the RPC framework.
 - Contracts are provider-neutral. Providers, such as public Solana RPC, Helius, and Jupiter, are interchangeable implementations behind protocols and return shared types.
-- Built in: public Solana RPC (no key) and Helius. People can add custom HTTPS RPC URLs that serve standard requests and account, signature, and root subscriptions. Each supports every standard wallet feature. Optional capabilities, such as CDN logos and private balances, are protocols; the app hides a feature the selected provider lacks.
+- Built in: public Solana RPC (no key) and Helius. People can add custom HTTPS RPC URLs that serve standard requests and account, signature, and root subscriptions. Each supports every standard wallet feature. Optional capabilities, such as CDN logos and private balances, are protocols that own their code; each provider declares in `capabilities` the ones its server serves, and a feature the selected provider lacks is skipped, with no request and no error.
 - Never ship provider API keys in the bundle or source. People enter them in the app; ignored local configuration supplies them to tests only.
 - Add RPC methods only as [references/rpc-scope.md](references/rpc-scope.md) allows.
 - Surface rate-limit errors; never retry automatically. Pace price batches within their request budgets; never throttle RPC or DAS requests.

@@ -3,6 +3,10 @@ import Testing
 @testable import RPC
 
 struct LogoTests {
+    private static let logoCopy = #"""
+        "result":[{"id":"mint","content":{"files":[{"cdn_uri":"https://example.com/a.png","mime":"image/png"}]}}]
+        """#
+
     @Test
     func `Logos come from one batch request and only from the provider's copies`() async throws {
         let transport = StubTransport { request in
@@ -29,7 +33,8 @@ struct LogoTests {
         #expect(requests.count == 1)
         let body = try requestBody(try #require(requests.first))
         #expect(body["method"] as? String == "getAssetBatch")
-        #expect(try requestedIDs(try #require(requests.first)) == ["with-logo", "unknown", "creator-only", "no-image"])
+        let parameters = try #require(body["params"] as? [String: Any])
+        #expect(parameters["ids"] as? [String] == ["with-logo", "unknown", "creator-only", "no-image"])
     }
 
     @Test
@@ -40,18 +45,37 @@ struct LogoTests {
     }
 
     @Test
-    func `Lookups split into batches of a thousand mints`() async throws {
-        let transport = StubTransport { request in
-            let unknown = Array(repeating: "null", count: try requestedIDs(request).count)
-            return try reply(to: request, payload: #""result":[\#(unknown.joined(separator: ","))]"#)
+    func `A client without logos sends no logo request`() async {
+        let transport = StubTransport { _ in throw CancellationError() }
+        let provider = SolanaRPC.devnet(transport: transport)
+
+        await #expect(throws: CapabilityError.missing(.logos)) { try await provider.logos(for: ["mint"]) }
+        #expect(await transport.requests.isEmpty)
+    }
+
+    @Test(arguments: [
+        (logoCopy, Capabilities.logos),
+        (#""result":[null]"#, Capabilities()),
+    ])
+    func `The logo check reports a server that returns the mint's logo copy, whatever the client declares`(
+        payload: String,
+        capability: Capabilities
+    ) async throws {
+        let transport = StubTransport { try reply(to: $0, payload: payload) }
+        let provider = try SolanaRPC.custom(on: .mainnet, transport: transport)
+
+        #expect(try await provider.logoCapability(checking: "mint") == capability)
+        #expect(await transport.requests.count == 1)
+    }
+
+    @Test
+    func `Lookups of more than fifty mints fail without accessing the network`() async {
+        let transport = StubTransport { try reply(to: $0, payload: #""result":[]"#) }
+        let mints = (0...50).map { "mint-\($0)" }
+        await #expect(throws: LogoError.tooManyMints) {
+            try await HeliusRPC(apiKey: "fixture-key", network: .mainnet, transport: transport).logos(for: mints)
         }
-        let mints = (0..<1_001).map { "mint-\($0)" }
-
-        #expect(try await HeliusRPC(apiKey: "fixture-key", network: .mainnet, transport: transport).logos(for: mints).isEmpty)
-
-        let batches = try await transport.requests.map(requestedIDs)
-        #expect(batches.map(\.count) == [1_000, 1])
-        #expect(batches.flatMap(\.self) == mints)
+        #expect(await transport.requests.isEmpty)
     }
 
     @Test
@@ -63,9 +87,4 @@ struct LogoTests {
             try await HeliusRPC(apiKey: "fixture-key", network: .mainnet, transport: transport).logos(for: ["mint"])
         }
     }
-}
-
-private func requestedIDs(_ request: URLRequest) throws -> [String] {
-    let parameters = try #require(try requestBody(request)["params"] as? [String: Any])
-    return try #require(parameters["ids"] as? [String])
 }

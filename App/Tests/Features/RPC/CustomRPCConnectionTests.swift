@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import RPC
 import Testing
@@ -6,22 +7,44 @@ import Testing
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct CustomRPCConnectionTests {
-    private static let accounts = #"{"context":{"slot":1},"value":[null]}"#
+    nonisolated private static let attestation: String = StubProver.attestation(
+        of: Curve25519.KeyAgreement.PrivateKey().publicKey
+    )
+    nonisolated private static let checkedLogo = #"""
+        [{"id":"So11111111111111111111111111111111111111112",
+          "content":{"files":[{"cdn_uri":"https://cdn.example.com/sol.png","mime":"image/png"}]}}]
+        """#
 
-    @Test
-    func `A checked RPC is saved and chosen`() async throws {
+    @Test(
+        arguments: [
+            (checkedLogo, "{}", Capabilities.logos),
+            ("[null]", attestation, Capabilities.privateBalances),
+        ]
+    )
+    func `A checked RPC is saved and chosen with the optional features its server serves`(
+        logoReply: String,
+        attestationReply: String,
+        capabilities: Capabilities
+    ) async throws {
         let url = try #require(URL(string: "https://rpc.example.com/fixture-token"))
         let settings = StoredValue<RPCSettings>()
-        let responses = HTTPResponses(["getMultipleAccounts": [Self.accounts]])
+        let responses = Self.responses(logo: logoReply, attestation: attestationReply)
         let sockets = SocketSequence()
         let rpcStore = RPCStore.inMemory(settings)
 
         try await makeConnection(rpcStore: rpcStore, responses: responses, sockets: sockets)
             .connect("https://rpc.example.com/fixture-token")
 
-        #expect(await settings.value == RPCSettings(selection: .custom(url), customRPCs: [url]))
-        #expect(rpcStore.connection == .custom(url))
-        #expect(await responses.requests.map(\.url) == [url])
+        let saved = RPCSettings.CustomRPC(url: url, capabilities: capabilities)
+        #expect(await settings.value == RPCSettings(selection: .custom(url), customRPCs: [saved]))
+        #expect(rpcStore.connection == .custom(url, capabilities: capabilities))
+        let paths = await responses.requests.compactMap { $0.url?.path() }
+        #expect(
+            paths.sorted() == [
+                "/fixture-token", "/fixture-token", "/fixture-token/v1/spr/attestation",
+                "/fixture-token/v1/spr/getShieldedTransactionsByNullifiers",
+            ]
+        )
         try #require(sockets.sockets.count == 2)
         let connections = try sockets.sockets.map { try $0.requests.map(Self.body(of:)) }
         let account = try #require(connections.first { $0.first?["method"] as? String == "accountSubscribe" })
@@ -57,23 +80,29 @@ struct CustomRPCConnectionTests {
         #expect(await responses.requests.isEmpty)
     }
 
-    @Test(arguments: [
-        (RPCError.http(statusCode: 404, retryAfter: nil), CustomRPCError.unreachable),
-        (.http(statusCode: 429, retryAfter: nil), .rateLimited),
-    ] as [(RPCError, CustomRPCError)])
-    func `A failed standard request stops the check before any subscription`(error: RPCError,
-                                                                              expected: CustomRPCError) async {
+    @Test(
+        arguments: [
+            (RPCError.http(statusCode: 404, retryAfter: nil), nil, CustomRPCError.unreachable),
+            (.http(statusCode: 429, retryAfter: nil), nil, .rateLimited),
+            (.http(statusCode: 429, retryAfter: nil), "getAssetBatch", .rateLimited),
+        ] as [(RPCError, String?, CustomRPCError)]
+    )
+    func `A failed request fails the check`(
+        error: RPCError,
+        failingMethod: String?,
+        expected: CustomRPCError
+    ) async {
         let settings = StoredValue<RPCSettings>()
         let sockets = SocketSequence()
+        let responses = Self.responses(error: error, failingMethod: failingMethod)
 
         await #expect(throws: expected) {
-            try await makeConnection(rpcStore: .inMemory(settings),
-                                     responses: HTTPResponses([:], error: error), sockets: sockets)
+            try await makeConnection(rpcStore: .inMemory(settings), responses: responses, sockets: sockets)
                 .connect("https://rpc.example.com")
         }
 
-        #expect(sockets.sockets.isEmpty)
         #expect(await settings.value == nil)
+        await sockets.waitUntilClosed()
     }
 
     @Test(arguments: [
@@ -93,7 +122,7 @@ struct CustomRPCConnectionTests {
         }
 
         await #expect(throws: expected) {
-            let responses = HTTPResponses(["getMultipleAccounts": [Self.accounts]])
+            let responses = Self.responses()
             try await makeConnection(rpcStore: .inMemory(settings), responses: responses, sockets: sockets)
                 .connect("https://rpc.example.com")
         }
@@ -119,8 +148,7 @@ struct CustomRPCConnectionTests {
         let rpcStore = RPCStore.inMemory(StoredValue(failsSaving: true))
 
         await #expect(throws: CustomRPCError.storageFailed) {
-            try await makeConnection(rpcStore: rpcStore,
-                                     responses: HTTPResponses(["getMultipleAccounts": [Self.accounts]]))
+            try await makeConnection(rpcStore: rpcStore, responses: Self.responses())
                 .connect("https://rpc.example.com")
         }
 
@@ -132,7 +160,7 @@ struct CustomRPCConnectionTests {
         let gate = Suspension()
         let settings = StoredValue<RPCSettings>()
         let sockets = SocketSequence()
-        let responses = HTTPResponses(["getMultipleAccounts": [Self.accounts]], gate: gate)
+        let responses = Self.responses(gate: gate)
         let connection = makeConnection(rpcStore: .inMemory(settings), responses: responses, sockets: sockets)
         let operation = Task { try await connection.connect("https://rpc.example.com") }
         defer { operation.cancel() }
@@ -142,8 +170,23 @@ struct CustomRPCConnectionTests {
 
         await #expect(throws: CancellationError.self) { try await operation.value }
         #expect(await responses.wasCancelled)
-        #expect(sockets.sockets.isEmpty)
         #expect(await settings.value == nil)
+        await sockets.waitUntilClosed()
+    }
+
+    private static func responses(
+        logo: String = "[null]",
+        attestation: String = attestation,
+        error: RPCError? = nil,
+        failingMethod: String? = nil,
+        gate: Suspension? = nil
+    ) -> HTTPResponses {
+        let replies = [
+            "getMultipleAccounts": [AccountReplies.accounts([nil])],
+            "getAssetBatch": [logo],
+            "getShieldedTransactionsByNullifiers": [IndexerReplies.page([], in: "events")],
+        ]
+        return HTTPResponses(replies, error: error, failingMethod: failingMethod, gate: gate) { _ in attestation }
     }
 
     private func makeConnection(rpcStore: RPCStore, responses: HTTPResponses,

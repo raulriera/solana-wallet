@@ -18,7 +18,7 @@ struct RPCScreen<Actions: View>: View {
 
     var body: some View {
         let settings = rpcStore.settings
-        let customRPCs = settings?.customRPCs ?? []
+        let customRPCs = settings?.customRPCs.map(\.url) ?? []
         Form {
             Section {
                 TitleCardContent(

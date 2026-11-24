@@ -1,4 +1,5 @@
 import Foundation
+import RPC
 import Testing
 @testable import widgets
 
@@ -15,7 +16,7 @@ struct RPCSettingsTests {
         let listed = try #require(URL(string: "https://one.example.com"))
         var settings = RPCSettings(customRPCs: [listed])
 
-        settings.add(listed)
+        settings.add(listed, capabilities: .logos)
 
         #expect(settings == RPCSettings(selection: .custom(listed), customRPCs: [listed]))
     }

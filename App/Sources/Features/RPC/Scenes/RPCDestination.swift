@@ -22,7 +22,7 @@ struct RPCDestination: View {
             }
         case .customRPCDetails:
             if let url = coordinator.details {
-                CustomRPCDetailsScreen(url: url, isListed: rpcStore.settings?.customRPCs.contains(url) == true,
+                CustomRPCDetailsScreen(url: url, isListed: rpcStore.settings?.customRPC(for: url) != nil,
                                        isSelected: rpcStore.settings?.selection == .custom(url),
                                        actions: coordinator)
             }

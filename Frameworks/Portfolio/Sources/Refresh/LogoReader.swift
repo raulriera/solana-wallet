@@ -6,14 +6,16 @@ import Transactions
 struct LogoReader: Sendable {
     let provider: any LogoProviding
 
-    /// Returns the listed tokens' logos, looking up only the tokens that don't have one yet.
+    /// Returns the listed tokens' logos, looking up only the tokens that don't have one yet, or none when the provider
+    /// lacks the logos capability.
     ///
     /// - Parameters:
     ///   - assets: The assets to find logos for.
-    ///   - cached: The previous snapshot, whose logos are kept, or `nil`.
+    ///   - cached: The previous snapshot, whose logos are kept while the provider has the logos capability, or `nil`.
     /// - Returns: The available logos, keyed by asset.
     @concurrent
     func logos(for assets: [Asset.ID], keeping cached: Snapshot?) async -> [Asset.ID: URL] {
+        if let capabilities = try? await provider.capabilities, !capabilities.contains(.logos) { return [:] }
         var logos: [Asset.ID: URL] = [:]
         for holding in cached?.holdings ?? [] { logos[holding.id] = holding.imageURL }
         let missing = assets.compactMap { asset -> Address? in

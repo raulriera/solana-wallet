@@ -290,8 +290,8 @@ struct RPCCoordinatorTests {
         await coordinator.run(coordinator.attempt)
 
         #expect(coordinator.error == .deletionUnsaved)
-        #expect(rpcStore.settings?.customRPCs == [url])
-        #expect(await settings.value?.customRPCs == [url])
+        #expect(rpcStore.settings == RPCSettings(customRPCs: [url]))
+        #expect(await settings.value == RPCSettings(customRPCs: [url]))
         #expect(coordinator.attempt == nil)
     }
 

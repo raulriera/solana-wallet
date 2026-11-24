@@ -1,4 +1,5 @@
 import Foundation
+import RPC
 import Storage
 import Testing
 @testable import widgets
@@ -145,10 +146,14 @@ struct RPCStoreTests {
         let settings = StoredValue(RPCSettings(customRPCs: [listed]))
         let store = RPCStore.inMemory(settings)
 
-        try await store.add(custom)
+        try await store.add(custom, capabilities: .logos)
 
-        #expect(await settings.value == RPCSettings(selection: .custom(custom), customRPCs: [listed, custom]))
-        #expect(store.connection == .custom(custom))
+        let saved = [
+            RPCSettings.CustomRPC(url: listed, capabilities: []),
+            RPCSettings.CustomRPC(url: custom, capabilities: .logos),
+        ]
+        #expect(await settings.value == RPCSettings(selection: .custom(custom), customRPCs: saved))
+        #expect(store.connection == .custom(custom, capabilities: .logos))
     }
 
     @Test
@@ -158,7 +163,7 @@ struct RPCStoreTests {
         let settings = StoredValue(saved, failsSaving: true)
         let store = RPCStore.inMemory(settings)
 
-        try await store.add(custom)
+        try await store.add(custom, capabilities: .logos)
 
         #expect(await settings.value == saved)
         #expect(store.settings == saved)
@@ -188,7 +193,7 @@ struct RPCStoreTests {
 
         #expect(store.settings == RPCSettings(selection: .custom(kept), customRPCs: [kept]))
         #expect(await settings.value == store.settings)
-        #expect(store.connection == .custom(kept))
+        #expect(store.connection == .custom(kept, capabilities: []))
     }
 
     @Test

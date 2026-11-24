@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import Testing
 @testable import RPC
@@ -48,6 +49,51 @@ struct SolanaRPCTests {
         #expect(socket.subscribedAddresses == ["wallet"])
     }
 
+    @Test
+    func `Private-note reads on a custom endpoint keep its path and query below the Solana Rings path`() async throws {
+        let transport = StubTransport { try reply(to: $0, payload: IndexerFixtures.page()) }
+        let endpoint = try #require(URL(string: "https://rpc.example.com:8443/fixture-token/?api-key=fixture-key"))
+        let rpc = try #require(
+            SolanaRPC(endpoint: endpoint, network: .mainnet, capabilities: .privateBalances, transport: transport)
+        )
+        let expected =
+            "https://rpc.example.com:8443/fixture-token/v1/spr/getShieldedTransactionsByNullifiers?api-key=fixture-key"
+
+        _ = try await rpc.shieldedTransactions(spending: [IndexerFixtures.bytes(1)])
+
+        #expect(await transport.requests.map { $0.url?.absoluteString } == [expected])
+    }
+
+    @Test
+    func `A client without private balances sends no Solana Rings request`() async throws {
+        let transport = StubTransport { _ in throw CancellationError() }
+        let rpc = SolanaRPC.devnet(transport: transport)
+        let tag = IndexerFixtures.bytes(1)
+        let request = try ProofFixtures.indexedRequest()
+        let missing = CapabilityError.missing(.privateBalances)
+
+        await #expect(throws: missing) { _ = try await rpc.shieldedTransactions(taggedWith: [tag], after: nil) }
+        await #expect(throws: missing) { _ = try await rpc.shieldedTransactions(spending: [tag]) }
+        await #expect(throws: missing) { _ = try await rpc.merkleProofs(for: [tag], inTree: IndexerFixtures.hash(9)) }
+        await #expect(throws: missing) { _ = try await rpc.proveTransfer(request) }
+        #expect(await transport.requests.isEmpty)
+    }
+
+    @Test(arguments: [
+        (200, IndexerFixtures.page(), Capabilities.privateBalances),
+        (404, IndexerFixtures.page(), Capabilities()),
+        (200, #""error":{"code":-32601,"message":"Method not found"}"#, Capabilities()),
+    ])
+    func `Only a server with a Solana Rings indexer and an attested prover serves private balances`(
+        attestationStatus: Int,
+        indexerReply: String,
+        capability: Capabilities
+    ) async throws {
+        let rpc = try Self.rings(attestationStatus: attestationStatus, indexerReply: indexerReply)
+
+        #expect(try await rpc.privateBalancesCapability() == capability)
+    }
+
     @Test(arguments: ["https:///fixture-token", "https://:8443/fixture-token", "https://fixture-user@/fixture-token"])
     func `Custom endpoints require HTTPS and a host`(url: String) throws {
         let endpoint = try #require(URL(string: url))
@@ -70,5 +116,14 @@ struct SolanaRPCTests {
         }
         #expect(String(describing: rpc) == "SolanaRPC(mainnet)")
         #expect(String(reflecting: rpc) == "SolanaRPC(mainnet)")
+    }
+
+    private static func rings(attestationStatus: Int, indexerReply: String) throws -> SolanaRPC {
+        let key = Curve25519.KeyAgreement.PrivateKey().publicKey
+        let transport = StubTransport { request in
+            guard request.httpMethod == "GET" else { return try reply(to: request, payload: indexerReply) }
+            return try httpReply(to: request, body: StubProver.attestation(of: key), status: attestationStatus)
+        }
+        return try SolanaRPC.custom(on: .mainnet, transport: transport, verify: StubProver.claimedKey)
     }
 }

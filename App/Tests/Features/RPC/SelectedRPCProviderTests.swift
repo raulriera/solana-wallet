@@ -59,7 +59,7 @@ struct SelectedRPCProviderTests {
 
         _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset))
         _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset))
-        try await rpcStore.add(custom)
+        try await rpcStore.add(custom, capabilities: [])
         _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset))
         try await rpcStore.save(key: "first-key")
         try await rpcStore.select(.helius)
@@ -70,7 +70,9 @@ struct SelectedRPCProviderTests {
         #expect(await responses.requests.map { $0.url?.host() } == [
             "api.mainnet.solana.com", "api.mainnet.solana.com", "rpc.example.com", "mainnet.helius-rpc.com", "mainnet.helius-rpc.com",
         ])
-        #expect(created.withLock(\.self) == [.solana, .custom(custom), .helius(key: "first-key"), .helius(key: "second-key")])
+        #expect(created.withLock(\.self) == [
+            .solana, .custom(custom, capabilities: []), .helius(key: "first-key"), .helius(key: "second-key"),
+        ])
     }
 
     @Test(arguments: [
@@ -96,7 +98,7 @@ struct SelectedRPCProviderTests {
     func `A custom RPC fails on devnet before contacting it`() async throws {
         let responses = HTTPResponses.keyCheck()
         let custom = try #require(URL(string: "https://rpc.example.com"))
-        let settings = StoredValue(RPCSettings(selection: .custom(custom)))
+        let settings = StoredValue(RPCSettings(selection: .custom(custom), customRPCs: [custom]))
         let client = responses.rpcProvider(network: .devnet, rpcStore: .inMemory(settings))
         let asset = HTTPResponses.keyCheckAsset
 
@@ -104,6 +106,7 @@ struct SelectedRPCProviderTests {
         await #expect(throws: RPCProviderError.unsupportedNetwork) { _ = try await client.changedSlots(for: [PublicWallet.address]) }
         await #expect(throws: RPCProviderError.unsupportedNetwork) { _ = try await client.events(for: ExternalFixture.signature) }
         await #expect(throws: RPCProviderError.unsupportedNetwork) { _ = try await client.logos(for: [asset]) }
+        #expect(try await client.capabilities.isEmpty)
         #expect(await responses.requests.isEmpty)
     }
 
@@ -117,27 +120,16 @@ struct SelectedRPCProviderTests {
         }
     }
 
-    @Test(arguments: [(RPCSettings.Provider.helius, 1), (.solana, 0)])
-    func `Only a provider with logo copies looks up logos`(provider: RPCSettings.Provider, lookups: Int) async throws {
-        let responses = HTTPResponses(["getAssetBatch": ["[null]"]])
-        let keys = StoredValue("fixture-key")
-        let client = responses.rpcProvider(
-            rpcStore: .inMemory(StoredValue(RPCSettings(selection: provider)), key: keys))
-
-        #expect(try await client.logos(for: [HTTPResponses.keyCheckAsset]).isEmpty)
-        #expect(await responses.requests.count == lookups)
-    }
-
     @Test(arguments: [
         (RPCSettings.Provider.helius, true), (.solana, false),
         (.custom(URL(string: "https://rpc.example.com")!), false),
     ])
-    func `Only a provider with private notes and proofs serves private balances`(provider: RPCSettings.Provider,
-                                                                              serves: Bool) async throws {
+    func `Only a provider that declares private balances serves them`(provider: RPCSettings.Provider,
+                                                                   serves: Bool) async throws {
         let responses = HTTPResponses.keyCheck()
         let client = responses.rpcProvider(rpcStore: .inMemory(selection: provider, key: "fixture-key"))
 
-        #expect(try await client.servesPrivateBalances() == serves)
+        #expect(try await client.capabilities.contains(.privateBalances) == serves)
         #expect(await responses.requests.isEmpty)
     }
 
@@ -174,21 +166,12 @@ struct SelectedRPCProviderTests {
     }
 
     @Test
-    func `Private-note reads and proofs fail on a custom RPC before sending anything`() async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let shielded = try await PrivateBalanceFixtures.keys(for: account).shieldedAccount(for: account.address)
-        let responses = HTTPResponses.privateNotes(prover: try IndexedProofs.prover())
+    func `A custom RPC declares the capabilities it was saved with`() async throws {
         let custom = try #require(URL(string: "https://rpc.example.com"))
-        let client = responses.rpcProvider(network: .mainnet, rpcStore: .inMemory(selection: .custom(custom)))
-        let tag = [UInt8](repeating: 7, count: 32)
-        let request = try PrivateBalanceFixtures.proofRequest(spending: shielded)
-        let error = RPCProviderError.unsupportedNetwork
+        let saved = RPCSettings.CustomRPC(url: custom, capabilities: .privateBalances)
+        let rpcStore = RPCStore.inMemory(StoredValue(RPCSettings(selection: .custom(custom), customRPCs: [saved])))
 
-        await #expect(throws: error) { _ = try await client.shieldedTransactions(taggedWith: [tag], after: nil) }
-        await #expect(throws: error) { _ = try await client.shieldedTransactions(spending: [tag]) }
-        await #expect(throws: error) { _ = try await client.merkleProofs(for: [tag], inTree: try ShieldedPool.tree(id: 1).value) }
-        await #expect(throws: error) { _ = try await client.proveTransfer(request) }
-        #expect(await responses.requests.isEmpty)
+        #expect(try await SelectedRPCProvider(network: .mainnet, rpcStore: rpcStore).capabilities == .privateBalances)
     }
 
     @Test
