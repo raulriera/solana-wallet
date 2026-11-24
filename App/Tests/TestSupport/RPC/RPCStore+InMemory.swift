@@ -1,3 +1,4 @@
+import Foundation
 @testable import widgets
 
 extension RPCStore {
@@ -7,6 +8,7 @@ extension RPCStore {
     }
 
     static func inMemory(selection: RPCSettings.Provider, key: String? = nil) -> RPCStore {
-        inMemory(StoredValue(RPCSettings(selection: selection)), key: StoredValue(key))
+        let listed: [URL] = if case .custom(let url) = selection { [url] } else { [] }
+        return inMemory(StoredValue(RPCSettings(selection: selection, customRPCs: listed)), key: StoredValue(key))
     }
 }

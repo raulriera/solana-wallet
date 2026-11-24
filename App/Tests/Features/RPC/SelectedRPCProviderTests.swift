@@ -98,7 +98,7 @@ struct SelectedRPCProviderTests {
     func `A custom RPC fails on devnet before contacting it`() async throws {
         let responses = HTTPResponses.keyCheck()
         let custom = try #require(URL(string: "https://rpc.example.com"))
-        let settings = StoredValue(RPCSettings(selection: .custom(custom)))
+        let settings = StoredValue(RPCSettings(selection: .custom(custom), customRPCs: [custom]))
         let client = responses.rpcProvider(network: .devnet, rpcStore: .inMemory(settings))
         let asset = HTTPResponses.keyCheckAsset
 
