@@ -74,9 +74,6 @@ struct TokenDetailScreen: View {
                 } else if network == .devnet {
                     Text("Devnet tokens are for testing and have no monetary value.",
                          comment: "Footer under a token's balance in a window on Devnet, Solana's test network.")
-                } else if let currency = holding.knownValue?.currency {
-                    Text("Values are quoted in \(currency).",
-                         comment: "Footer under a token's value and price. The variable is the quote currency code, such as USD.")
                 }
             }
 
