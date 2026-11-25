@@ -56,7 +56,7 @@ struct SharedRecoveryTests {
         let account = try Account(id: UUID(), recoveryID: UUID(),
             address: Address("GjJyeC1r2RgkuoCWMyPYkCWSGSGLcz266EaAkLA27AhL"),
             path: DerivationPath("m/44'/501'/0'"))
-        let recovery = Recovery(phrase: fixture.recovery.phrase, passphrase: "")
+        let recovery = try PublicWallet.recovery()
         let store = SigningRecoveryStore(recovery: recovery)
         let signer = Signer(validator: PreparationValidator(rpc: (try HTTPResponses.signing()).client), store: store)
         let preparation = try fixture.preparation(for: account.address)

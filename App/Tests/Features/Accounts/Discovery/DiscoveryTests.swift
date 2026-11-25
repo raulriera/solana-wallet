@@ -14,7 +14,7 @@ struct DiscoveryTests {
         let http = HTTPResponses(["getMultipleAccounts": [accountResponse(native)]])
         let service: any AccountDiscovering = AccountDiscovery(rpc: http.client)
 
-        let accounts = try await service.discover(for: publicPhrase(), passphrase: "")
+        let accounts = try await service.discover(for: RecoveryPhrase(PublicWallet.words), passphrase: "")
 
         #expect(accounts.map(\.path.description) == ["m/44'/501'/7'/0'", "m/44'/501'/9'"])
         let requests = await http.requests
@@ -31,7 +31,7 @@ struct DiscoveryTests {
     func `Discovery surfaces rate limits without retrying`() async throws {
         let error = RPCError.http(statusCode: 429, retryAfter: "3")
         let http = HTTPResponses([:], error: error)
-        let phrase = try publicPhrase()
+        let phrase = try RecoveryPhrase(PublicWallet.words)
         await #expect(throws: error) { try await AccountDiscovery(rpc: http.client).discover(for: phrase, passphrase: "") }
         #expect(await http.requests.count == 1)
     }
@@ -40,7 +40,7 @@ struct DiscoveryTests {
     func `Cancelling discovery cancels its single account lookup`() async throws {
         let gate = Suspension()
         let http = HTTPResponses([:], gate: gate, heldMethod: "getMultipleAccounts")
-        let phrase = try publicPhrase()
+        let phrase = try RecoveryPhrase(PublicWallet.words)
         let service = AccountDiscovery(rpc: http.client)
         let operation = Task { @concurrent in
             try await service.discover(for: phrase, passphrase: "")
@@ -55,10 +55,6 @@ struct DiscoveryTests {
 
     private func nativeAccount(lamports: UInt64) -> String {
         #"{"owner":"11111111111111111111111111111111","lamports":\#(lamports),"executable":false,"data":["","base64"]}"#
-    }
-
-    private func publicPhrase() throws -> RecoveryPhrase {
-        try RecoveryPhrase(Array(repeating: "abandon", count: 11).joined(separator: " ") + " about")
     }
 
     private func accountResponse(_ values: [String]) -> String {
