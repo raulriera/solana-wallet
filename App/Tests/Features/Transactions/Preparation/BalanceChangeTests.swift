@@ -70,10 +70,7 @@ struct BalanceChangeTests {
     }
 
     private static func transaction() throws -> Transaction {
-        Transaction(message: Data(), lifetimeSpecifier: "11111111111111111111111111111111",
-                    accounts: try ([payer, recipient] + others).map { .writable(try Address($0)) },
-                    requests: .init(priorityFeeLamports: nil, computeUnitLimit: nil, loadedAccountsDataSizeLimit: nil, heapSize: nil),
-                    instructions: [], signatures: [])
+        .fixture(accounts: try ([payer, recipient] + others).map { try Address($0) })
     }
 
     private static func value(before: [UInt64]? = [10, 0, 1, 1, 1, 1], after: [UInt64]? = [4, 1, 1, 1, 1, 1],

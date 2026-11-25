@@ -1,5 +1,5 @@
 /// A transaction error as a named variant with optional details.
-public struct TransactionError: Error, Decodable, Sendable, Equatable {
+public struct TransactionError: Error, Codable, Sendable, Equatable {
     /// The variant name, such as `BlockhashNotFound` or `InstructionError`.
     public let name: String
 
@@ -29,8 +29,17 @@ public struct TransactionError: Error, Decodable, Sendable, Equatable {
         self.init(name: variant.key, details: variant.value)
     }
 
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        if let details {
+            try container.encode([name: details])
+        } else {
+            try container.encode(name)
+        }
+    }
+
     /// An associated value in a transaction or instruction error.
-    public indirect enum Detail: Decodable, Sendable, Equatable {
+    public indirect enum Detail: Codable, Sendable, Equatable {
         /// An error name or explanatory string.
         case string(String)
         /// An instruction index, account index, or program-specific error code.
@@ -50,6 +59,16 @@ public struct TransactionError: Error, Decodable, Sendable, Equatable {
                 self = .array(array)
             } else {
                 self = .object(try container.decode([String: Detail].self))
+            }
+        }
+
+        public func encode(to encoder: any Encoder) throws {
+            var container = encoder.singleValueContainer()
+            switch self {
+            case .string(let string): try container.encode(string)
+            case .integer(let integer): try container.encode(integer)
+            case .array(let array): try container.encode(array)
+            case .object(let object): try container.encode(object)
             }
         }
     }

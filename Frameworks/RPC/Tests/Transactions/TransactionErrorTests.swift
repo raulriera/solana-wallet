@@ -14,8 +14,12 @@ struct TransactionErrorTests {
     ])
     func `Transaction errors preserve variant names and associated details`(json: String, expected: TransactionError) throws {
         let error = try JSONDecoder().decode(TransactionError.self, from: Data(json.utf8))
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        let encoded = try encoder.encode(error)
 
         #expect(error == expected)
+        #expect(String(decoding: encoded, as: UTF8.self) == json)
     }
 
     @Test(arguments: ["null", "42", "[]", "{}", #"{"First":1,"Second":2}"#])
