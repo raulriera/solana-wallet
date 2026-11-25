@@ -208,10 +208,9 @@ struct SelectedRPCProviderTests {
     }
 
     nonisolated private static func merkleProofs(answering request: URLRequest) throws -> String {
-        let params = try #require(try request.jsonBody()["params"] as? [String: Any])
-        let tree = try #require(params["treeAccount"] as? String)
+        let (tree, leaves) = try MerkleProofReplies.requestedLeaves(in: request)
         let zero = Base58.encode([UInt8](repeating: 0, count: 32))
-        let proofs = try #require(params["leaves"] as? [String]).map { leaf in
+        let proofs = leaves.map { leaf in
             MerkleProofReplies.proof(leaf: leaf, tree: tree, path: Array(repeating: zero, count: 32), leafIndex: 0, root: zero,
                                      rootIndex: 0)
         }

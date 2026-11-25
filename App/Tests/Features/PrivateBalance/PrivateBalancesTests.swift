@@ -1077,7 +1077,7 @@ struct PrivateBalancesTests {
 
     private static func tagReadStarts(of responses: HTTPResponses) async throws -> [Int?] {
         try await responses.requests.filter { try $0.rpcMethod == GetShieldedTransactionsByTags.method }
-            .map { try #require($0.jsonBody()["params"] as? [String: Any])["filters"] as? [String: [String: Int]] }
+            .map { try #require(requestBody($0)["params"] as? [String: Any])["filters"] as? [String: [String: Int]] }
             .map { $0?["slot"]?["gt"] }
     }
 

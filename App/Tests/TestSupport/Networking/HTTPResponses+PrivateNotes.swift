@@ -24,11 +24,11 @@ extension HTTPResponses {
         var responder = respond
         if let accounts {
             responder = { request in
-                guard try request.jsonBody()["method"] as? String == GetMultipleAccounts.method else {
+                guard try requestBody(request)["method"] as? String == GetMultipleAccounts.method else {
                     let other = try #require(respond, "Unexpected request")
                     return try other(request)
                 }
-                let addresses = try #require(try request.rpcParameters.first as? [String])
+                let addresses = try requestedAddresses(request)
                 return AccountReplies.accounts(addresses.map { accounts[$0] })
             }
         }

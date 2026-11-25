@@ -19,9 +19,8 @@ struct DiscoveryTests {
         #expect(accounts.map(\.path.description) == ["m/44'/501'/7'/0'", "m/44'/501'/9'"])
         let requests = await http.requests
         try #require(requests.count == 1)
-        let body = try requests[0].jsonBody()
-        #expect(body["method"] as? String == "getMultipleAccounts")
-        let addresses = try #require(requests[0].rpcParameters.first as? [String])
+        #expect(try requests[0].rpcMethod == "getMultipleAccounts")
+        let addresses = try requestedAddresses(requests[0])
         try #require(addresses.count == 20)
         #expect(accounts.map(\.address) == [addresses[14], addresses[19]])
         let encoded = try #require(requests[0].httpBody)

@@ -20,8 +20,7 @@ enum RedeemCodeFixtures {
         return HTTPResponses.privateNotes(accounts: accounts, deposits: deposits, spends: spends,
                                           outputTreeID: outputTreeID, prover: try IndexedProofs.prover(),
                                           trees: trees) { request in
-            try #require(try request.jsonBody()["method"] as? String == GetMinimumBalanceForRentExemption.method,
-                         "Unexpected request")
+            try #require(request.rpcMethod == GetMinimumBalanceForRentExemption.method, "Unexpected request")
             return String(rent)
         }
     }
@@ -48,7 +47,7 @@ enum RedeemCodeFixtures {
 
     static func tagCounts(of responses: HTTPResponses) async throws -> [Int] {
         try await responses.requests.filter { $0.url?.lastPathComponent == GetShieldedTransactionsByTags.method }.map {
-            try #require(($0.jsonBody()["params"] as? [String: Any])?["tags"] as? [String]).count
+            try #require((requestBody($0)["params"] as? [String: Any])?["tags"] as? [String]).count
         }
     }
 }
