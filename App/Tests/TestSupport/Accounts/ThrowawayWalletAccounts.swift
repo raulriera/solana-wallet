@@ -33,5 +33,3 @@ extension View {
         environment(wallet.store).environment(\.accountCreation, wallet.creation).environment(wallet.transactions)
     }
 }
-
-typealias PublicWalletAccounts = ThrowawayWalletAccounts

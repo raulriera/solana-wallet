@@ -11,8 +11,4 @@ extension widgets.Account {
         Account(id: UUID(), recoveryID: recoveryID,
             address: try Address(Base58.encode(Array(repeating: index, count: 32))), path: .solana(account: UInt32(index)))
     }
-
-    static func publicWallet() throws -> widgets.Account {
-        Account(id: UUID(), recoveryID: UUID(), address: try Address(ThrowawayWallet.address), path: .solana(account: 0))
-    }
 }

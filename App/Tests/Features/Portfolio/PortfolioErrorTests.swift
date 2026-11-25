@@ -33,7 +33,7 @@ struct PortfolioErrorTests {
         let portfolios = PortfolioStore.serving(Portfolio(
             rpc: client, store: FileSnapshotStore(directory: directory),
             tokenLists: FileTokenListStore(directory: directory.appendingPathComponent("TokenLists"))))
-        let account = try Account.publicWallet()
+        let account = try await ThrowawayWallet.account(recoveryID: UUID())
         let viewing = Task { await portfolios.observe(account, on: network) }
         defer { viewing.cancel() }
 

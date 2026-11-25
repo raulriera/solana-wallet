@@ -192,7 +192,7 @@ struct PortfolioStoreTests {
         let portfolios = PortfolioStore.serving(Portfolio(
             rpc: responses.rpcProvider(network: .devnet, rpcStore: .inMemory()), store: snapshots,
             tokenLists: tokenLists(in: directory)))
-        let account = try Account.publicWallet()
+        let account = try await ThrowawayWallet.account(recoveryID: UUID())
         let viewing = Task { await portfolios.observe(account, on: .devnet) }
         defer { viewing.cancel() }
         for await update in Observations({ portfolios.portfolio(for: account, on: .devnet)?.update }) {

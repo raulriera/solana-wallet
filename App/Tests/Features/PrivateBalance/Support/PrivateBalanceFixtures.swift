@@ -120,7 +120,7 @@ enum PrivateBalanceFixtures {
     static func nonTreeAccountReads(of responses: HTTPResponses) async -> Int {
         let trees = (try? ShieldedPool.tree(id: 1).value).map { [$0] }
         return await responses.requests.count { request in
-            (try? request.rpcMethod) == GetMultipleAccounts.method && (try? request.rpcParameters.first as? [String]) != trees
+            (try? request.rpcMethod) == GetMultipleAccounts.method && (try? requestedAddresses(request)) != trees
         }
     }
 
