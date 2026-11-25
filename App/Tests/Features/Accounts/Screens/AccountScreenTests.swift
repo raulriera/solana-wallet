@@ -17,7 +17,7 @@ struct AccountScreenTests {
 
     @Test
     func `A saved name closes the screen`() async throws {
-        let wallet = try await PublicWalletAccounts()
+        let wallet = try await ThrowawayWalletAccounts()
         let rename = AccountRenameModel()
         let account = wallet.first
         let navigation = Navigation([.account(account.id)])

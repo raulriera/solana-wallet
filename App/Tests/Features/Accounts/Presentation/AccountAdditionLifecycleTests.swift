@@ -7,7 +7,7 @@ import Testing
 struct AccountAdditionLifecycleTests {
     @Test
     func `A failed addition shows its alert`() async throws {
-        let wallet = try await PublicWalletAccounts()
+        let wallet = try await ThrowawayWalletAccounts()
         await wallet.storage.failSaving()
         let addition = AccountAdditionModel()
         let screen = AccountsScreen(accounts: wallet.store.accounts, selection: .constant(wallet.first),
