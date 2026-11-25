@@ -174,7 +174,7 @@ struct LocalBalanceMove {
     ) throws {
         var fixture = fixture
         fixture.simulation = SimulateTransaction.Response(context: Context(slot: 402), value: simulation)
-        let recovery = try SigningRecoveryStore(recovery: PrivateBalanceFixtures.recovery())
+        let recovery = try SigningRecoveryStore(recovery: ThrowawayWallet.recovery())
         let local = try LocalTransactions(fixture: fixture, recovery: recovery, statuses: statuses, height: height,
                                           sockets: sockets)
         let coordinator = local.coordinator

@@ -20,12 +20,8 @@ enum PrivateBalanceFixtures {
     nonisolated static let solHolding = Holding(asset: .nativeSOL, balance: TokenAmount(lamports: 2_000_000_000),
                                                 imageURL: nil, valuation: nil)
 
-    static func recovery() throws -> Recovery {
-        try ThrowawayWallet.recovery()
-    }
-
     static func recoveryStore() throws -> SecurityRecoveryStore {
-        SecurityRecoveryStore(records: [recoveryID: try recovery()])
+        SecurityRecoveryStore(records: [recoveryID: try ThrowawayWallet.recovery()])
     }
 
     static func account(index: UInt32 = 0) async throws -> widgets.Account {
@@ -37,7 +33,7 @@ enum PrivateBalanceFixtures {
     }
 
     static func keys(for account: widgets.Account) async throws -> PrivateBalanceKeyRecord {
-        let recovery = try recovery()
+        let recovery = try ThrowawayWallet.recovery()
         return PrivateBalanceKeyRecord(try await Wallet().privateBalanceKeys(
             using: recovery.phrase, expectedAddress: account.address.value, passphrase: recovery.passphrase,
             path: account.path

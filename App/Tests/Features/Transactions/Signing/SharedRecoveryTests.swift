@@ -4,7 +4,6 @@ import Foundation
 import RPC
 import Testing
 import Transactions
-import Vault
 import Wallet
 @testable import widgets
 
@@ -54,7 +53,7 @@ struct SharedRecoveryTests {
     func `A discovered account signs with its exact path`() async throws {
         let fixture = try SigningFixture()
         let account = try Account(id: UUID(), recoveryID: UUID(),
-            address: Address("GjJyeC1r2RgkuoCWMyPYkCWSGSGLcz266EaAkLA27AhL"),
+            address: Address(ThrowawayWallet.address),
             path: DerivationPath("m/44'/501'/0'"))
         let recovery = try ThrowawayWallet.recovery()
         let store = SigningRecoveryStore(recovery: recovery)

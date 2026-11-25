@@ -20,7 +20,7 @@ struct OnboardingDiscoveryTests {
         #expect(await recovery.saves.isEmpty)
         let account = try await coordinator.complete()
 
-        #expect(account.address.value == "GjJyeC1r2RgkuoCWMyPYkCWSGSGLcz266EaAkLA27AhL")
+        #expect(account.address.value == ThrowawayWallet.address)
         #expect(account.path.description == "m/44'/501'/0'")
         #expect(await http.requests.count == 1)
         #expect(accounts.accounts.first?.path == account.path)
