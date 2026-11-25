@@ -196,14 +196,6 @@ nonisolated struct Confirmer: TransactionConfirming {
 }
 
 private nonisolated extension Outcome {
-    /// Returns this outcome with another status.
-    ///
-    /// - Parameter status: The new status.
-    /// - Returns: The outcome.
-    func settled(_ status: Status) -> Outcome {
-        Outcome(signature: signature, network: network, lastValidBlockHeight: lastValidBlockHeight, status: status)
-    }
-
     /// Returns the succeeded or failed outcome of a landing.
     ///
     /// - Parameters:

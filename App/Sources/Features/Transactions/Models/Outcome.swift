@@ -18,4 +18,12 @@ nonisolated struct Outcome: Codable, Equatable, Sendable {
         /// The transaction can never land.
         case dropped
     }
+
+    /// Returns this outcome with another status.
+    ///
+    /// - Parameter status: The new status.
+    /// - Returns: The outcome.
+    func settled(_ status: Status) -> Outcome {
+        Outcome(signature: signature, network: network, lastValidBlockHeight: lastValidBlockHeight, status: status)
+    }
 }
