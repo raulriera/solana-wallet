@@ -32,10 +32,3 @@ struct NetworkScreen: View {
         .toolbarTitleDisplayMode(.inline)
     }
 }
-
-#Preview {
-    @Previewable @State var network = Network.mainnet
-    NavigationStack {
-        NetworkScreen(network: $network)
-    }
-}

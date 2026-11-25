@@ -5,7 +5,7 @@ struct ImportWalletScreen: View {
     @Environment(\.canDisplayRecovery) private var canDisplayRecovery
     @State private var input = RecoveryEntryModel()
     @FocusState private var focusedField: RecoveryEntryModel.Field?
-    let submission: any ImportSubmitting
+    let submission: ImportWalletModel
 
     var body: some View {
         Form {
@@ -89,18 +89,4 @@ struct ImportWalletScreen: View {
         guard input.validate() else { return }
         submission.submit(input.phrase, passphrase: input.passphrase)
     }
-}
-
-#Preview {
-    NavigationStack {
-        ImportWalletScreen(submission: PreviewImportSubmission())
-    }
-    .tint(RenderedPalette(OriginalAppearance.palette).primary)
-}
-
-/// An import workflow for previews that imports nothing.
-private struct PreviewImportSubmission: ImportSubmitting {
-    var isPending: Bool { false }
-
-    func submit(_ phrase: String, passphrase: String) {}
 }

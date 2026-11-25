@@ -3,7 +3,6 @@ import Privacy
 import RPC
 import SwiftUI
 import Transactions
-import Wallet
 
 /// Shows one token's balance and, when known, its value, price, and 24-hour change.
 struct TokenDetailScreen: View {
@@ -106,73 +105,4 @@ struct TokenDetailScreen: View {
             }
         }
     }
-}
-
-#Preview {
-    let store = PrivateBalanceStore.preview
-    if let address = try? Address("6d8tEyrqPqVbEr6Jpuc7BEyYekeMUTyzHEwdmcAYEmtK") {
-        NavigationStack {
-            TokenDetailScreen(holding: Holding(asset: .nativeSOL,
-                                               balance: TokenAmount(lamports: 12_500_000_000),
-                                               imageURL: nil,
-                                               valuation: Valuation(pricePerUnit: 166, total: 2_075, currency: "USD",
-                                                                    dayChange: Decimal(string: "0.0129"))),
-                              account: Account(id: UUID(), recoveryID: UUID(), address: address, path: .solana),
-                              network: .devnet, privateBalance: PrivateBalanceModel())
-        }
-        .environment(store)
-    }
-}
-
-#Preview("Other owner") {
-    let store = PrivateBalanceStore.preview
-    if let address = try? Address("6d8tEyrqPqVbEr6Jpuc7BEyYekeMUTyzHEwdmcAYEmtK"),
-       let usdt = try? Address("Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB") {
-        let mint = Mint(address: usdt, program: .token, decimals: 6,
-                        metadata: TokenMetadata(name: "Tether USD", symbol: "USDT"))
-        NavigationStack {
-            TokenDetailScreen(holding: Holding(asset: .token(mint), balance: nil,
-                                               otherOwner: try? Address("4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T"),
-                                               imageURL: nil, valuation: nil),
-                              account: Account(id: UUID(), recoveryID: UUID(), address: address, path: .solana),
-                              network: .devnet, privateBalance: PrivateBalanceModel())
-        }
-        .environment(store)
-    }
-}
-
-private extension TransactionStore {
-    static var preview: TransactionStore {
-        TransactionStore(directory: .temporaryDirectory) { _ in throw TransactionCoordinatorError.unsupportedNetwork }
-    }
-}
-
-private extension PrivateBalanceStore {
-    static var preview: PrivateBalanceStore {
-        PrivateBalanceStore(balances: PreviewPrivateBalances(), transactions: .preview,
-                            rpcStore: RPCStore(service: "preview"))
-    }
-}
-
-/// A private-balance service for previews whose private balance is off.
-private struct PreviewPrivateBalances: PrivateBalancing {
-    func enable(_ account: Account, on network: Network) async throws {}
-
-    func refresh(_ account: Account, on network: Network) async throws -> PrivateBalanceStatus { .off(isRegistered: false) }
-
-    func savedStatus(of account: Account, on network: Network) async throws -> PrivateBalanceStatus? { nil }
-
-    func prepare(_ request: PrivateTransactionRequest, from account: Account, on network: Network) async throws
-        -> PreparedPrivateTransaction {
-        throw PrivateBalanceError.unavailable
-    }
-
-    func complete(_ transaction: PreparedPrivateTransaction, with confirmation: Confirmation) async throws
-        -> PrivateBalanceStatus {
-        .off(isRegistered: false)
-    }
-
-    func outstandingCodes(of account: Account, on network: Network) async throws -> [OutstandingRedeemCode] { [] }
-
-    func removeAll() async throws {}
 }

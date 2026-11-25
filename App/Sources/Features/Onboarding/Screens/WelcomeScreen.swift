@@ -28,8 +28,3 @@ struct WelcomeScreen: View {
         .background(palette.background)
     }
 }
-
-#Preview {
-    WelcomeScreen(createWallet: {}, importWallet: {})
-        .tint(RenderedPalette(OriginalAppearance.palette).primary)
-}

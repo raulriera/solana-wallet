@@ -53,10 +53,3 @@ struct CurrencyScreen: View {
         .toolbarTitleDisplayMode(.inline)
     }
 }
-
-#Preview {
-    NavigationStack {
-        CurrencyScreen(settings: CurrencySettings(rateSource: .europeanCentralBank), choice: CurrencySettingsModel(),
-                       list: CurrencyListModel())
-    }
-}

@@ -1,9 +1,9 @@
 import SwiftUI
 
 /// Collects an entry for an RPC provider, such as Helius's API key or a custom RPC URL.
-struct RPCSetupScreen<Submission: ProviderSubmitting>: ProviderSetupScreen {
+struct RPCSetupScreen<EntryError: ProviderEntryError>: ProviderSetupScreen {
     let purpose: RPCEntryPurpose
-    let submission: Submission
+    let submission: ProviderSetupModel<EntryError>
 
     var body: some View {
         ProviderEntryForm(title: purpose.title, label: purpose.label, kind: purpose.kind, header: purpose.header,
@@ -24,46 +24,4 @@ struct RPCSetupScreen<Submission: ProviderSubmitting>: ProviderSetupScreen {
             }
         }
     }
-}
-
-#Preview("Empty") {
-    NavigationStack {
-        RPCSetupScreen(purpose: .connect, submission: PreviewSubmission<RPCConnectionError>(rejection: nil))
-    }
-    .tint(RenderedPalette(OriginalAppearance.palette).primary)
-}
-
-#Preview("Rejected key") {
-    NavigationStack {
-        RPCSetupScreen(purpose: .connect, submission: PreviewSubmission(rejection: RPCConnectionError.invalidKey))
-    }
-    .tint(RenderedPalette(OriginalAppearance.palette).primary)
-}
-
-#Preview("Add") {
-    NavigationStack {
-        RPCSetupScreen(purpose: .add, submission: PreviewSubmission<RPCConnectionError>(rejection: nil))
-    }
-    .tint(RenderedPalette(OriginalAppearance.palette).primary)
-}
-
-#Preview("Change") {
-    NavigationStack {
-        RPCSetupScreen(purpose: .change, submission: PreviewSubmission<RPCConnectionError>(rejection: nil))
-    }
-    .tint(RenderedPalette(OriginalAppearance.palette).primary)
-}
-
-#Preview("Add Custom RPC") {
-    NavigationStack {
-        RPCSetupScreen(purpose: .customRPC, submission: PreviewSubmission<CustomRPCError>(rejection: nil))
-    }
-    .tint(RenderedPalette(OriginalAppearance.palette).primary)
-}
-
-#Preview("No live updates") {
-    NavigationStack {
-        RPCSetupScreen(purpose: .customRPC, submission: PreviewSubmission(rejection: CustomRPCError.noLiveUpdates))
-    }
-    .tint(RenderedPalette(OriginalAppearance.palette).primary)
 }

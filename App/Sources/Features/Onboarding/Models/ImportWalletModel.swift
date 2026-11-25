@@ -7,7 +7,7 @@ import Wallet
 /// Runs one window's wallet imports.
 @MainActor
 @Observable
-final class ImportWalletModel: ImportSubmitting {
+final class ImportWalletModel {
     var isPresented = false {
         didSet {
             if !isPresented { endPresentation() }
@@ -45,6 +45,11 @@ final class ImportWalletModel: ImportSubmitting {
         isPresented = true
     }
 
+    /// Submits recovery words for import.
+    ///
+    /// - Parameters:
+    ///   - phrase: The recovery words.
+    ///   - passphrase: The BIP-39 passphrase, including case and whitespace.
     func submit(_ phrase: String, passphrase: String) {
         guard isPresented, !isPending, !coordinator.isWorking, coordinator.account == nil else { return }
         pendingInput = Input(phrase: phrase, passphrase: passphrase)

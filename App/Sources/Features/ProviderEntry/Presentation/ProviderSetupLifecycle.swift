@@ -20,21 +20,20 @@ private struct ProviderSetupLifecycle<EntryError: ProviderEntryError>: ViewModif
     }
 }
 
-/// A screen that collects a provider entry through a submission.
+/// A screen that collects a provider entry for a setup model.
 protocol ProviderSetupScreen: View {
-    /// The type that accepts the entry.
-    associatedtype Submission: ProviderSubmitting
+    /// The error for a rejected or failed entry.
+    associatedtype EntryError: ProviderEntryError
 
-    /// The submission that accepts the entry.
-    var submission: Submission { get }
+    /// The model that checks and saves the entry.
+    var submission: ProviderSetupModel<EntryError> { get }
 }
 
 extension ProviderSetupScreen {
     /// Runs the screen's accepted entry checks and closes it once the entry is saved.
     ///
     /// - Returns: The screen with managed entry checks.
-    func providerSetupLifecycle<EntryError: ProviderEntryError>() -> some View
-    where Submission == ProviderSetupModel<EntryError> {
+    func providerSetupLifecycle() -> some View {
         modifier(ProviderSetupLifecycle(submission: submission))
     }
 }

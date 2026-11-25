@@ -13,7 +13,3 @@ struct WalletUnavailableScreen: View {
         }
     }
 }
-
-#Preview {
-    WalletUnavailableScreen(retry: {})
-}

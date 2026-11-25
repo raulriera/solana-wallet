@@ -16,18 +16,17 @@ struct ImportWalletModelTests {
         let accounts = AccountStore.inMemory()
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts)
         let submission = ImportWalletModel(coordinator: coordinator)
-        let screen: any ImportSubmitting = submission
         submission.present()
-        screen.submit(Self.phrase, passphrase: " TrEzOr ")
+        submission.submit(Self.phrase, passphrase: " TrEzOr ")
         let attempt = try #require(submission.attempt)
-        screen.submit(Self.phrase, passphrase: "different")
+        submission.submit(Self.phrase, passphrase: "different")
         #expect(submission.attempt == attempt)
-        #expect(screen.isPending)
+        #expect(submission.isPending)
         #expect(await recovery.saves.isEmpty)
 
         await submission.run(attempt)
         await submission.run(attempt)
-        screen.submit(Self.phrase, passphrase: "different")
+        submission.submit(Self.phrase, passphrase: "different")
         #expect(submission.attempt == nil)
 
         let account = try #require(coordinator.account)
@@ -36,7 +35,7 @@ struct ImportWalletModelTests {
         #expect(coordinator.finishedAccount == nil)
         #expect(await recovery.saves.count == 1)
         #expect(accounts.accounts.count == 1)
-        #expect(!screen.isPending)
+        #expect(!submission.isPending)
         #expect(submission.error == nil)
     }
 

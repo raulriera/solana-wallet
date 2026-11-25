@@ -90,13 +90,3 @@ struct AccountScreen: View {
         rename.rename(account.id, to: name)
     }
 }
-
-#Preview {
-    if let address = try? Address("6d8tEyrqPqVbEr6Jpuc7BEyYekeMUTyzHEwdmcAYEmtK") {
-        NavigationStack {
-            AccountScreen(account: Account(id: UUID(), recoveryID: UUID(), address: address,
-                                           path: .solana(account: 1)),
-                          canDelete: true, rename: AccountRenameModel(), deletion: AccountDeletionModel())
-        }
-    }
-}

@@ -1,5 +1,4 @@
 import SwiftUI
-import Transactions
 
 /// Types a payment's amount on a keypad and commits it with a button, such as Send.
 struct PaymentAmountScreen<Action: View>: View {
@@ -69,42 +68,5 @@ struct PaymentAmountScreen<Action: View>: View {
         }
         withAnimation(.snappy) { payment.press(key) }
         return .handled
-    }
-}
-
-#Preview("Glass keys") {
-    let payment = PaymentModel(tokens: [PaymentToken(asset: .nativeSOL,
-                                                     balance: TokenAmount(lamports: 1_200_000_000), price: 150)],
-                               currencyCode: "USD")
-    NavigationStack {
-        PaymentAmountScreen(payment: payment, title: "Send") {
-            Button("Review") {}
-                .buttonStyle(.secondary)
-        }
-    }
-}
-
-#Preview("Plain keys") {
-    let payment = PaymentModel(tokens: [PaymentToken(asset: .nativeSOL,
-                                                     balance: TokenAmount(lamports: 1_200_000_000), price: 150)],
-                               currencyCode: "USD")
-    NavigationStack {
-        PaymentAmountScreen(payment: payment, title: "Send") {
-            Button("Review") {}
-                .buttonStyle(.secondary)
-        }
-        .keypadStyle(KeypadStyle(keyBackground: .none, amountLook: .plain))
-    }
-}
-
-#Preview("One balance") {
-    let payment = PaymentModel(tokens: [PaymentToken(asset: .nativeSOL,
-                                                     balance: TokenAmount(lamports: 1_200_000_000), price: nil)],
-                               currencyCode: "USD", source: .publicBalance)
-    NavigationStack {
-        PaymentAmountScreen(payment: payment, title: "Make SOL Private") {
-            Button("Review") {}
-                .buttonStyle(.secondary)
-        }
     }
 }

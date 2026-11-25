@@ -55,19 +55,3 @@ struct PortfolioUnavailableScreen: View {
         }
     }
 }
-
-#Preview("Missing key") {
-    PortfolioUnavailableScreen(error: .missingKey, action: {})
-}
-
-#Preview("Unsupported network") {
-    PortfolioUnavailableScreen(error: .unsupportedNetwork, action: {})
-}
-
-#Preview("Rate limited") {
-    PortfolioUnavailableScreen(error: .rateLimited, action: {})
-}
-
-#Preview("Unreadable list") {
-    PortfolioUnavailableScreen(error: .listUnreadable, action: {})
-}

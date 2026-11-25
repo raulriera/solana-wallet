@@ -1,7 +1,5 @@
 import Accessibility
 import SwiftUI
-import Transactions
-import Wallet
 
 /// Lists a wallet's accounts, selects one, and adds the wallet's next account.
 struct AccountsScreen: View {
@@ -45,23 +43,6 @@ struct AccountsScreen: View {
             guard let added else { return }
             AccessibilityNotification.Announcement(String(localized: "\(added.name) added",
                                                           comment: "VoiceOver announcement after adding an account. The variable is its name, such as Account 2.")).post()
-        }
-    }
-}
-
-#Preview {
-    @Previewable @State var path: [AccountsRoute] = []
-    let wallet = UUID()
-    if let main = try? Address("6d8tEyrqPqVbEr6Jpuc7BEyYekeMUTyzHEwdmcAYEmtK"),
-       let savings = try? Address("44korouVTkSZ4u3SAT4BCg5S2AqJTV7osjVGVkjs3vtV") {
-        let first = Account(id: UUID(), recoveryID: wallet, address: main, path: .solana)
-        NavigationStack(path: $path) {
-            AccountsScreen(accounts: [
-                first,
-                Account(id: UUID(), recoveryID: wallet, address: savings, path: .solana(account: 1),
-                        customName: "Savings"),
-            ], selection: .constant(first), addition: AccountAdditionModel(), deletion: AccountDeletionModel(),
-               path: $path)
         }
     }
 }

@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// Collects the URL of a custom price server.
-struct PriceServerSetupScreen<Submission: ProviderSubmitting>: ProviderSetupScreen {
-    let submission: Submission
+struct PriceServerSetupScreen: ProviderSetupScreen {
+    let submission: ProviderSetupModel<CustomPriceError>
 
     var body: some View {
         ProviderEntryForm(
@@ -15,18 +15,4 @@ struct PriceServerSetupScreen<Submission: ProviderSubmitting>: ProviderSetupScre
             submission: submission
         ) {} help: {}
     }
-}
-
-#Preview("Empty") {
-    NavigationStack {
-        PriceServerSetupScreen(submission: PreviewSubmission<CustomPriceError>(rejection: nil))
-    }
-    .tint(RenderedPalette(OriginalAppearance.palette).primary)
-}
-
-#Preview("Rejected") {
-    NavigationStack {
-        PriceServerSetupScreen(submission: PreviewSubmission(rejection: CustomPriceError.unreachable))
-    }
-    .tint(RenderedPalette(OriginalAppearance.palette).primary)
 }

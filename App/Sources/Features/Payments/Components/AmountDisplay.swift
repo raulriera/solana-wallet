@@ -3,7 +3,6 @@ import SwiftUI
 /// The typed amount in large rounded digits that shake when a key is rejected.
 struct AmountDisplay: View {
     @Environment(\.palette) private var palette
-    @Environment(\.keypadStyle) private var style
     @ScaledMetric(relativeTo: .largeTitle) private var size = 72.0
     @FocusState private var isFocused: Bool
     /// The formatted amount.
@@ -26,7 +25,9 @@ struct AmountDisplay: View {
             .onAppear { isFocused = true }
             .overlay {
                 Rectangle()
-                    .fill(fill)
+                    .fill(LinearGradient(colors: [.primary, .secondary, .primary],
+                                         startPoint: UnitPoint(x: 0.25, y: 0.25),
+                                         endPoint: UnitPoint(x: 0.75, y: 0.75)))
                     .scaleEffect(2)
                     .blendMode(.sourceAtop)
                     .allowsHitTesting(false)
@@ -43,17 +44,5 @@ struct AmountDisplay: View {
                     LinearKeyframe(0, duration: 0.05)
                 }
             }
-    }
-
-    /// The digits' fill, a metallic gradient or the plain text color.
-    private var fill: AnyShapeStyle {
-        switch style.amountLook {
-        case .chrome:
-            AnyShapeStyle(LinearGradient(colors: [.primary, .secondary, .primary],
-                                         startPoint: UnitPoint(x: 0.25, y: 0.25),
-                                         endPoint: UnitPoint(x: 0.75, y: 0.75)))
-        case .plain:
-            AnyShapeStyle(Color.primary)
-        }
     }
 }
