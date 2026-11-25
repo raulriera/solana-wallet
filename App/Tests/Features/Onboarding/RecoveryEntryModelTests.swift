@@ -17,7 +17,7 @@ struct RecoveryEntryModelTests {
 
     @Test
     func `Valid recovery words pass without a rejection`() {
-        let input = entry(PublicWallet.words)
+        let input = entry(ThrowawayWallet.words)
 
         #expect(input.validate())
         #expect(input.rejection == nil)
@@ -31,7 +31,7 @@ struct RecoveryEntryModelTests {
         #expect(!input.validate())
         #expect(input.rejection == .invalidWordCount)
 
-        input.phrase = PublicWallet.words
+        input.phrase = ThrowawayWallet.words
 
         #expect(input.rejection == nil)
         #expect(input.hasPhrase)

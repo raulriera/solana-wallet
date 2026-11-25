@@ -15,7 +15,7 @@ extension ImportWalletModelTests {
         let oldPresentation = submission.presentationID
         submission.isPresented = false
         submission.present()
-        submission.submit(PublicWallet.words, passphrase: "TREZOR")
+        submission.submit(ThrowawayWallet.words, passphrase: "TREZOR")
         let attempt = submission.attempt
 
         submission.leave(oldPresentation)
@@ -36,7 +36,7 @@ extension ImportWalletModelTests {
                                                 accounts: accounts)
         let submission = ImportWalletModel(coordinator: coordinator)
         submission.present()
-        submission.submit(PublicWallet.words, passphrase: "TREZOR")
+        submission.submit(ThrowawayWallet.words, passphrase: "TREZOR")
         let attempt = submission.attempt
         let operation = Task { await submission.run(attempt) }
         defer { operation.cancel() }
@@ -68,7 +68,7 @@ extension ImportWalletModelTests {
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts)
         let submission = ImportWalletModel(coordinator: coordinator)
         submission.present()
-        submission.submit(PublicWallet.words, passphrase: "TREZOR")
+        submission.submit(ThrowawayWallet.words, passphrase: "TREZOR")
         let attempt = submission.attempt
         let operation = Task { await submission.run(attempt) }
         defer { operation.cancel() }
@@ -93,13 +93,13 @@ extension ImportWalletModelTests {
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts)
         let submission = ImportWalletModel(coordinator: coordinator)
         submission.present()
-        submission.submit(PublicWallet.words, passphrase: "TREZOR")
+        submission.submit(ThrowawayWallet.words, passphrase: "TREZOR")
         await submission.run(submission.attempt)
         let retainedID = try #require(await recovery.saves.first)
         #expect(submission.error == nil)
         #expect(coordinator.recovery != nil)
 
-        submission.submit(PublicWallet.words, passphrase: "TREZOR")
+        submission.submit(ThrowawayWallet.words, passphrase: "TREZOR")
         await submission.run(submission.attempt)
 
         #expect(coordinator.account?.recoveryID == retainedID)
@@ -114,10 +114,10 @@ extension ImportWalletModelTests {
         let accounts = AccountStore.inMemory(StoredValue(gate: gate))
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts)
         let other = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts)
-        try await other.importRecovery(PublicWallet.words, passphrase: "other-window")
+        try await other.importRecovery(ThrowawayWallet.words, passphrase: "other-window")
         let submission = ImportWalletModel(coordinator: coordinator)
         submission.present()
-        submission.submit(PublicWallet.words, passphrase: "TREZOR")
+        submission.submit(ThrowawayWallet.words, passphrase: "TREZOR")
         let attempt = submission.attempt
         let operation = Task { await submission.run(attempt) }
         defer { operation.cancel() }

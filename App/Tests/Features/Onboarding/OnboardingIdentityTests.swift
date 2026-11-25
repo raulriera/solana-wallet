@@ -37,7 +37,7 @@ struct OnboardingIdentityTests {
             var renders = rendered.stream.makeAsyncIterator()
             try #require(await renders.next() == 0)
             navigation.showImport()
-            submission.submit(PublicWallet.words, passphrase: "public-identity-fixture")
+            submission.submit(ThrowawayWallet.words, passphrase: "public-identity-fixture")
             await gate.waitUntilStarted()
             try #require(submission.isPending)
 

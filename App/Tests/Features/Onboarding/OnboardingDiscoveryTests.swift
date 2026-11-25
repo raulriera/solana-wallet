@@ -16,7 +16,7 @@ struct OnboardingDiscoveryTests {
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(),
             recovery: recovery, accounts: accounts)
 
-        try await coordinator.importRecovery(PublicWallet.words, passphrase: "")
+        try await coordinator.importRecovery(ThrowawayWallet.words, passphrase: "")
         #expect(await recovery.saves.isEmpty)
         let account = try await coordinator.complete()
 
@@ -35,7 +35,7 @@ struct OnboardingDiscoveryTests {
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(),
             recovery: recovery, accounts: accounts)
 
-        try await coordinator.importRecovery(PublicWallet.words, passphrase: " TREZOR ")
+        try await coordinator.importRecovery(ThrowawayWallet.words, passphrase: " TREZOR ")
         let account = try await coordinator.complete()
 
         #expect(account.address.value == "SbBZ94nCjPnE1w7BYq86Dn7cjHar2z6RC7Ni39t2aK4")
@@ -57,7 +57,7 @@ struct OnboardingDiscoveryTests {
             recovery: recovery, accounts: accounts)
 
         await #expect(throws: expected) {
-            try await coordinator.importRecovery(PublicWallet.words, passphrase: "")
+            try await coordinator.importRecovery(ThrowawayWallet.words, passphrase: "")
         }
         #expect(await http.requests.count == 1)
         #expect(coordinator.recovery == nil)
@@ -68,7 +68,7 @@ struct OnboardingDiscoveryTests {
         #expect(accounts.accounts.isEmpty)
 
         await #expect(throws: expected) {
-            try await coordinator.importRecovery(PublicWallet.words, passphrase: "")
+            try await coordinator.importRecovery(ThrowawayWallet.words, passphrase: "")
         }
         #expect(await http.requests.count == 2)
     }

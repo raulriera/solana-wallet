@@ -17,7 +17,7 @@ struct OnboardingNavigationTests {
         let navigation = OnboardingNavigation(walletImport: submission, rpcCoordinator: .inMemory(.inMemory()))
         navigation.showImport()
         try #require(navigation.path == [.importWallet])
-        submission.submit(PublicWallet.words, passphrase: "TREZOR")
+        submission.submit(ThrowawayWallet.words, passphrase: "TREZOR")
         let attempt = try #require(submission.attempt)
         let operation = Task { await submission.run(attempt) }
         defer { operation.cancel() }
