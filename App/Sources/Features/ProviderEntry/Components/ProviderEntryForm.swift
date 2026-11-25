@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// A form that collects a provider entry, shows why it was rejected, and submits it from the top toolbar.
-struct ProviderEntryForm<Submission: ProviderSubmitting, Intro: View, Help: View>: View {
+struct ProviderEntryForm<EntryError: ProviderEntryError, Intro: View, Help: View>: View {
     @State private var input = ProviderEntryModel()
     @FocusState private var isFocused: Bool
     let title: LocalizedStringResource
@@ -11,7 +11,7 @@ struct ProviderEntryForm<Submission: ProviderSubmitting, Intro: View, Help: View
     let footer: LocalizedStringResource
     /// The title of the action that checks and saves the entry.
     let action: LocalizedStringResource
-    let submission: Submission
+    let submission: ProviderSetupModel<EntryError>
     /// The sections above the entry.
     @ViewBuilder let intro: Intro
     /// The views below the entry's footer.

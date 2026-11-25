@@ -1,9 +1,9 @@
 import SwiftUI
 
 /// Collects an entry for an RPC provider, such as Helius's API key or a custom RPC URL.
-struct RPCSetupScreen<Submission: ProviderSubmitting>: ProviderSetupScreen {
+struct RPCSetupScreen<EntryError: ProviderEntryError>: ProviderSetupScreen {
     let purpose: RPCEntryPurpose
-    let submission: Submission
+    let submission: ProviderSetupModel<EntryError>
 
     var body: some View {
         ProviderEntryForm(title: purpose.title, label: purpose.label, kind: purpose.kind, header: purpose.header,

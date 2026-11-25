@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// Collects the URL of a custom price server.
-struct PriceServerSetupScreen<Submission: ProviderSubmitting>: ProviderSetupScreen {
-    let submission: Submission
+struct PriceServerSetupScreen: ProviderSetupScreen {
+    let submission: ProviderSetupModel<CustomPriceError>
 
     var body: some View {
         ProviderEntryForm(

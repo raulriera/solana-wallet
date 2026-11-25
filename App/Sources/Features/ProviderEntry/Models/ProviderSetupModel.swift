@@ -4,7 +4,7 @@ import Observation
 /// Checks and saves a provider entry, such as an API key or a URL.
 @MainActor
 @Observable
-final class ProviderSetupModel<EntryError: ProviderEntryError>: ProviderSubmitting, Identifiable {
+final class ProviderSetupModel<EntryError: ProviderEntryError>: Identifiable {
     private(set) var rejection: EntryError?
     private(set) var rejectionCount = 0
     var error: EntryError?
@@ -21,6 +21,9 @@ final class ProviderSetupModel<EntryError: ProviderEntryError>: ProviderSubmitti
         self.connection = connection
     }
 
+    /// Requests one check of an entry.
+    ///
+    /// - Parameter entry: The text as entered.
     func submit(_ entry: String) {
         guard attempt == nil else { return }
         pendingEntry = entry.trimmingCharacters(in: .whitespacesAndNewlines)
