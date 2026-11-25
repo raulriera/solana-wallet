@@ -8,6 +8,8 @@ import Wallet
 @Suite(.serialized)
 struct SubmissionTests {
     private static let rateLimit = RPCError.http(statusCode: 429, retryAfter: "3")
+    private static let pending = Outcome(signature: ExternalFixture.signature, network: .devnet,
+                                         lastValidBlockHeight: 650, status: .pending)
 
     @Test
     func `Submission sends the signed bytes once with finalized preflight`() async throws {
@@ -16,7 +18,7 @@ struct SubmissionTests {
 
         let result = try await Submitter(rpc: accepted.client).submit(signed)
 
-        #expect(result.signature == ExternalFixture.signature)
+        #expect(result == Self.pending)
         let requests = await accepted.requests
         try #require(requests.count == 1)
         #expect(try requests[0].rpcMethod == "sendTransaction")
@@ -25,7 +27,7 @@ struct SubmissionTests {
     }
 
     @Test
-    func `A rate-limited submission keeps its receipt and rate-limit details`() async throws {
+    func `A rate-limited submission keeps its pending outcome and rate-limit details`() async throws {
         let signed = try ExternalFixture.signedResult()
         let limited = HTTPResponses([:], error: Self.rateLimit)
 
@@ -33,8 +35,7 @@ struct SubmissionTests {
             try await Submitter(rpc: limited.client).submit(signed)
         }
 
-        #expect(error.submission.signature == ExternalFixture.signature)
-        #expect(error.submission.network == .devnet)
+        #expect(error.outcome == Self.pending)
         #expect(error.cause as? RPCError == Self.rateLimit)
         #expect(await limited.requests.count == 1)
     }
@@ -53,7 +54,7 @@ struct SubmissionTests {
     }
 
     @Test
-    func `A local receipt carries the reviewed last valid block height`() async throws {
+    func `A local pending outcome carries the reviewed last valid block height`() async throws {
         let fixture = try SigningFixture()
         let checks = try HTTPResponses.signing()
         let signed = try await Signer(validator: PreparationValidator(rpc: checks.client), store: SigningRecoveryStore(recovery: fixture.recovery))
@@ -61,13 +62,13 @@ struct SubmissionTests {
         let signature = try #require(signed.signature)
         let accepted = HTTPResponses(["sendTransaction": [try HTTPResponses.json(signature)]])
 
-        let receipt = try await Submitter(rpc: accepted.client).submit(signed)
+        let outcome = try await Submitter(rpc: accepted.client).submit(signed)
 
-        #expect(receipt == Submission(signature: signature, network: .devnet, lastValidBlockHeight: 550))
+        #expect(outcome == Outcome(signature: signature, network: .devnet, lastValidBlockHeight: 550, status: .pending))
     }
 
     @Test
-    func `Submitting a review returns its receipt without waiting for confirmation`() async throws {
+    func `Submitting a review returns its pending outcome without waiting for confirmation`() async throws {
         let expected = try ExternalFixture.preparation()
         let preparationHTTP = try HTTPResponses.preparation(fixture: expected)
         let checks = try HTTPResponses.signing(fee: 15_000)
@@ -80,9 +81,9 @@ struct SubmissionTests {
         )
         let simulation = try await coordinator.simulate(expected.transaction, using: SigningFixture().account)
 
-        let receipt = try await coordinator.submit(simulation)
+        let outcome = try await coordinator.submit(simulation)
 
-        #expect(receipt == Submission(signature: ExternalFixture.signature, network: .devnet, lastValidBlockHeight: 650))
+        #expect(outcome == Self.pending)
         #expect(try await accepted.requests.map { try $0.rpcMethod } == ["sendTransaction"])
         #expect(try await checks.requests.allSatisfy { try $0.rpcMethod != "getSignatureStatuses" })
     }
@@ -111,9 +112,5 @@ struct SubmissionTests {
             try await Submitter(rpc: SolanaRPC(network: .devnet)).submit(input)
         }
         #expect(error.cause as? SubmitterError == .transactionMismatch)
-    }
-
-    private func configuration() throws -> Configuration {
-        try Configuration(priorityFeeLamports: 0, computeUnitLimit: 20_000, loadedAccountsDataSizeLimit: 65_536)
     }
 }
