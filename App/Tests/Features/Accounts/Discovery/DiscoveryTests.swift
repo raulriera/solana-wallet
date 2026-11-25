@@ -23,8 +23,8 @@ struct DiscoveryTests {
         let addresses = try requestedAddresses(requests[0])
         try #require(addresses.count == 20)
         #expect(accounts.map(\.address) == [addresses[14], addresses[19]])
-        let encoded = try #require(requests[0].httpBody)
-        #expect(!String(decoding: encoded, as: UTF8.self).contains("abandon"))
+        let body = String(decoding: try #require(requests[0].httpBody), as: UTF8.self)
+        #expect(!ThrowawayWallet.words.split(separator: " ").contains { body.contains($0) })
     }
 
     @Test
