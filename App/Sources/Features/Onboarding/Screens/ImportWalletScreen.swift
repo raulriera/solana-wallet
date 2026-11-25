@@ -90,17 +90,3 @@ struct ImportWalletScreen: View {
         submission.submit(input.phrase, passphrase: input.passphrase)
     }
 }
-
-#Preview {
-    NavigationStack {
-        ImportWalletScreen(submission: PreviewImportSubmission())
-    }
-    .tint(RenderedPalette(OriginalAppearance.palette).primary)
-}
-
-/// An import workflow for previews that imports nothing.
-private struct PreviewImportSubmission: ImportSubmitting {
-    var isPending: Bool { false }
-
-    func submit(_ phrase: String, passphrase: String) {}
-}

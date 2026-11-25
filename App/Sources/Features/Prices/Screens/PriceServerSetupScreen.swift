@@ -16,17 +16,3 @@ struct PriceServerSetupScreen<Submission: ProviderSubmitting>: ProviderSetupScre
         ) {} help: {}
     }
 }
-
-#Preview("Empty") {
-    NavigationStack {
-        PriceServerSetupScreen(submission: PreviewSubmission<CustomPriceError>(rejection: nil))
-    }
-    .tint(RenderedPalette(OriginalAppearance.palette).primary)
-}
-
-#Preview("Rejected") {
-    NavigationStack {
-        PriceServerSetupScreen(submission: PreviewSubmission(rejection: CustomPriceError.unreachable))
-    }
-    .tint(RenderedPalette(OriginalAppearance.palette).primary)
-}
