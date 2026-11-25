@@ -20,16 +20,12 @@ enum PrivateBalanceFixtures {
     nonisolated static let solHolding = Holding(asset: .nativeSOL, balance: TokenAmount(lamports: 2_000_000_000),
                                                 imageURL: nil, valuation: nil)
 
-    static func recovery() throws -> Recovery {
-        try PublicWallet.recovery()
-    }
-
     static func recoveryStore() throws -> SecurityRecoveryStore {
-        SecurityRecoveryStore(records: [recoveryID: try recovery()])
+        SecurityRecoveryStore(records: [recoveryID: try ThrowawayWallet.recovery()])
     }
 
     static func account(index: UInt32 = 0) async throws -> widgets.Account {
-        try await PublicWallet.account(index: index, recoveryID: recoveryID)
+        try await ThrowawayWallet.account(index: index, recoveryID: recoveryID)
     }
 
     static func customRPC() throws -> RPCSettings.Provider {
@@ -37,7 +33,7 @@ enum PrivateBalanceFixtures {
     }
 
     static func keys(for account: widgets.Account) async throws -> PrivateBalanceKeyRecord {
-        let recovery = try recovery()
+        let recovery = try ThrowawayWallet.recovery()
         return PrivateBalanceKeyRecord(try await Wallet().privateBalanceKeys(
             using: recovery.phrase, expectedAddress: account.address.value, passphrase: recovery.passphrase,
             path: account.path
@@ -120,7 +116,7 @@ enum PrivateBalanceFixtures {
     static func nonTreeAccountReads(of responses: HTTPResponses) async -> Int {
         let trees = (try? ShieldedPool.tree(id: 1).value).map { [$0] }
         return await responses.requests.count { request in
-            (try? request.rpcMethod) == GetMultipleAccounts.method && (try? request.rpcParameters.first as? [String]) != trees
+            (try? request.rpcMethod) == GetMultipleAccounts.method && (try? requestedAddresses(request)) != trees
         }
     }
 

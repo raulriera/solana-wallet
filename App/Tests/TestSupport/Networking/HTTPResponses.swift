@@ -180,12 +180,7 @@ actor HTTPResponses: HTTPTransport {
 }
 
 extension URLRequest {
-    func jsonBody() throws -> [String: Any] {
-        let data = try #require(httpBody)
-        return try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
-    }
+    var rpcMethod: String { get throws { try #require(requestBody(self)["method"] as? String) } }
 
-    var rpcMethod: String { get throws { try #require(jsonBody()["method"] as? String) } }
-
-    var rpcParameters: [Any] { get throws { try #require(jsonBody()["params"] as? [Any]) } }
+    var rpcParameters: [Any] { get throws { try #require(requestBody(self)["params"] as? [Any]) } }
 }

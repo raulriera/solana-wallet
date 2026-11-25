@@ -16,7 +16,7 @@ struct SettingsSceneTests {
         let rpcStore = RPCStore.inMemory(selection: .helius)
         let first = RPCCoordinator.inMemory(rpcStore)
         let settings = makeSettings(in: fixture)
-        let wallet = try await PublicWalletAccounts()
+        let wallet = try await ThrowawayWalletAccounts()
         let rendered = AsyncStream<Int>.makeStream()
         let hosted = try HostedWindow(SettingsSceneRoot(
             scene: SettingsScene(settings: settings, account: .constant(wallet.first), network: .constant(.mainnet),
@@ -55,7 +55,7 @@ struct SettingsSceneTests {
     private func presentsAlert(rpc: RPCCoordinator, prices: PricesCoordinator) async throws -> Bool {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
-        let wallet = try await PublicWalletAccounts()
+        let wallet = try await ThrowawayWalletAccounts()
         let rendered = AsyncStream<Int>.makeStream()
         let hosted = try HostedWindow(SettingsSceneRoot(
             scene: SettingsScene(settings: makeSettings(in: fixture), account: .constant(wallet.first),
@@ -91,7 +91,7 @@ private struct SettingsSceneRoot: View {
     let generation: Int
     let rendered: AsyncStream<Int>.Continuation
     let rpcStore: RPCStore
-    let wallet: PublicWalletAccounts
+    let wallet: ThrowawayWalletAccounts
 
     var body: some View {
         scene

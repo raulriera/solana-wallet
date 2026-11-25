@@ -25,14 +25,14 @@ struct SeedDerivationTests {
         ("e\u{301}\u{F73}", "563d43dc9596a90edeecaea668eae16af98c3cac0f9b1d1dd63b22a5c13fba279a0e4cc8c0ca62d452a6d1541dc93b7adfb8f1679806594a8c468e8426906063"),
     ])
     func `Passphrases derive the seed of their NFKD form`(passphrase: String, seed: String) throws {
-        let derived = try SeedDerivation.seed(for: PublicRecovery.phrase(), passphrase: passphrase)
+        let derived = try SeedDerivation.seed(for: ThrowawayWallet.phrase(), passphrase: passphrase)
 
         #expect(derived == (try fixtureBytes(seed)))
     }
 
     @Test
     func `A cancelled task derives no seed`() async throws {
-        let phrase = try PublicRecovery.phrase()
+        let phrase = try ThrowawayWallet.phrase()
         let task = Task {
             withUnsafeCurrentTask { $0?.cancel() }
             return try SeedDerivation.seed(for: phrase, passphrase: "")

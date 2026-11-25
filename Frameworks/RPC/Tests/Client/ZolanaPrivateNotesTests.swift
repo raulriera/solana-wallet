@@ -336,7 +336,7 @@ struct ZolanaPrivateNotesTests {
     @Test
     func `Merkle proof reads post the tree and leaves below the endpoint`() async throws {
         let transport = StubTransport { request in
-            let leaves = try #require(try Fixture.call(request).params["leaves"] as? [String])
+            let leaves = try MerkleProofReplies.requestedLeaves(in: request).leaves
             let bytes = try leaves.map { try #require(Base58.decode($0, byteCount: 32)?.first) }
             return try reply(to: request, payload: Fixture.proofs(bytes.map { Fixture.merkleProof(leaf: $0) }))
         }
@@ -392,7 +392,7 @@ struct ZolanaPrivateNotesTests {
         let proofs = try await rpc.merkleProofs(for: leaves, inTree: Fixture.hash(9))
 
         #expect(proofs.map(\.leaf) == leaves)
-        let groups = try await transport.requests.map { try #require(try Fixture.call($0).params["leaves"] as? [String]) }
+        let groups = try await transport.requests.map { try MerkleProofReplies.requestedLeaves(in: $0).leaves }
         #expect(Set(groups) == [Array(encoded[0..<64]), Array(encoded[64..<128]), Array(encoded[128...])])
     }
 
@@ -422,7 +422,7 @@ struct ZolanaPrivateNotesTests {
 
     private static func answeringProofs(_ answer: @escaping @Sendable ([String]) -> [String]) -> StubTransport {
         StubTransport { request in
-            let leaves = try #require(try Fixture.call(request).params["leaves"] as? [String])
+            let leaves = try MerkleProofReplies.requestedLeaves(in: request).leaves
             return try reply(to: request, payload: Fixture.proofs(answer(leaves).map { Fixture.merkleProof(leafHash: $0) }))
         }
     }

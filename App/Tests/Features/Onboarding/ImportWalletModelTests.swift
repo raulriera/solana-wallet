@@ -8,8 +8,6 @@ import Wallet
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct ImportWalletModelTests {
-    private static let phrase = OnboardingCoordinatorTests.phrase
-
     @Test
     func `Repeated submission and task evaluation complete one accepted import`() async throws {
         let recovery = OnboardingRecoveryStore()
@@ -17,16 +15,16 @@ struct ImportWalletModelTests {
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts)
         let submission = ImportWalletModel(coordinator: coordinator)
         submission.present()
-        submission.submit(Self.phrase, passphrase: " TrEzOr ")
+        submission.submit(ThrowawayWallet.words, passphrase: " TrEzOr ")
         let attempt = try #require(submission.attempt)
-        submission.submit(Self.phrase, passphrase: "different")
+        submission.submit(ThrowawayWallet.words, passphrase: "different")
         #expect(submission.attempt == attempt)
         #expect(submission.isPending)
         #expect(await recovery.saves.isEmpty)
 
         await submission.run(attempt)
         await submission.run(attempt)
-        submission.submit(Self.phrase, passphrase: "different")
+        submission.submit(ThrowawayWallet.words, passphrase: "different")
         #expect(submission.attempt == nil)
 
         let account = try #require(coordinator.account)
@@ -47,14 +45,14 @@ struct ImportWalletModelTests {
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(), recovery: recovery, accounts: .inMemory(storage))
         let submission = ImportWalletModel(coordinator: coordinator)
         submission.present()
-        submission.submit(Self.phrase, passphrase: "TREZOR")
+        submission.submit(ThrowawayWallet.words, passphrase: "TREZOR")
         await submission.run(submission.attempt)
         #expect(submission.error == .saveFailed)
         #expect(coordinator.finishedAccount == nil)
         let recoveryID = try #require(await recovery.saves.first)
 
         await storage.failSaving(false)
-        submission.submit("  " + Self.phrase.replacingOccurrences(of: " ", with: "\n") + "  ", passphrase: "TREZOR")
+        submission.submit("  " + ThrowawayWallet.words.replacingOccurrences(of: " ", with: "\n") + "  ", passphrase: "TREZOR")
         #expect(submission.error == nil)
         await submission.run(submission.attempt)
 
@@ -73,12 +71,12 @@ struct ImportWalletModelTests {
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: .inMemory(storage))
         let submission = ImportWalletModel(coordinator: coordinator)
         submission.present()
-        submission.submit(Self.phrase, passphrase: "TREZOR")
+        submission.submit(ThrowawayWallet.words, passphrase: "TREZOR")
         await submission.run(submission.attempt)
         let original = try #require(await recovery.saves.first)
 
         await storage.failSaving(false)
-        submission.submit(Self.phrase, passphrase: passphrase)
+        submission.submit(ThrowawayWallet.words, passphrase: passphrase)
         await submission.run(submission.attempt)
 
         let imported = try #require(coordinator.account)
@@ -97,14 +95,14 @@ struct ImportWalletModelTests {
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: wallet, recovery: recovery, accounts: accounts)
         let submission = ImportWalletModel(coordinator: coordinator)
         submission.present()
-        submission.submit(Self.phrase, passphrase: "TREZOR")
+        submission.submit(ThrowawayWallet.words, passphrase: "TREZOR")
         let attempt = try #require(submission.attempt)
         await submission.run(attempt)
         #expect(submission.error == .preparationFailed)
         #expect(!submission.isPending)
         #expect(coordinator.recovery == nil)
 
-        submission.submit(Self.phrase, passphrase: "TREZOR")
+        submission.submit(ThrowawayWallet.words, passphrase: "TREZOR")
         #expect(submission.attempt != nil)
         #expect(submission.attempt != attempt)
         #expect(submission.error == nil)
@@ -121,7 +119,7 @@ struct ImportWalletModelTests {
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(), recovery: recovery, accounts: accounts)
         let submission = ImportWalletModel(coordinator: coordinator)
         submission.present()
-        submission.submit(Self.phrase, passphrase: "TREZOR")
+        submission.submit(ThrowawayWallet.words, passphrase: "TREZOR")
 
         await submission.run(submission.attempt)
 
@@ -137,7 +135,7 @@ struct ImportWalletModelTests {
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts)
         let submission = ImportWalletModel(coordinator: coordinator)
         submission.present()
-        submission.submit(Self.phrase, passphrase: "TREZOR")
+        submission.submit(ThrowawayWallet.words, passphrase: "TREZOR")
         let attempt = try #require(submission.attempt)
         submission.isPresented = false
         await submission.run(attempt)

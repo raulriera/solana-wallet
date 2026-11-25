@@ -30,10 +30,7 @@ struct SigningFixture {
     init() throws {
         let base = try PreparationFixture.preparation()
         let source = try PreparationFixture.source(base)
-        recovery = Recovery(
-            phrase: try RecoveryPhrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"),
-            passphrase: "TREZOR"
-        )
+        recovery = try ThrowawayWallet.recovery(passphrase: "TREZOR")
         transfer = try SystemProgram.transfer(from: Address("8CW93AFYFKj2rKZRq3YjLesb4XbgtAiq8k2FgfruVZL5"), to: source.instruction.accounts[1].address, lamports: 1)
         account = Account(id: UUID(), recoveryID: UUID(), address: transfer.accounts[0].address, path: try DerivationPath("m/44'/501'/1'/0'"))
         oneTime = try OneTimeAccount(secret: SymmetricKey(data: Data(repeating: 7, count: 32)))

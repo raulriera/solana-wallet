@@ -9,13 +9,13 @@ import Wallet
 struct AccountCreationTests {
     @Test
     func `A new account is derived from the wallet's recovery`() async throws {
-        let wallet = try await PublicWalletAccounts()
+        let wallet = try await ThrowawayWalletAccounts()
         let recoveryID = wallet.first.recoveryID
         let path = try DerivationPath("m/44'/501'/0'")
 
         let account = try await wallet.creation.account(at: path, inWallet: recoveryID)
 
-        #expect(account.address.value == PublicWallet.address)
+        #expect(account.address.value == ThrowawayWallet.address)
         #expect(account.path == path)
         #expect(account.recoveryID == recoveryID)
         #expect(account.id != wallet.first.id)

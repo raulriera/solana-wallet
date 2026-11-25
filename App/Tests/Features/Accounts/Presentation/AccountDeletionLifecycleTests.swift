@@ -7,7 +7,7 @@ import Testing
 struct AccountDeletionLifecycleTests {
     @Test
     func `A failed deletion shows its alert`() async throws {
-        let wallet = try await PublicWalletAccounts()
+        let wallet = try await ThrowawayWalletAccounts()
         await wallet.storage.failSaving()
         let deletion = AccountDeletionModel()
         let screen = AccountsScreen(accounts: wallet.store.accounts, selection: .constant(wallet.first),

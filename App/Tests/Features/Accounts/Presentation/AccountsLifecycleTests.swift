@@ -8,7 +8,7 @@ import Testing
 struct AccountsLifecycleTests {
     @Test
     func `The list runs a confirmed deletion`() async throws {
-        let wallet = try await PublicWalletAccounts()
+        let wallet = try await ThrowawayWalletAccounts()
         let deletion = AccountDeletionModel()
         let screen = AccountsScreen(accounts: wallet.store.accounts, selection: .constant(wallet.first),
                                     addition: AccountAdditionModel(), deletion: deletion, path: .constant([]))

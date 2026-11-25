@@ -52,7 +52,7 @@ struct PrivateBalanceKeyRecordTests {
     @Test
     func `Kept keys derive the account's one-time accounts`() async throws {
         let account = try await PrivateBalanceFixtures.account()
-        let recovery = try PrivateBalanceFixtures.recovery()
+        let recovery = try ThrowawayWallet.recovery()
         let keys = try await Wallet().privateBalanceKeys(using: recovery.phrase, expectedAddress: account.address.value,
                                                          passphrase: recovery.passphrase, path: account.path)
 

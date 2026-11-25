@@ -9,7 +9,7 @@ import Wallet
 struct AccountsScreenTests {
     @Test
     func `Add Account saves the wallet's next account`() async throws {
-        let wallet = try await PublicWalletAccounts()
+        let wallet = try await ThrowawayWalletAccounts()
         let addition = AccountAdditionModel()
         let screen = AccountsScreen(accounts: wallet.store.accounts, selection: .constant(wallet.first),
                                     addition: addition, deletion: AccountDeletionModel(), path: .constant([]))

@@ -7,7 +7,7 @@ import Testing
 struct AccountRenameLifecycleTests {
     @Test
     func `A failed rename shows its alert`() async throws {
-        let wallet = try await PublicWalletAccounts()
+        let wallet = try await ThrowawayWalletAccounts()
         await wallet.storage.failSaving()
         let rename = AccountRenameModel()
         let screen = AccountScreen(account: wallet.first, canDelete: true, rename: rename,

@@ -23,10 +23,7 @@ struct UITestWalletTests {
     func `Recovery words save the imported wallet's first account`() async {
         let (onboarding, recovery, accounts) = Self.onboarding()
 
-        await UITestWallet.prepare(
-            "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
-            with: onboarding
-        )
+        await UITestWallet.prepare(ThrowawayWallet.words, with: onboarding)
 
         #expect(accounts.accounts.map(\.address.value) == ["HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk"])
         #expect(await recovery.saves == accounts.accounts.map(\.recoveryID))

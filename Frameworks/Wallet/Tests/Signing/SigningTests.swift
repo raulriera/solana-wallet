@@ -14,7 +14,7 @@ struct SigningTests {
         let signer: any MessageSigning = Wallet()
         let message = Data("public signing fixture".utf8)
         let signature = try await signer.signature(
-            for: message, using: PublicRecovery.phrase(), expectedAddress: address,
+            for: message, using: ThrowawayWallet.phrase(), expectedAddress: address,
             passphrase: passphrase, path: DerivationPath(path)
         )
         let key = try Curve25519.Signing.PublicKey(rawRepresentation: #require(Data(base64Encoded: publicKey)))
@@ -24,14 +24,14 @@ struct SigningTests {
     }
 
     @Test(arguments: [
-        (PublicRecovery.addresses[0], "different account"),
+        (ThrowawayWallet.addresses[0], "different account"),
         ("HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3D\u{212A}pqk", ""),
     ])
     func `Signing rejects recovery material for another sender or a Unicode lookalike of its address`(
         address: String,
         passphrase: String
     ) async throws {
-        let recovery = try PublicRecovery.phrase()
+        let recovery = try ThrowawayWallet.phrase()
 
         await #expect(throws: SigningError.signerMismatch) {
             try await Wallet().signature(
@@ -43,12 +43,12 @@ struct SigningTests {
 
     @Test(arguments: try PrivateBalanceVectors.guardVectors(named: ["bare_payload", "offchain_wrapped"]))
     func `Signing refuses Solana Rings derivation inputs`(_ vector: PrivateBalanceVectors.GuardVector) async throws {
-        let recovery = try PublicRecovery.phrase()
+        let recovery = try ThrowawayWallet.phrase()
         let message = Data(try fixtureBytes(vector.message))
 
         await #expect(throws: SigningError.reservedMessage) {
             try await Wallet().signature(
-                for: message, using: recovery, expectedAddress: PublicRecovery.addresses[0],
+                for: message, using: recovery, expectedAddress: ThrowawayWallet.addresses[0],
                 passphrase: "", path: .solana
             )
         }
@@ -59,8 +59,8 @@ struct SigningTests {
         let message = Data(try fixtureBytes(vector.message))
 
         let signature = try await Wallet().signature(
-            for: message, using: PublicRecovery.phrase(),
-            expectedAddress: PublicRecovery.addresses[0], passphrase: "", path: .solana
+            for: message, using: ThrowawayWallet.phrase(),
+            expectedAddress: ThrowawayWallet.addresses[0], passphrase: "", path: .solana
         )
         let account = try #require(PrivateBalanceVectors.load().accounts.first)
         let key = try Curve25519.Signing.PublicKey(rawRepresentation: fixtureBytes(account.signingPubkey))
@@ -70,13 +70,13 @@ struct SigningTests {
 
     @Test
     func `Cancelled signing throws CancellationError`() async throws {
-        let recovery = try PublicRecovery.phrase()
+        let recovery = try ThrowawayWallet.phrase()
         let (gate, continuation) = AsyncStream<Void>.makeStream()
         let task = Task { @concurrent in
             for await _ in gate {}
             return try await Wallet().signature(
                 for: Data("public signing fixture".utf8), using: recovery,
-                expectedAddress: PublicRecovery.addresses[0], passphrase: "", path: .solana
+                expectedAddress: ThrowawayWallet.addresses[0], passphrase: "", path: .solana
             )
         }
         task.cancel()

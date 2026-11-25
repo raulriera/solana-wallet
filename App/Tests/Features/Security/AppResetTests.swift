@@ -57,7 +57,7 @@ struct AppResetTests {
         let storage = ResetStorage()
         defer { try? FileManager.default.removeItem(at: storage.directory) }
         let gate = Suspension()
-        let responses = HTTPResponses(["getMultipleAccounts": [#"{"context":{"slot":1},"value":[null]}"#]],
+        let responses = HTTPResponses(["getMultipleAccounts": [AccountReplies.accounts([nil])]],
                                       gate: gate, heldMethod: "getMultipleAccounts")
         let rpcStore = RPCStore.inMemory()
         let service = Portfolio(rpc: responses.rpcProvider(network: .devnet, rpcStore: rpcStore),
@@ -65,7 +65,7 @@ struct AppResetTests {
                                 tokenLists: FileTokenListStore(directory: storage.directory.appending(path: "TokenLists")))
         let portfolios = PortfolioStore(prices: JupiterPriceProvider(transport: responses), currency: .inMemory(),
                                         rpcStore: rpcStore, priceStore: .inMemory()) { _, _ in service }
-        let account = try Account.publicWallet()
+        let account = try await ThrowawayWallet.account(recoveryID: UUID())
         let viewing = Task { await portfolios.observe(account, on: .devnet) }
         defer { viewing.cancel() }
         await gate.waitUntilStarted()

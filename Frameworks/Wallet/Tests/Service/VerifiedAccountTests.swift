@@ -11,7 +11,7 @@ struct VerifiedAccountTests {
         let vector = try #require(BIP39Vector.examples().first)
 
         let seed = try Wallet.withVerifiedAccount(
-            PublicRecovery.phrase(), passphrase: "TREZOR", path: .solana,
+            ThrowawayWallet.phrase(), passphrase: "TREZOR", path: .solana,
             expectedAddress: "7zSmbu6gKkb6HB7UDPtHYjwCWuBHU1D4TpNZFm4sndQe", mismatch: CheckError.mismatch
         ) { _, seed in seed }
 
@@ -19,12 +19,12 @@ struct VerifiedAccountTests {
     }
 
     @Test(arguments: [
-        (PublicRecovery.addresses[0], "TREZOR"),
-        (PublicRecovery.addresses[1], ""),
+        (ThrowawayWallet.addresses[0], "TREZOR"),
+        (ThrowawayWallet.addresses[1], ""),
         ("HAgk14JpMQLgt6rVgv7cBQFJ", ""),
     ])
     func `Another account or a malformed address throws the supplied error`(address: String, passphrase: String) throws {
-        let recovery = try PublicRecovery.phrase()
+        let recovery = try ThrowawayWallet.phrase()
 
         #expect(throws: CheckError.mismatch) {
             try Wallet.withVerifiedAccount(

@@ -4,9 +4,9 @@ import Vault
 import Wallet
 @testable import widgets
 
-extension PublicWallet {
-    static func recovery() throws -> Recovery {
-        Recovery(phrase: try RecoveryPhrase(words), passphrase: "")
+extension ThrowawayWallet {
+    static func recovery(passphrase: String = "") throws -> Recovery {
+        Recovery(phrase: try RecoveryPhrase(words), passphrase: passphrase)
     }
 
     static func account(index: UInt32 = 0, recoveryID: UUID) async throws -> widgets.Account {

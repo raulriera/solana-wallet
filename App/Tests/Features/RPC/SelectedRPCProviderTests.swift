@@ -16,7 +16,7 @@ struct SelectedRPCProviderTests {
         let client = responses.rpcProvider(rpcStore: .inMemory(selection: .helius))
 
         await #expect(throws: RPCProviderError.missingKey) { _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset)) }
-        await #expect(throws: RPCProviderError.missingKey) { _ = try await client.changedSlots(for: [PublicWallet.address]) }
+        await #expect(throws: RPCProviderError.missingKey) { _ = try await client.changedSlots(for: [ThrowawayWallet.address]) }
         await #expect(throws: RPCProviderError.missingKey) { _ = try await client.events(for: ExternalFixture.signature) }
         await #expect(throws: RPCProviderError.missingKey) { _ = try await client.logos(for: [HTTPResponses.keyCheckAsset]) }
         #expect(await responses.requests.isEmpty)
@@ -103,7 +103,7 @@ struct SelectedRPCProviderTests {
         let asset = HTTPResponses.keyCheckAsset
 
         await #expect(throws: RPCProviderError.unsupportedNetwork) { _ = try await client.send(GetAsset(id: asset)) }
-        await #expect(throws: RPCProviderError.unsupportedNetwork) { _ = try await client.changedSlots(for: [PublicWallet.address]) }
+        await #expect(throws: RPCProviderError.unsupportedNetwork) { _ = try await client.changedSlots(for: [ThrowawayWallet.address]) }
         await #expect(throws: RPCProviderError.unsupportedNetwork) { _ = try await client.events(for: ExternalFixture.signature) }
         await #expect(throws: RPCProviderError.unsupportedNetwork) { _ = try await client.logos(for: [asset]) }
         #expect(try await client.capabilities.isEmpty)
@@ -208,10 +208,9 @@ struct SelectedRPCProviderTests {
     }
 
     nonisolated private static func merkleProofs(answering request: URLRequest) throws -> String {
-        let params = try #require(try request.jsonBody()["params"] as? [String: Any])
-        let tree = try #require(params["treeAccount"] as? String)
+        let (tree, leaves) = try MerkleProofReplies.requestedLeaves(in: request)
         let zero = Base58.encode([UInt8](repeating: 0, count: 32))
-        let proofs = try #require(params["leaves"] as? [String]).map { leaf in
+        let proofs = leaves.map { leaf in
             MerkleProofReplies.proof(leaf: leaf, tree: tree, path: Array(repeating: zero, count: 32), leafIndex: 0, root: zero,
                                      rootIndex: 0)
         }
