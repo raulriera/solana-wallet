@@ -1,32 +1,29 @@
 import SwiftUI
 
-/// A button style for a round keypad key drawn in the ``KeypadStyle``.
+/// A button style for a round keypad key.
 struct KeypadKeyButtonStyle: ButtonStyle {
-    @Environment(\.keypadStyle) private var style
     @Environment(\.isEnabled) private var isEnabled
-    /// Whether the key shows the style's background.
-    let hasBackground: Bool
+    let isBordered: Bool
 
     func makeBody(configuration: Configuration) -> some View {
-        let background = hasBackground ? style.keyBackground : .none
         configuration.label
             .font(.largeTitle)
             .minimumScaleFactor(0.5)
             .accessibilityShowsLargeContentViewer()
             .accessibilityAddTraits(.isKeyboardKey)
             .foregroundStyle(Color.primary.opacity(isEnabled ? 1 : 0.4))
-            .opacity(configuration.isPressed && background != .glass ? 0.6 : 1)
+            .opacity(configuration.isPressed && !isBordered ? 0.6 : 1)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .aspectRatio(1, contentMode: .fit)
             .contentShape(.circle)
-            .glassEffect(background == .glass ? .regular.interactive() : .identity, in: .circle)
+            .glassEffect(isBordered ? .regular.interactive() : .identity, in: .circle)
             .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }
 
 extension ButtonStyle where Self == KeypadKeyButtonStyle {
-    static var keypadKey: Self { Self(hasBackground: true) }
+    static var keypadKey: Self { Self(isBordered: true) }
 
-    /// A key that shows only its symbol, without a background.
-    static var keypadSymbolKey: Self { Self(hasBackground: false) }
+    /// A borderless key that shows only its symbol.
+    static var keypadSymbolKey: Self { Self(isBordered: false) }
 }
