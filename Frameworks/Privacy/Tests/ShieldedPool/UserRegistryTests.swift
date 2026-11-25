@@ -62,7 +62,7 @@ struct UserRegistryTests {
         let transport = StubTransport.replying(accounts: [
             AccountReplies.account(owner: try RegistryVectors.load().program, data: record),
             nil,
-            AccountReplies.account(owner: "11111111111111111111111111111111"),
+            AccountReplies.systemAccount(lamports: 1),
         ])
 
         let recipients = try await UserRegistry.recipients(of: owners, using: SolanaRPC(network: .devnet, transport: transport))

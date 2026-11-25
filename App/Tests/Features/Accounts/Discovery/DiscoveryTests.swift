@@ -7,11 +7,11 @@ import Wallet
 struct DiscoveryTests {
     @Test
     func `Discovery checks twenty addresses once and keeps only SOL-funded accounts`() async throws {
-        var native = Array(repeating: "null", count: 20)
-        native[0] = nativeAccount(lamports: 0)
-        native[14] = nativeAccount(lamports: 1)
-        native[19] = nativeAccount(lamports: 2_000_000)
-        let http = HTTPResponses(["getMultipleAccounts": [accountResponse(native)]])
+        var native = [String?](repeating: nil, count: 20)
+        native[0] = AccountReplies.systemAccount(lamports: 0)
+        native[14] = AccountReplies.systemAccount(lamports: 1)
+        native[19] = AccountReplies.systemAccount(lamports: 2_000_000)
+        let http = HTTPResponses(["getMultipleAccounts": [AccountReplies.accounts(native)]])
         let service: any AccountDiscovering = AccountDiscovery(rpc: http.client)
 
         let accounts = try await service.discover(for: RecoveryPhrase(PublicWallet.words), passphrase: "")
@@ -51,13 +51,5 @@ struct DiscoveryTests {
         await #expect(throws: CancellationError.self) { try await operation.value }
         #expect(await http.wasCancelled)
         #expect(await http.requests.count == 1)
-    }
-
-    private func nativeAccount(lamports: UInt64) -> String {
-        #"{"owner":"11111111111111111111111111111111","lamports":\#(lamports),"executable":false,"data":["","base64"]}"#
-    }
-
-    private func accountResponse(_ values: [String]) -> String {
-        #"{"context":{"slot":400},"value":[\#(values.joined(separator: ","))]}"#
     }
 }

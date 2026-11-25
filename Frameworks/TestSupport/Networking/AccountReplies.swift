@@ -8,6 +8,10 @@ nonisolated enum AccountReplies {
         """
     }
 
+    static func systemAccount(lamports: UInt64) -> String {
+        account(owner: "11111111111111111111111111111111", lamports: lamports)
+    }
+
     static func accounts(_ accounts: [String?]) -> String {
         #"{"context":{"slot":7},"value":[\#(accounts.map { $0 ?? "null" }.joined(separator: ","))]}"#
     }

@@ -131,7 +131,7 @@ struct PrivateBalancesRedeemCodesTests {
         let recipient = try await Self.recipient(registered: true)
         let oneTime = try Self.giftedAccount()
         let responses = try RedeemCodeFixtures.responses(accounts: [
-            oneTime.address: RedeemCodeFixtures.systemAccount(lamports: RedeemCodeFixtures.reserve),
+            oneTime.address: AccountReplies.systemAccount(lamports: RedeemCodeFixtures.reserve),
             try RedeemCodeFixtures.recordAddress(of: recipient.account): recipient.record,
         ], deposits: [try RedeemCodeFixtures.deposit(1_000_000, to: oneTime, leafIndex: 3)])
         let balances = try await Self.balances(responses, keys: recipient.storedKeys, notes: recipient.notes)
@@ -167,7 +167,7 @@ struct PrivateBalancesRedeemCodesTests {
         let recipient = try await Self.recipient(registered: false)
         let oneTime = try Self.giftedAccount()
         let responses = try RedeemCodeFixtures.responses(accounts: [
-            oneTime.address: RedeemCodeFixtures.systemAccount(lamports: RedeemCodeFixtures.reserve),
+            oneTime.address: AccountReplies.systemAccount(lamports: RedeemCodeFixtures.reserve),
         ], deposits: [try RedeemCodeFixtures.deposit(1_000_000, to: oneTime, leafIndex: 3)])
         let balances = try await Self.balances(responses, keys: recipient.storedKeys, notes: recipient.notes)
 
@@ -189,7 +189,7 @@ struct PrivateBalancesRedeemCodesTests {
         let recipient = try await Self.recipient(registered: false)
         let oneTime = try Self.giftedAccount()
         let responses = try RedeemCodeFixtures.responses(accounts: [
-            oneTime.address: RedeemCodeFixtures.systemAccount(lamports: RedeemCodeFixtures.reserve),
+            oneTime.address: AccountReplies.systemAccount(lamports: RedeemCodeFixtures.reserve),
             try ShieldedPool.tree(id: 0).value: UTXOTrees.emptyTree(feePerTree: 100),
             try ShieldedPool.tree(id: 1).value: UTXOTrees.emptyTree(feePerTree: RedeemCodeFixtures.treeFee),
         ], deposits: [try RedeemCodeFixtures.deposit(1_000_000, to: oneTime, leafIndex: 3)], outputTreeID: 0)
@@ -226,7 +226,7 @@ struct PrivateBalancesRedeemCodesTests {
         let recipient = try await Self.recipient(registered: true)
         let oneTime = try Self.giftedAccount()
         let responses = try RedeemCodeFixtures.responses(accounts: [
-            oneTime.address: RedeemCodeFixtures.systemAccount(lamports: RedeemCodeFixtures.reserve),
+            oneTime.address: AccountReplies.systemAccount(lamports: RedeemCodeFixtures.reserve),
             try RedeemCodeFixtures.recordAddress(of: recipient.account): recipient.record,
         ], deposits: [])
 
@@ -255,7 +255,7 @@ struct PrivateBalancesRedeemCodesTests {
         let sender = try await Self.sender()
         let oneTime = try sender.keys.oneTimeAccount(at: 1)
         let responses = try RedeemCodeFixtures.responses(accounts: [
-            oneTime.address: RedeemCodeFixtures.systemAccount(lamports: RedeemCodeFixtures.reserve),
+            oneTime.address: AccountReplies.systemAccount(lamports: RedeemCodeFixtures.reserve),
             try RedeemCodeFixtures.recordAddress(of: sender.account): sender.record,
         ], deposits: [sender.deposit, try RedeemCodeFixtures.deposit(1_000, to: oneTime, leafIndex: 3)])
         let codes = StoredValue([sender.id: RedeemCodeLedger(records: [Self.record(at: 0), Self.record(at: 1)],
@@ -311,7 +311,7 @@ struct PrivateBalancesRedeemCodesTests {
         let oneTime = try sender.keys.oneTimeAccount(at: 1)
         let accounts = [
             try RedeemCodeFixtures.recordAddress(of: sender.account): sender.record,
-            oneTime.address: RedeemCodeFixtures.systemAccount(lamports: RedeemCodeFixtures.reserve),
+            oneTime.address: AccountReplies.systemAccount(lamports: RedeemCodeFixtures.reserve),
         ]
         let deposits = [sender.deposit, try RedeemCodeFixtures.deposit(1_000, to: oneTime, leafIndex: 3)]
         let responses = try RedeemCodeFixtures.responses(accounts: accounts, deposits: deposits, isFinalized: false)
@@ -329,7 +329,7 @@ struct PrivateBalancesRedeemCodesTests {
         let sender = try await Self.sender()
         let landed = try sender.keys.oneTimeAccount(at: 0)
         let responses = try RedeemCodeFixtures.responses(accounts: [
-            landed.address: RedeemCodeFixtures.systemAccount(lamports: RedeemCodeFixtures.reserve),
+            landed.address: AccountReplies.systemAccount(lamports: RedeemCodeFixtures.reserve),
         ], deposits: [try RedeemCodeFixtures.deposit(700, to: landed, leafIndex: 3)])
         let now = Date.now
         let codes = StoredValue([sender.id: RedeemCodeLedger(pending: [
@@ -356,7 +356,7 @@ struct PrivateBalancesRedeemCodesTests {
         let swept = try sender.keys.oneTimeAccount(at: 0)
         let held = try sender.keys.oneTimeAccount(at: 2)
         let responses = try RedeemCodeFixtures.responses(
-            accounts: [held.address: RedeemCodeFixtures.systemAccount(lamports: 1_400_000)],
+            accounts: [held.address: AccountReplies.systemAccount(lamports: 1_400_000)],
             deposits: [try RedeemCodeFixtures.deposit(500, to: swept, leafIndex: 3),
                        try RedeemCodeFixtures.deposit(700, to: held, leafIndex: 4)],
             spends: [try RedeemCodeFixtures.spend(of: 500, to: swept, leafIndex: 3)]
@@ -381,7 +381,7 @@ struct PrivateBalancesRedeemCodesTests {
         let sender = try await Self.sender()
         let held = try sender.keys.oneTimeAccount(at: 0)
         let responses = try RedeemCodeFixtures.responses(
-            accounts: [held.address: RedeemCodeFixtures.systemAccount(lamports: 1_400_000)],
+            accounts: [held.address: AccountReplies.systemAccount(lamports: 1_400_000)],
             deposits: [try RedeemCodeFixtures.deposit(700, to: held, leafIndex: 3)]
         )
         let balances = try await Self.balances(responses, keys: sender.storedKeys, notes: sender.notes)
@@ -398,7 +398,7 @@ struct PrivateBalancesRedeemCodesTests {
         let sender = try await Self.sender()
         let held = try sender.keys.oneTimeAccount(at: 0)
         let deposits = [try RedeemCodeFixtures.deposit(700, to: held, leafIndex: 3)]
-        let accounts = [held.address: RedeemCodeFixtures.systemAccount(lamports: 1_400_000)]
+        let accounts = [held.address: AccountReplies.systemAccount(lamports: 1_400_000)]
         let lagging = try RedeemCodeFixtures.responses(accounts: accounts, deposits: deposits, isFinalized: false)
         let finalized = try RedeemCodeFixtures.responses(accounts: accounts, deposits: deposits)
         let codes = StoredValue<PrivateBalances.Codes>()

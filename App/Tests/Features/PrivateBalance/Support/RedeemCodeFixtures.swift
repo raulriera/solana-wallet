@@ -25,10 +25,6 @@ enum RedeemCodeFixtures {
         }
     }
 
-    static func systemAccount(lamports: UInt64) -> String {
-        AccountReplies.account(owner: "11111111111111111111111111111111", lamports: lamports)
-    }
-
     static func recordAddress(of account: widgets.Account) throws -> String {
         try UserRegistry.record(of: account.address).address.value
     }
