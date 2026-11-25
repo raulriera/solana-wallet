@@ -33,11 +33,3 @@ struct ReceiveScreen: View {
         .toolbarTitleDisplayMode(.inline)
     }
 }
-
-#Preview {
-    if let address = try? Address("6d8tEyrqPqVbEr6Jpuc7BEyYekeMUTyzHEwdmcAYEmtK") {
-        NavigationStack {
-            ReceiveScreen(address: address, network: .devnet)
-        }
-    }
-}

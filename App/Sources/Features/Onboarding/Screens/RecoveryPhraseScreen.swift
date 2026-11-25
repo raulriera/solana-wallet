@@ -61,22 +61,3 @@ struct RecoveryPhraseScreen: View {
         }
     }
 }
-
-#Preview("Public test phrase") {
-    if let phrase = try? RecoveryPhrase(
-        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
-    {
-        NavigationStack {
-            RecoveryPhraseScreen(initialPhrase: phrase, isSaved: false, pasteboard: PreviewRecoveryPasteboard(),
-                                 continueSetup: {})
-        }
-        .tint(RenderedPalette(OriginalAppearance.palette).primary)
-    }
-}
-
-/// A pasteboard for previews that copies nothing.
-nonisolated private struct PreviewRecoveryPasteboard: RecoveryCopying {
-    let lifetime: Duration = .seconds(60)
-
-    func copy(_ phrase: RecoveryPhrase) {}
-}
