@@ -12,7 +12,7 @@ struct SecurityCoordinatorTests {
     @Test
     func `Showing recovery opens the wallet's backup`() async throws {
         let account = try Account.fixture(index: 0)
-        let recovery = try PublicWallet.recovery()
+        let recovery = try ThrowawayWallet.recovery()
         let coordinator = makeCoordinator(recovery: SecurityRecoveryStore(records: [account.recoveryID: recovery]))
 
         coordinator.showRecovery(for: account)
@@ -30,7 +30,7 @@ struct SecurityCoordinatorTests {
     @Test(arguments: [false, true])
     func `Leaving the backup releases the words`(closesScene: Bool) async throws {
         let account = try Account.fixture(index: 0)
-        let recovery = try PublicWallet.recovery()
+        let recovery = try ThrowawayWallet.recovery()
         let coordinator = makeCoordinator(recovery: SecurityRecoveryStore(records: [account.recoveryID: recovery]))
         coordinator.showRecovery(for: account)
         await coordinator.run(coordinator.attempt)

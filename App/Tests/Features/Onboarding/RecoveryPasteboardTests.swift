@@ -12,9 +12,9 @@ struct RecoveryPasteboardTests {
         let pasteboard = try #require(UIPasteboard(name: UIPasteboard.Name(UUID().uuidString), create: true))
         defer { UIPasteboard.remove(withName: pasteboard.name) }
 
-        RecoveryPasteboard(pasteboard: pasteboard).copy(try RecoveryPhrase(PublicWallet.words))
+        RecoveryPasteboard(pasteboard: pasteboard).copy(try RecoveryPhrase(ThrowawayWallet.words))
 
-        #expect(pasteboard.string == PublicWallet.words)
+        #expect(pasteboard.string == ThrowawayWallet.words)
     }
 
     @Test
@@ -23,7 +23,7 @@ struct RecoveryPasteboardTests {
         defer { UIPasteboard.remove(withName: pasteboard.name) }
         let copying = RecoveryPasteboard(pasteboard: pasteboard, lifetime: .milliseconds(500))
 
-        copying.copy(try RecoveryPhrase(PublicWallet.words))
+        copying.copy(try RecoveryPhrase(ThrowawayWallet.words))
         try #require(pasteboard.hasStrings)
         try await Task.sleep(for: .seconds(1))
 

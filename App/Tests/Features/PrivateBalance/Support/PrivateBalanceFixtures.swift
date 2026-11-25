@@ -21,7 +21,7 @@ enum PrivateBalanceFixtures {
                                                 imageURL: nil, valuation: nil)
 
     static func recovery() throws -> Recovery {
-        try PublicWallet.recovery()
+        try ThrowawayWallet.recovery()
     }
 
     static func recoveryStore() throws -> SecurityRecoveryStore {
@@ -29,7 +29,7 @@ enum PrivateBalanceFixtures {
     }
 
     static func account(index: UInt32 = 0) async throws -> widgets.Account {
-        try await PublicWallet.account(index: index, recoveryID: recoveryID)
+        try await ThrowawayWallet.account(index: index, recoveryID: recoveryID)
     }
 
     static func customRPC() throws -> RPCSettings.Provider {

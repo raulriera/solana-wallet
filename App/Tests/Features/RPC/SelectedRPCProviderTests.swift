@@ -16,7 +16,7 @@ struct SelectedRPCProviderTests {
         let client = responses.rpcProvider(rpcStore: .inMemory(selection: .helius))
 
         await #expect(throws: RPCProviderError.missingKey) { _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset)) }
-        await #expect(throws: RPCProviderError.missingKey) { _ = try await client.changedSlots(for: [PublicWallet.address]) }
+        await #expect(throws: RPCProviderError.missingKey) { _ = try await client.changedSlots(for: [ThrowawayWallet.address]) }
         await #expect(throws: RPCProviderError.missingKey) { _ = try await client.events(for: ExternalFixture.signature) }
         await #expect(throws: RPCProviderError.missingKey) { _ = try await client.logos(for: [HTTPResponses.keyCheckAsset]) }
         #expect(await responses.requests.isEmpty)
@@ -103,7 +103,7 @@ struct SelectedRPCProviderTests {
         let asset = HTTPResponses.keyCheckAsset
 
         await #expect(throws: RPCProviderError.unsupportedNetwork) { _ = try await client.send(GetAsset(id: asset)) }
-        await #expect(throws: RPCProviderError.unsupportedNetwork) { _ = try await client.changedSlots(for: [PublicWallet.address]) }
+        await #expect(throws: RPCProviderError.unsupportedNetwork) { _ = try await client.changedSlots(for: [ThrowawayWallet.address]) }
         await #expect(throws: RPCProviderError.unsupportedNetwork) { _ = try await client.events(for: ExternalFixture.signature) }
         await #expect(throws: RPCProviderError.unsupportedNetwork) { _ = try await client.logos(for: [asset]) }
         #expect(try await client.capabilities.isEmpty)

@@ -9,7 +9,7 @@ struct RecoveryRevealTests {
     @Test
     func `Showing recovery returns the words, passphrase, and the wallet's own path`() async throws {
         let account = try Account.fixture(index: 3)
-        let recovery = try Recovery(phrase: RecoveryPhrase(PublicWallet.words), passphrase: " TREZOR ")
+        let recovery = try Recovery(phrase: RecoveryPhrase(ThrowawayWallet.words), passphrase: " TREZOR ")
         let store = SecurityRecoveryStore(records: [account.recoveryID: recovery])
 
         let display = try await RecoveryReveal(store: store).display(for: account)
