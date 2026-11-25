@@ -17,11 +17,9 @@ private struct ImportLifecycle: ViewModifier {
 extension ImportWalletScreen {
     /// Runs the screen's waiting import and presents its errors.
     ///
-    /// - Parameters:
-    ///   - submission: The window's import model.
-    ///   - presentationID: The identifier of this presentation.
+    /// - Parameter presentationID: The identifier of this presentation.
     /// - Returns: The screen with the import lifecycle.
-    func importLifecycle(_ submission: ImportWalletModel, presentationID: UUID) -> some View {
+    func importLifecycle(presentationID: UUID) -> some View {
         modifier(ImportLifecycle(submission: submission, presentationID: presentationID))
     }
 }

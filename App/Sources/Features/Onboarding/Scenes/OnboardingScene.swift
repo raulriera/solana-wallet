@@ -52,7 +52,7 @@ struct OnboardingScene: View {
                         case .importWallet:
                             if let presentationID = walletImport.presentationID {
                                 ImportWalletScreen(submission: walletImport)
-                                    .importLifecycle(walletImport, presentationID: presentationID)
+                                    .importLifecycle(presentationID: presentationID)
                                     .id(presentationID)
                             }
                         case .rpc:
