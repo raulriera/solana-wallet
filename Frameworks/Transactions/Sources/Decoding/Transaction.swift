@@ -126,3 +126,16 @@ public struct Transaction: Sendable, Equatable {
         }
     }
 }
+
+/// A transaction encodes as the Base64 text of its wire bytes.
+extension Transaction: Codable {
+    public init(from decoder: any Decoder) throws {
+        self = try decoder.singleValueContainer().decode(parsing: TransactionDecoder().decode(base64:),
+                                                         debugDescription: "Invalid V1 transaction.")
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(serializedRepresentation.base64EncodedString())
+    }
+}
