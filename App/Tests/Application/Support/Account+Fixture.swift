@@ -13,6 +13,6 @@ extension widgets.Account {
     }
 
     static func publicWallet() throws -> widgets.Account {
-        Account(id: UUID(), recoveryID: UUID(), address: try Address(PublicWallet.address), path: .solana(account: 0))
+        Account(id: UUID(), recoveryID: UUID(), address: try Address(ThrowawayWallet.address), path: .solana(account: 0))
     }
 }

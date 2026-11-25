@@ -5,7 +5,7 @@ import Wallet
 @testable import widgets
 
 @MainActor
-struct PublicWalletAccounts {
+struct ThrowawayWalletAccounts {
     let first: widgets.Account
     let storage: StoredValue<[widgets.Account]>
     let store: AccountStore
@@ -15,11 +15,11 @@ struct PublicWalletAccounts {
 
     init(readError: (any Error)? = nil) async throws {
         let recoveryID = UUID()
-        first = try await PublicWallet.account(recoveryID: recoveryID)
+        first = try await ThrowawayWallet.account(recoveryID: recoveryID)
         storage = StoredValue([first])
         store = AccountStore.inMemory(storage)
         await store.load()
-        recovery = SecurityRecoveryStore(records: [recoveryID: try PublicWallet.recovery()], readError: readError)
+        recovery = SecurityRecoveryStore(records: [recoveryID: try ThrowawayWallet.recovery()], readError: readError)
         creation = AccountCreation(recovery: recovery, wallet: Wallet())
     }
 
@@ -29,7 +29,9 @@ struct PublicWalletAccounts {
 }
 
 extension View {
-    func environment(_ wallet: PublicWalletAccounts) -> some View {
+    func environment(_ wallet: ThrowawayWalletAccounts) -> some View {
         environment(wallet.store).environment(\.accountCreation, wallet.creation).environment(wallet.transactions)
     }
 }
+
+typealias PublicWalletAccounts = ThrowawayWalletAccounts

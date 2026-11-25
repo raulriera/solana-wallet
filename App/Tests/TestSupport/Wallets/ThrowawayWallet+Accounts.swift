@@ -4,7 +4,7 @@ import Vault
 import Wallet
 @testable import widgets
 
-extension PublicWallet {
+extension ThrowawayWallet {
     static func recovery() throws -> Recovery {
         Recovery(phrase: try RecoveryPhrase(words), passphrase: "")
     }

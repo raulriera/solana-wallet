@@ -9,7 +9,7 @@ import Wallet
 struct AccountAdditionModelTests {
     @Test
     func `Adding saves the wallet's next account`() async throws {
-        let wallet = try await PublicWalletAccounts()
+        let wallet = try await ThrowawayWalletAccounts()
         let model = AccountAdditionModel()
 
         model.add(to: wallet.first.recoveryID)
@@ -28,7 +28,7 @@ struct AccountAdditionModelTests {
 
     @Test
     func `Taps while an addition waits are ignored`() async throws {
-        let wallet = try await PublicWalletAccounts()
+        let wallet = try await ThrowawayWalletAccounts()
         let model = AccountAdditionModel()
 
         model.add(to: wallet.first.recoveryID)
@@ -44,7 +44,7 @@ struct AccountAdditionModelTests {
 
     @Test
     func `A stale attempt adds nothing`() async throws {
-        let wallet = try await PublicWalletAccounts()
+        let wallet = try await ThrowawayWalletAccounts()
         let model = AccountAdditionModel()
 
         model.add(to: wallet.first.recoveryID)
@@ -58,7 +58,7 @@ struct AccountAdditionModelTests {
 
     @Test
     func `Cancelled authentication adds nothing`() async throws {
-        let wallet = try await PublicWalletAccounts(readError: CancellationError())
+        let wallet = try await ThrowawayWalletAccounts(readError: CancellationError())
         let model = AccountAdditionModel()
 
         model.add(to: wallet.first.recoveryID)
@@ -72,7 +72,7 @@ struct AccountAdditionModelTests {
 
     @Test
     func `Leaving before the account is derived adds nothing`() async throws {
-        let wallet = try await PublicWalletAccounts()
+        let wallet = try await ThrowawayWalletAccounts()
         let model = AccountAdditionModel()
         model.add(to: wallet.first.recoveryID)
         let attempt = model.attempt
@@ -93,7 +93,7 @@ struct AccountAdditionModelTests {
     ] as [(KeychainStoreError?, Bool, AccountsError)])
     func `A failed addition explains why`(readError: KeychainStoreError?, failsSaving: Bool,
                                           error: AccountsError) async throws {
-        let wallet = try await PublicWalletAccounts(readError: readError)
+        let wallet = try await ThrowawayWalletAccounts(readError: readError)
         await wallet.storage.failSaving(failsSaving)
         let model = AccountAdditionModel()
 
@@ -108,7 +108,7 @@ struct AccountAdditionModelTests {
 
     @Test
     func `Trying again adds the account`() async throws {
-        let wallet = try await PublicWalletAccounts()
+        let wallet = try await ThrowawayWalletAccounts()
         await wallet.storage.failSaving()
         let model = AccountAdditionModel()
         model.add(to: wallet.first.recoveryID)
@@ -124,7 +124,7 @@ struct AccountAdditionModelTests {
 
     @Test
     func `A missing recovery isn't tried again`() async throws {
-        let wallet = try await PublicWalletAccounts(readError: KeychainStoreError.recoveryUnavailable)
+        let wallet = try await ThrowawayWalletAccounts(readError: KeychainStoreError.recoveryUnavailable)
         let model = AccountAdditionModel()
         model.add(to: wallet.first.recoveryID)
         await model.run(model.attempt, creation: wallet.creation, store: wallet.store)
