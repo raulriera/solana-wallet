@@ -129,7 +129,7 @@ extension OnboardingCoordinatorTests {
 
     @Test
     func `A duplicate recovery containing different material cannot complete onboarding`() async throws {
-        let replacement = Recovery(phrase: try RecoveryPhrase(ThrowawayWallet.words), passphrase: "different")
+        let replacement = try ThrowawayWallet.recovery(passphrase: "different")
         let recovery = OnboardingRecoveryStore(firstError: CancellationError(), commitBeforeError: true,
                                                replacement: replacement)
         let accounts = AccountStore.inMemory()

@@ -27,7 +27,7 @@ struct BiometricStorageTests {
     private func verifyRoundTrip() async throws {
         let store = KeychainStore(service: "widgetsTests.biometric-probe")
         let id = UUID()
-        let original = try recovery()
+        let original = try ThrowawayWallet.recovery(passphrase: "biometric-test")
         do {
             try await store.save(original, for: id)
             let restored = try await store.recovery(for: id, reason: "Read public biometric test fixture")
@@ -38,12 +38,5 @@ struct BiometricStorageTests {
             throw error
         }
         try await store.deleteRecovery(for: id)
-    }
-
-    private func recovery() throws -> Recovery {
-        try Recovery(
-            phrase: RecoveryPhrase(ThrowawayWallet.words),
-            passphrase: "biometric-test"
-        )
     }
 }

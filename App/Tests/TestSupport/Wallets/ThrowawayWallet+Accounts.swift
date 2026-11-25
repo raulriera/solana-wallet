@@ -5,8 +5,8 @@ import Wallet
 @testable import widgets
 
 extension ThrowawayWallet {
-    static func recovery() throws -> Recovery {
-        Recovery(phrase: try RecoveryPhrase(words), passphrase: "")
+    static func recovery(passphrase: String = "") throws -> Recovery {
+        Recovery(phrase: try RecoveryPhrase(words), passphrase: passphrase)
     }
 
     static func account(index: UInt32 = 0, recoveryID: UUID) async throws -> widgets.Account {
