@@ -187,7 +187,7 @@ struct PortfolioStoreTests {
     func `Erasing forgets every wallet's portfolio and its saved holdings`() async throws {
         let directory = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
-        let responses = HTTPResponses(["getMultipleAccounts": [#"{"context":{"slot":1},"value":[null]}"#]])
+        let responses = HTTPResponses(["getMultipleAccounts": [AccountReplies.accounts([nil])]])
         let snapshots = FileSnapshotStore(directory: directory)
         let portfolios = PortfolioStore.serving(Portfolio(
             rpc: responses.rpcProvider(network: .devnet, rpcStore: .inMemory()), store: snapshots,

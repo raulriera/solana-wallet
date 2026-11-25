@@ -57,7 +57,7 @@ struct AppResetTests {
         let storage = ResetStorage()
         defer { try? FileManager.default.removeItem(at: storage.directory) }
         let gate = Suspension()
-        let responses = HTTPResponses(["getMultipleAccounts": [#"{"context":{"slot":1},"value":[null]}"#]],
+        let responses = HTTPResponses(["getMultipleAccounts": [AccountReplies.accounts([nil])]],
                                       gate: gate, heldMethod: "getMultipleAccounts")
         let rpcStore = RPCStore.inMemory()
         let service = Portfolio(rpc: responses.rpcProvider(network: .devnet, rpcStore: rpcStore),
