@@ -10,7 +10,7 @@ struct BIP39Vector: Decodable, Sendable {
     }
 }
 
-enum PublicRecovery {
+enum ThrowawayRecovery {
     static let addresses = [
         "HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk", "Hh8QwFUA6MtVu1qAoq12ucvFHNwCcVTV7hpWjeY1Hztb",
     ]

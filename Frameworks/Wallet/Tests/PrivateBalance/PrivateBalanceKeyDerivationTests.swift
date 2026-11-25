@@ -8,8 +8,8 @@ struct PrivateBalanceKeyDerivationTests {
         let deriver: any PrivateBalanceKeyDeriving = Wallet()
 
         let keys = try await deriver.privateBalanceKeys(
-            using: PublicRecovery.phrase(),
-            expectedAddress: PublicRecovery.addresses[Int(vector.account)],
+            using: ThrowawayRecovery.phrase(),
+            expectedAddress: ThrowawayRecovery.addresses[Int(vector.account)],
             passphrase: "", path: DerivationPath("m/44'/501'/\(vector.account)'/0'")
         )
 
@@ -24,7 +24,7 @@ struct PrivateBalanceKeyDerivationTests {
     ])
     func `Accounts derive their code root`(account: UInt32, codeRoot: String) async throws {
         let keys = try await Wallet().privateBalanceKeys(
-            using: PublicRecovery.phrase(), expectedAddress: PublicRecovery.addresses[Int(account)],
+            using: ThrowawayRecovery.phrase(), expectedAddress: ThrowawayRecovery.addresses[Int(account)],
             passphrase: "", path: DerivationPath("m/44'/501'/\(account)'/0'")
         )
 
@@ -32,11 +32,11 @@ struct PrivateBalanceKeyDerivationTests {
     }
 
     @Test(arguments: [
-        (PublicRecovery.addresses[0], "different account"),
+        (ThrowawayRecovery.addresses[0], "different account"),
         ("HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3D\u{212A}pqk", ""),
     ])
     func `Private-balance keys require the account at the expected address`(address: String, passphrase: String) async throws {
-        let recovery = try PublicRecovery.phrase()
+        let recovery = try ThrowawayRecovery.phrase()
 
         await #expect(throws: PrivateBalanceError.accountMismatch) {
             try await Wallet().privateBalanceKeys(
@@ -47,7 +47,7 @@ struct PrivateBalanceKeyDerivationTests {
 
     @Test
     func `Private-balance keys refuse paths outside the Solana account family`() async throws {
-        let recovery = try PublicRecovery.phrase()
+        let recovery = try ThrowawayRecovery.phrase()
         let path = try DerivationPath("m/44'/501'/0'")
 
         await #expect(throws: PrivateBalanceError.unsupportedPath) {
@@ -60,12 +60,12 @@ struct PrivateBalanceKeyDerivationTests {
 
     @Test
     func `Cancelled private-balance derivation throws CancellationError`() async throws {
-        let recovery = try PublicRecovery.phrase()
+        let recovery = try ThrowawayRecovery.phrase()
         let (gate, continuation) = AsyncStream<Void>.makeStream()
         let task = Task { @concurrent in
             for await _ in gate {}
             return try await Wallet().privateBalanceKeys(
-                using: recovery, expectedAddress: PublicRecovery.addresses[0],
+                using: recovery, expectedAddress: ThrowawayRecovery.addresses[0],
                 passphrase: "", path: .solana
             )
         }

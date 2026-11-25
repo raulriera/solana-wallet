@@ -4,7 +4,7 @@ import Wallet
 struct AccountDerivationTests {
     @Test
     func `Batch derivation preserves exact paths and independently derived addresses`() async throws {
-        let phrase = try PublicRecovery.phrase()
+        let phrase = try ThrowawayRecovery.phrase()
         let paths = try ["m/44'/501'/1'/0'", "m/44'/501'/0'", "m/44'/501'/0'/0'", "m/44'/501'/0'"]
             .map(DerivationPath.init)
         let wallet: any WalletProviding = Wallet()
@@ -20,7 +20,7 @@ struct AccountDerivationTests {
 
     @Test
     func `Cancelled batch derivation throws CancellationError`() async throws {
-        let phrase = try PublicRecovery.phrase()
+        let phrase = try ThrowawayRecovery.phrase()
         let (gate, continuation) = AsyncStream<Void>.makeStream()
         let task = Task { @concurrent in
             for await _ in gate {}
