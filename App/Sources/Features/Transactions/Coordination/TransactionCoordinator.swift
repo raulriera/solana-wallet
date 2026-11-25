@@ -113,7 +113,7 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
         try await signed(simulation).transaction
     }
 
-    func submit(_ simulation: Simulation) async throws -> Submission {
+    func submit(_ simulation: Simulation) async throws -> Outcome {
         try validateOrigin(simulation)
         let local = Set(try simulation.authorities.map { try $0.address })
         for (account, signature) in zip(simulation.transaction.accounts, simulation.transaction.signatures)
@@ -133,11 +133,11 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
         }
     }
 
-    func confirm(_ submission: Submission) async throws -> Confirmation {
+    func confirm(_ pending: Outcome, of transaction: Transaction) async throws -> Outcome {
         do {
-            return try await confirmer.confirm(submission)
+            return try await confirmer.confirm(pending, of: transaction)
         } catch {
-            throw DeliveryError(submission: submission, cause: error)
+            throw DeliveryError(outcome: pending, cause: error)
         }
     }
 

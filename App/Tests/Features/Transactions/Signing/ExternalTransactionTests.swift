@@ -72,7 +72,7 @@ struct ExternalTransactionTests {
         let error = try await #require(throws: DeliveryError.self) {
             try await coordinator.submit(simulation)
         }
-        #expect(error.submission.lastValidBlockHeight == 650)
+        #expect(error.outcome.lastValidBlockHeight == 650)
         let requests = await preparationHTTP.requests
         #expect(try requests.prefix(2).map { try $0.rpcMethod } == ["isBlockhashValid", "getBlockHeight"])
         let height = try #require(requests.first { try $0.rpcMethod == "getBlockHeight" })

@@ -2,35 +2,42 @@ import Foundation
 import RPC
 import Synchronization
 import Testing
+import Transactions
 @testable import widgets
 
 struct ConfirmationTests {
     private static let instructionError = TransactionError(name: "InstructionError",
-                                                           details: .array([.integer(1), .object(["Custom": .integer(6001)])]))
+                                                           details: .array([.integer(0), .object(["Custom": .integer(6001)])]))
+    private static let programError = ExecutionError.program(instruction: 0, code: 6001)
     private static let unavailable = RPCError.http(statusCode: 503, retryAfter: nil)
     private static let rateLimit = RPCError.http(statusCode: 429, retryAfter: "3")
     private static let rejectedKey = RPCError.http(statusCode: 401, retryAfter: nil)
     private static let finalizedStatus = GetSignatureStatuses.Status(slot: 405, confirmations: nil, error: nil,
                                                                      confirmationStatus: .finalized)
 
-    private let submission = Submission(signature: ExternalFixture.signature, network: .devnet, lastValidBlockHeight: 650)
+    private let pending = Self.outcome(.pending)
+    private let transaction: Transaction
+
+    init() throws {
+        transaction = try TransactionDecoder().decode(ExternalFixture.unsigned())
+    }
 
     @Test(.timeLimit(.minutes(1)), arguments: [
-        ("null", TransactionOutcome.succeeded),
-        (#"{"InstructionError":[1,{"Custom":6001}]}"#, .failed),
+        ("null", Outcome.Status.succeeded(slot: 5)),
+        (#"{"InstructionError":[0,{"Custom":6001}]}"#, .failed(slot: 5, Self.programError)),
     ])
-    func `A landing settles the watch with its execution result`(error: String, outcome: TransactionOutcome) async throws {
+    func `A landing settles the watch with its execution result`(error: String, status: Outcome.Status) async throws {
         let http = try HTTPResponses.confirmation(statuses: [response(nil)], epochs: [epoch(slot: 1_000, height: 600)])
         let sockets = SocketSequence { _ in SocketSequence.watch(then: [SocketFixture.landingNotification(error: error)]) }
 
-        let confirmation = try await confirmer(http, sockets).confirm(submission)
+        let outcome = try await confirmer(http, sockets).confirm(pending, of: transaction)
 
-        #expect(confirmation == Confirmation(submission: submission, slot: 5, outcome: outcome))
+        #expect(outcome == Self.outcome(status))
         let requests = await http.requests
         try #require(requests.count == 2)
         let statusRead = try #require(requests.first { try $0.rpcMethod == "getSignatureStatuses" })
         let epochRead = try #require(requests.first { try $0.rpcMethod == "getEpochInfo" })
-        #expect(try statusRead.rpcParameters[0] as? [String] == [submission.signature])
+        #expect(try statusRead.rpcParameters[0] as? [String] == [pending.signature])
         #expect(try (statusRead.rpcParameters[1] as? [String: Bool])?["searchTransactionHistory"] == true)
         #expect(try (epochRead.rpcParameters[0] as? [String: Any])?["commitment"] as? String == "finalized")
         #expect(sockets.sockets.count == 1)
@@ -38,19 +45,19 @@ struct ConfirmationTests {
     }
 
     @Test(.timeLimit(.minutes(1)), arguments: [
-        (TransactionError?.none, TransactionOutcome.succeeded),
-        (Self.instructionError, .failed),
+        (TransactionError?.none, Outcome.Status.succeeded(slot: 405)),
+        (Self.instructionError, .failed(slot: 405, Self.programError)),
     ])
     func `A catch-up read settles a transaction that landed before the subscription`(
-        error: TransactionError?, outcome: TransactionOutcome
+        error: TransactionError?, status: Outcome.Status
     ) async throws {
         let http = try HTTPResponses.confirmation(statuses: [response(status(.finalized, error: error))],
                                                   epochs: [epoch(slot: 1_000, height: 600)])
         let sockets = SocketSequence()
 
-        let confirmation = try await confirmer(http, sockets).confirm(submission)
+        let outcome = try await confirmer(http, sockets).confirm(pending, of: transaction)
 
-        #expect(confirmation == Confirmation(submission: submission, slot: 405, outcome: outcome))
+        #expect(outcome == Self.outcome(status))
         #expect(try await reads(of: http)["getSignatureStatuses"] == 1)
         #expect(sockets.sockets.count == 1)
         await sockets.waitUntilClosed()
@@ -64,9 +71,9 @@ struct ConfirmationTests {
             SocketSequence.watch(then: [SocketFixture.rootNotification(1_010), SocketFixture.landingNotification()])
         }
 
-        let confirmation = try await confirmer(http, sockets).confirm(submission)
+        let outcome = try await confirmer(http, sockets).confirm(pending, of: transaction)
 
-        #expect(confirmation == Confirmation(submission: submission, slot: 5, outcome: .succeeded))
+        #expect(outcome == Self.outcome(.succeeded(slot: 5)))
         #expect(try await reads(of: http) == ["getSignatureStatuses": 1, "getEpochInfo": 1])
     }
 
@@ -76,9 +83,9 @@ struct ConfirmationTests {
             epoch(slot: 1_000, height: 600), epoch(slot: 1_051, height: 640), epoch(slot: 1_062, height: 651),
         ])
 
-        let (confirmation, reads) = try await confirm(over: http, pacing: [1_010, 1_050, 1_051, 1_061, 1_062])
+        let (outcome, reads) = try await confirm(over: http, pacing: [1_010, 1_050, 1_051, 1_061, 1_062])
 
-        #expect(confirmation == Confirmation(submission: submission, slot: nil, outcome: .dropped))
+        #expect(outcome == Self.outcome(.dropped))
         #expect(reads == [2, 2, 2, 3, 3])
         #expect(try await self.reads(of: http) == ["getSignatureStatuses": 2, "getEpochInfo": 3])
     }
@@ -89,9 +96,9 @@ struct ConfirmationTests {
                                                   epochs: [epoch(slot: 1_000, height: 600), epoch(slot: 1_051, height: 651)])
         let sockets = SocketSequence { _ in SocketSequence.watch(then: [SocketFixture.rootNotification(1_051)]) }
 
-        let confirmation = try await confirmer(http, sockets).confirm(submission)
+        let outcome = try await confirmer(http, sockets).confirm(pending, of: transaction)
 
-        #expect(confirmation == Confirmation(submission: submission, slot: 405, outcome: .failed))
+        #expect(outcome == Self.outcome(.failed(slot: 405, Self.programError)))
         #expect(try await reads(of: http) == ["getSignatureStatuses": 2, "getEpochInfo": 2])
     }
 
@@ -100,9 +107,9 @@ struct ConfirmationTests {
         let http = try HTTPResponses.confirmation(statuses: [response(nil), response(nil, at: 1_041), response(nil, at: 1_051)],
                                                   epochs: [epoch(slot: 1_000, height: 600), epoch(slot: 1_051, height: 651)])
 
-        let (confirmation, reads) = try await confirm(over: http, pacing: [1_051, 1_060, 1_061])
+        let (outcome, reads) = try await confirm(over: http, pacing: [1_051, 1_060, 1_061])
 
-        #expect(confirmation == Confirmation(submission: submission, slot: nil, outcome: .dropped))
+        #expect(outcome == Self.outcome(.dropped))
         #expect(reads == [2, 4, 4])
         #expect(try await self.reads(of: http) == ["getSignatureStatuses": 3, "getEpochInfo": 2])
     }
@@ -112,9 +119,9 @@ struct ConfirmationTests {
         let http = try HTTPResponses.confirmation(statuses: [response(nil), response(status(.processed), at: 1_051), response(nil)],
                                                   epochs: [epoch(slot: 1_000, height: 600), epoch(slot: 1_051, height: 651)])
 
-        let (confirmation, reads) = try await confirm(over: http, pacing: [1_051, 1_052])
+        let (outcome, reads) = try await confirm(over: http, pacing: [1_051, 1_052])
 
-        #expect(confirmation == Confirmation(submission: submission, slot: nil, outcome: .dropped))
+        #expect(outcome == Self.outcome(.dropped))
         #expect(reads == [2, 4])
         #expect(try await self.reads(of: http) == ["getSignatureStatuses": 3, "getEpochInfo": 2])
     }
@@ -126,15 +133,15 @@ struct ConfirmationTests {
     func `Checks due past the largest slot keep watching until the landing`(
         lastValidBlockHeight: UInt64, slot: UInt64, height: UInt64, methods: [String: Int]
     ) async throws {
-        let receipt = Submission(signature: submission.signature, network: .devnet, lastValidBlockHeight: lastValidBlockHeight)
+        let expiring = Self.outcome(.pending, lastValidBlockHeight: lastValidBlockHeight)
         let http = try HTTPResponses.confirmation(statuses: [response(nil)], epochs: [epoch(slot: slot, height: height)])
         let sockets = SocketSequence { _ in
             SocketSequence.watch(then: [SocketFixture.rootNotification(1_010), SocketFixture.landingNotification()])
         }
 
-        let confirmation = try await confirmer(http, sockets).confirm(receipt)
+        let outcome = try await confirmer(http, sockets).confirm(expiring, of: transaction)
 
-        #expect(confirmation == Confirmation(submission: receipt, slot: 5, outcome: .succeeded))
+        #expect(outcome == Self.outcome(.succeeded(slot: 5), lastValidBlockHeight: lastValidBlockHeight))
         #expect(try await reads(of: http) == methods)
         await sockets.waitUntilClosed()
     }
@@ -145,9 +152,9 @@ struct ConfirmationTests {
                                                   epochs: [epoch(slot: 1_051, height: 651)])
         let sockets = SocketSequence()
 
-        let confirmation = try await confirmer(http, sockets).confirm(submission)
+        let outcome = try await confirmer(http, sockets).confirm(pending, of: transaction)
 
-        #expect(confirmation == Confirmation(submission: submission, slot: nil, outcome: .dropped))
+        #expect(outcome == Self.outcome(.dropped))
         #expect(try await reads(of: http) == ["getSignatureStatuses": 1, "getEpochInfo": 1])
         await sockets.waitUntilClosed()
     }
@@ -164,11 +171,11 @@ struct ConfirmationTests {
         }
         let waits = Mutex<[Duration]>([])
 
-        let confirmation = try await confirmer(http, sockets, clock: clock(wait: { duration in
+        let outcome = try await confirmer(http, sockets, clock: clock(wait: { duration in
             waits.withLock { $0.append(duration) }
-        })).confirm(submission)
+        })).confirm(pending, of: transaction)
 
-        #expect(confirmation == Confirmation(submission: submission, slot: nil, outcome: .dropped))
+        #expect(outcome == Self.outcome(.dropped))
         #expect(waits.withLock(\.self) == [.seconds(2)])
         #expect(sockets.sockets.count == 2)
         await sockets.waitUntilClosed()
@@ -183,14 +190,14 @@ struct ConfirmationTests {
         let sockets = SocketSequence()
         let waits = Mutex<[Duration]>([])
         let watch = confirmer(http, sockets, clock: clock(wait: { duration in waits.withLock { $0.append(duration) } }))
-        let operation = Task { @concurrent in try await watch.confirm(submission) }
+        let operation = Task { @concurrent in try await watch.confirm(pending, of: transaction) }
         defer { operation.cancel() }
         await held.waitUntilStarted()
 
         try #require(sockets.sockets.first).fail(URLError(.networkConnectionLost))
         held.resume()
 
-        #expect(try await operation.value == Confirmation(submission: submission, slot: 405, outcome: .succeeded))
+        #expect(try await operation.value == Self.outcome(.succeeded(slot: 405)))
         #expect(waits.withLock(\.self) == [.seconds(2)])
         #expect(sockets.sockets.count == 2)
         await sockets.waitUntilClosed()
@@ -210,11 +217,11 @@ struct ConfirmationTests {
         }
         let waits = Mutex<[Duration]>([])
 
-        let confirmation = try await confirmer(http, sockets, clock: clock(wait: { duration in
+        let outcome = try await confirmer(http, sockets, clock: clock(wait: { duration in
             waits.withLock { $0.append(duration) }
-        })).confirm(submission)
+        })).confirm(pending, of: transaction)
 
-        #expect(confirmation.outcome == .succeeded)
+        #expect(outcome == Self.outcome(.succeeded(slot: 405)))
         #expect(waits.withLock(\.self) == [2, 4, 8, 16, 32, 60, 60, 2, 4].map { Duration.seconds($0) })
         #expect(sockets.sockets.count == 10)
         await sockets.waitUntilClosed()
@@ -229,11 +236,11 @@ struct ConfirmationTests {
         let stalls = Mutex(0)
         let waits = Mutex<[Duration]>([])
 
-        let confirmation = try await confirmer(http, sockets, clock: clock(stall: { _ in
+        let outcome = try await confirmer(http, sockets, clock: clock(stall: { _ in
             if stalls.withLock({ $0 += 1; return $0 }) > 1 { try await Task.sleep(for: .seconds(3_600)) }
-        }, wait: { duration in waits.withLock { $0.append(duration) } })).confirm(submission)
+        }, wait: { duration in waits.withLock { $0.append(duration) } })).confirm(pending, of: transaction)
 
-        #expect(confirmation.outcome == .succeeded)
+        #expect(outcome == Self.outcome(.succeeded(slot: 405)))
         #expect(stalls.withLock(\.self) == 1)
         #expect(waits.withLock(\.self) == [.seconds(2)])
         #expect(sockets.sockets.count == 2)
@@ -256,7 +263,7 @@ struct ConfirmationTests {
         let watch = confirmer(http, sockets, clock: clock(wait: { duration in
             if waits.withLock({ $0.append(duration); return $0.count }) > 1 { await held.suspend() }
         }))
-        let operation = Task { @concurrent in try await watch.confirm(submission) }
+        let operation = Task { @concurrent in try await watch.confirm(pending, of: transaction) }
         defer { operation.cancel() }
         await held.waitUntilStarted()
 
@@ -275,7 +282,7 @@ struct ConfirmationTests {
         (Self.rateLimit, Self.rateLimit, SocketSequence.watch(), 1),
         (Self.rejectedKey, Self.rejectedKey, SocketSequence.watch(), 1),
     ])
-    func `A rate limit or rejected key stops the watch with the receipt`(
+    func `A rate limit or rejected key stops the watch with the pending outcome`(
         refusal: RPCError, readError: RPCError?, connection: @escaping SocketFixture.Responder, statusReads: Int
     ) async throws {
         let http = try HTTPResponses.confirmation(statuses: [], error: readError)
@@ -283,10 +290,10 @@ struct ConfirmationTests {
         let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
 
         let delivery = try await #require(throws: DeliveryError.self) {
-            try await coordinator(over: http, sockets: sockets, store: store).confirm(submission)
+            try await coordinator(over: http, sockets: sockets, store: store).confirm(pending, of: transaction)
         }
 
-        #expect(delivery.submission == submission)
+        #expect(delivery.outcome == pending)
         #expect(delivery.cause as? RPCError == refusal)
         #expect(try await reads(of: http)["getSignatureStatuses", default: 0] == statusReads)
         #expect(sockets.sockets.count == 1)
@@ -295,20 +302,20 @@ struct ConfirmationTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func `Cancelling a coordinator's watch keeps the receipt`() async throws {
-        let pending = Suspension()
-        let http = try HTTPResponses.confirmation(statuses: [response(nil)], gate: pending)
+    func `Cancelling a coordinator's watch keeps the pending outcome`() async throws {
+        let held = Suspension()
+        let http = try HTTPResponses.confirmation(statuses: [response(nil)], gate: held)
         let sockets = SocketSequence()
         let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
         let transactions = coordinator(over: http, sockets: sockets, store: store)
-        let operation = Task { @concurrent in try await transactions.confirm(submission) }
+        let operation = Task { @concurrent in try await transactions.confirm(pending, of: transaction) }
         defer { operation.cancel() }
-        await pending.waitUntilStarted()
+        await held.waitUntilStarted()
 
         operation.cancel()
 
         let delivery = try await #require(throws: DeliveryError.self) { try await operation.value }
-        #expect(delivery.submission == submission)
+        #expect(delivery.outcome == pending)
         #expect(delivery.cause is CancellationError)
         #expect(await http.wasCancelled)
         await sockets.waitUntilClosed()
@@ -325,7 +332,7 @@ struct ConfirmationTests {
         let sockets = SocketSequence { _ in refusal }
 
         await #expect(throws: RPCError.server(code: -32601, message: "refused")) {
-            try await confirmer(http, sockets).confirm(submission)
+            try await confirmer(http, sockets).confirm(pending, of: transaction)
         }
 
         #expect(await http.requests.isEmpty)
@@ -340,7 +347,7 @@ struct ConfirmationTests {
         let sockets = SocketSequence { _ in SocketSequence.watch(then: [malformed]) }
 
         await #expect(throws: RPCError.decoding) {
-            try await confirmer(http, sockets).confirm(submission)
+            try await confirmer(http, sockets).confirm(pending, of: transaction)
         }
 
         #expect(try await reads(of: http) == ["getSignatureStatuses": 1, "getEpochInfo": 1])
@@ -355,7 +362,7 @@ struct ConfirmationTests {
         let sockets = SocketSequence()
 
         await #expect(throws: RPCError.invalidResponse(.statusAfterContext)) {
-            try await confirmer(http, sockets).confirm(submission)
+            try await confirmer(http, sockets).confirm(pending, of: transaction)
         }
 
         #expect(try await reads(of: http)["getSignatureStatuses"] == 1)
@@ -368,7 +375,7 @@ struct ConfirmationTests {
         let http = try HTTPResponses.confirmation(statuses: [])
         let sockets = SocketSequence { _ in { _, _ in [] } }
         let watch = confirmer(http, sockets)
-        let operation = Task { @concurrent in try await watch.confirm(submission) }
+        let operation = Task { @concurrent in try await watch.confirm(pending, of: transaction) }
         defer { operation.cancel() }
         var openings = sockets.openings.makeAsyncIterator()
         _ = await openings.next()
@@ -386,13 +393,13 @@ struct ConfirmationTests {
     ])
     func `Cancelling a waiting watch stops it and closes its connection`(connection: @escaping SocketFixture.Responder,
                                                                         reads: Int) async throws {
-        let pending = Suspension()
+        let held = Suspension()
         let http = try HTTPResponses.confirmation(statuses: [response(nil)], epochs: [epoch(slot: 1_000, height: 600)])
         let sockets = SocketSequence { _ in connection }
-        let watch = confirmer(http, sockets, clock: ControlledClock { _ in await pending.suspend() })
-        let operation = Task { @concurrent in try await watch.confirm(submission) }
+        let watch = confirmer(http, sockets, clock: ControlledClock { _ in await held.suspend() })
+        let operation = Task { @concurrent in try await watch.confirm(pending, of: transaction) }
         defer { operation.cancel() }
-        await pending.waitUntilStarted()
+        await held.waitUntilStarted()
 
         operation.cancel()
 
@@ -408,23 +415,28 @@ struct ConfirmationTests {
     }
 
     private func confirm(over http: HTTPResponses,
-                         pacing roots: [UInt64]) async throws -> (confirmation: widgets.Confirmation, reads: [Int]) {
+                         pacing roots: [UInt64]) async throws -> (outcome: Outcome, reads: [Int]) {
         let sockets = SocketSequence()
-        let pending = Mutex(roots[...])
+        let remaining = Mutex(roots[...])
         let reads = Mutex<[Int]>([])
         let watch = confirmer(http, sockets, clock: clock(stall: { _ in
             let count = await http.requests.count
             reads.withLock { $0.append(count) }
-            let next = pending.withLock { $0.popFirst() }
+            let next = remaining.withLock { $0.popFirst() }
             let root = try #require(next, "The watch waits again after the last root")
             try #require(sockets.sockets.last).notify(root: root)
             try await Task.sleep(for: .seconds(3_600))
         }))
 
-        let confirmation = try await watch.confirm(submission)
+        let outcome = try await watch.confirm(pending, of: transaction)
 
         await sockets.waitUntilClosed()
-        return (confirmation, reads.withLock(\.self))
+        return (outcome, reads.withLock(\.self))
+    }
+
+    private static func outcome(_ status: Outcome.Status, lastValidBlockHeight: UInt64 = 650) -> Outcome {
+        Outcome(signature: ExternalFixture.signature, network: .devnet, lastValidBlockHeight: lastValidBlockHeight,
+                status: status)
     }
 
     private func reads(of http: HTTPResponses) async throws -> [String: Int] {
