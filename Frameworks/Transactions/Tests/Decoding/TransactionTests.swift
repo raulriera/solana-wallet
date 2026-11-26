@@ -12,4 +12,10 @@ struct TransactionTests {
         #expect(try JSONDecoder().decode(String.self, from: data) == DecodingFixture.wire)
         #expect(try JSONDecoder().decode(Transaction.self, from: data) == transaction)
     }
+
+    @Test(arguments: ["not Base64", "AAAA"])
+    func `Decoding rejects text that isn't a Base64 V1 transaction`(_ text: String) throws {
+        let data = try JSONEncoder().encode(text)
+        #expect(throws: DecodingError.self) { try JSONDecoder().decode(Transaction.self, from: data) }
+    }
 }

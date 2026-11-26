@@ -33,6 +33,8 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     /// Once a send with preliminary transactions is sent, it's the review of the proposal's own transaction.
     private(set) var review: Proposal.Review?
     /// The sent transaction's record as saved when it was sent, or `nil` before it's sent.
+    ///
+    /// A send with preliminary transactions keeps its last transaction's record once that transaction settles.
     private(set) var record: TransactionRecord?
     var error: Proposal.Error?
     /// The attempt that's waiting or running, or `nil` for none.

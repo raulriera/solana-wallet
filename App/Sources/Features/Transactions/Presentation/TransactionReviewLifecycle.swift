@@ -15,8 +15,8 @@ private struct TransactionReviewLifecycle<Proposal: TransactionProposal>: ViewMo
                     await review.refreshReview()
                 }
             }
-            .sensoryFeedback(trigger: review.outcome) { _, outcome in
-                switch outcome?.status {
+            .sensoryFeedback(trigger: review.outcome?.status) { _, status in
+                switch status {
                 case .succeeded?: .success
                 case .failed?, .dropped?: .error
                 case .pending?, nil: nil
