@@ -114,7 +114,7 @@ final class TransactionStore: Erasable {
               using coordinator: (any TransactionCoordinating)? = nil) async throws -> TransactionRecord {
         let coordinator = try coordinator ?? self.coordinator(for: simulation.network)
         let delivery = Task { @concurrent in
-            let outcome: Outcome
+            let outcome: TransactionOutcome
             do {
                 outcome = try await coordinator.submit(simulation)
             } catch let error as DeliveryError {
@@ -135,7 +135,7 @@ final class TransactionStore: Erasable {
     /// - Returns: The transaction's settled outcome.
     /// - Throws: ``TransactionStoreError/missingRecord`` if the record isn't kept, `CancellationError` if the caller
     ///   is cancelled, or the watch's error.
-    func watch(_ id: TransactionRecord.ID, for key: TransactionRecord.Key) async throws -> Outcome {
+    func watch(_ id: TransactionRecord.ID, for key: TransactionRecord.Key) async throws -> TransactionOutcome {
         let entry = entry(for: key)
         if let watch = entry.watches[id] { return try await result(of: watch, for: id, in: entry) }
         await load()
@@ -247,7 +247,7 @@ final class TransactionStore: Erasable {
     /// - Returns: The transaction's settled outcome.
     /// - Throws: `CancellationError` if the caller is cancelled, or the watch's error.
     private func result(of watch: TransactionWatch, for id: TransactionRecord.ID, in entry: Entry) async throws
-        -> Outcome {
+        -> TransactionOutcome {
         defer { if watch.isFinished, entry.watches[id] === watch { entry.watches[id] = nil } }
         return try await watch.value()
     }
@@ -259,7 +259,7 @@ final class TransactionStore: Erasable {
     ///   - entry: The record's key's entry.
     /// - Returns: The transaction's settled outcome.
     /// - Throws: The coordinator's creation or watch error, or `CancellationError`.
-    private func settle(_ record: TransactionRecord, in entry: Entry) async throws -> Outcome {
+    private func settle(_ record: TransactionRecord, in entry: Entry) async throws -> TransactionOutcome {
         let outcome = try await coordinator(for: record.network).confirm(record.outcome, of: record.transaction)
         try Task.checkCancellation()
         if let index = entry.records.firstIndex(where: { $0.id == record.id }) {

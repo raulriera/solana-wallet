@@ -3,5 +3,5 @@ nonisolated protocol TransactionSettling: Sendable {
     /// Finishes the transaction's work.
     ///
     /// - Parameter outcome: The transaction's settled outcome.
-    func settle(_ outcome: Outcome) async
+    func settle(_ outcome: TransactionOutcome) async
 }

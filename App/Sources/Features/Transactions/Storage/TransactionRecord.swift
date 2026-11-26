@@ -26,7 +26,7 @@ nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable
     let kind: Kind
     /// The transaction as reviewed, with the message that was signed and sent.
     let transaction: Transaction
-    private(set) var outcome: Outcome
+    private(set) var outcome: TransactionOutcome
     /// When the transaction's settled status was found, or `nil` while it's pending.
     private(set) var settled: Date?
 
@@ -45,7 +45,7 @@ nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable
     ///   - account: The identifier of the account that sent it.
     ///   - transaction: The transaction as reviewed.
     ///   - outcome: The transaction's pending outcome.
-    init(_ kind: Kind, from account: UUID, transaction: Transaction, outcome: Outcome) {
+    init(_ kind: Kind, from account: UUID, transaction: Transaction, outcome: TransactionOutcome) {
         self.account = account
         self.kind = kind
         self.transaction = transaction
@@ -57,7 +57,7 @@ nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable
     /// - Parameters:
     ///   - status: The transaction's settled status.
     ///   - date: When the status was found.
-    mutating func settle(_ status: Outcome.Status, at date: Date) {
+    mutating func settle(_ status: TransactionOutcome.Status, at date: Date) {
         outcome = outcome.settled(status)
         settled = date
     }
