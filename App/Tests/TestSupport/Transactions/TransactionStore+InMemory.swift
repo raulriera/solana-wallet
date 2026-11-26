@@ -1,4 +1,3 @@
-import Observation
 @testable import RPC
 @testable import widgets
 
@@ -17,13 +16,6 @@ extension TransactionStore {
         let outcome = try await watch(record.id, for: record.key)
         await sockets.waitUntilClosed()
         return outcome.status
-    }
-
-    func settledStatus(of record: TransactionRecord) async -> TransactionOutcome.Status? {
-        for await kept in Observations({ self.record(record.id, for: record.key) }) {
-            if let kept, !kept.isPending { return kept.outcome.status }
-        }
-        return nil
     }
 }
 

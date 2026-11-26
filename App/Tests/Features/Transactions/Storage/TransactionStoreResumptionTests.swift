@@ -17,7 +17,7 @@ struct TransactionStoreResumptionTests {
         await resuming.store.resume()
 
         for record in records {
-            #expect(await resuming.store.settledStatus(of: record) == .succeeded(slot: 405))
+            #expect(try await resuming.store.settledOutcome(of: record).status == .succeeded(slot: 405))
         }
         #expect(await resuming.pending.value == [])
         await resuming.sockets.waitUntilClosed()
@@ -70,7 +70,7 @@ struct TransactionStoreResumptionTests {
         await store.resume()
         _ = await attemptsMade.next()
         await store.resume(replacingFailedWatches: true)
-        #expect(await store.settledStatus(of: record) == .succeeded(slot: 405))
+        #expect(try await store.settledOutcome(of: record).status == .succeeded(slot: 405))
         await sockets.waitUntilClosed()
     }
 }

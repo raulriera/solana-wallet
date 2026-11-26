@@ -274,8 +274,8 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
         }
     }
 
-    /// Waits for a sent transaction's settled outcome; when its watch ends with an error, it waits until a later watch
-    /// settles it.
+    /// Waits for a sent transaction's settled outcome; when its watch ends with an error, it waits until its record
+    /// settles.
     ///
     /// - Parameter sent: The sent transaction's record.
     /// - Returns: The transaction's settled outcome.
@@ -284,10 +284,7 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
         do {
             return try await transactions.watch(sent.id, for: sent.key)
         } catch where !(error is CancellationError) {
-            for await kept in Observations({ self.transactions.record(sent.id, for: sent.key) }) {
-                if let kept, !kept.isPending { return kept.outcome }
-            }
-            throw CancellationError()
+            return try await transactions.settledOutcome(of: sent)
         }
     }
 

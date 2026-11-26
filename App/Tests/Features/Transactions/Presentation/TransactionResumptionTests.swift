@@ -1,5 +1,4 @@
 import Foundation
-import Observation
 import SwiftUI
 import Testing
 import Transactions
@@ -19,7 +18,7 @@ struct TransactionResumptionTests {
 
         scene.phase = .active
 
-        #expect(await sent.transactions.settledStatus(of: sent.record) == .succeeded(slot: 405))
+        #expect(try await sent.transactions.settledOutcome(of: sent.record).status == .succeeded(slot: 405))
         await sent.sockets.waitUntilClosed()
     }
 
@@ -49,7 +48,7 @@ struct TransactionResumptionTests {
 
         try await scene.rpcStore.select(.helius)
 
-        #expect(await transactions.settledStatus(of: record) == .succeeded(slot: 405))
+        #expect(try await transactions.settledOutcome(of: record).status == .succeeded(slot: 405))
         await sockets.waitUntilClosed()
     }
 }
