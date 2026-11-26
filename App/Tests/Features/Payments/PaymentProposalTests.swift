@@ -47,16 +47,20 @@ struct PaymentProposalTests {
         await #expect(throws: expected) { try await Self.simulate(payment.model.proposal, in: payment) }
     }
 
-    @Test(arguments: [(TransactionOutcome.succeeded, true), (.dropped, false)])
+    @Test(arguments: [
+        (TransactionOutcome.Status.succeeded(slot: 5), true),
+        (.failed(slot: 5, .program(instruction: 0, code: 6001)), false),
+        (.dropped, false),
+    ])
     func `A payment's recipient becomes a recent payment only when the payment succeeds`(
-        outcome: TransactionOutcome, isRecent: Bool
+        status: TransactionOutcome.Status, isRecent: Bool
     ) async throws {
         let payment = try LocalPaymentReview()
         let proposal = payment.model.proposal
         let settling = try #require(try await Self.simulate(proposal, in: payment).settling)
-        let submission = Submission(signature: "signature", network: .devnet, lastValidBlockHeight: 550)
 
-        await settling.settle(widgets.Confirmation(submission: submission, slot: nil, outcome: outcome))
+        await settling.settle(TransactionOutcome(signature: "signature", network: .devnet, lastValidBlockHeight: 550,
+                                                 status: status))
 
         #expect(proposal.recents.payments(on: .devnet).map(\.address) == (isRecent ? [proposal.recipient.address] : []))
     }

@@ -51,7 +51,7 @@ struct ConfirmationTests {
         (Self.instructionError, .failed(slot: 405, Self.programError)),
     ])
     func `A catch-up read settles a transaction that landed before the subscription`(
-        error: TransactionError?, status: TransactionOutcome.Status
+        error: TransactionError?, expected: TransactionOutcome.Status
     ) async throws {
         let http = try HTTPResponses.confirmation(statuses: [response(status(.finalized, error: error))],
                                                   epochs: [epoch(slot: 1_000, height: 600)])
@@ -59,7 +59,7 @@ struct ConfirmationTests {
 
         let outcome = try await confirmer(http, sockets).confirm(pending, of: transaction)
 
-        #expect(outcome == Self.outcome(status))
+        #expect(outcome == Self.outcome(expected))
         #expect(try await reads(of: http)["getSignatureStatuses"] == 1)
         #expect(sockets.sockets.count == 1)
         await sockets.waitUntilClosed()

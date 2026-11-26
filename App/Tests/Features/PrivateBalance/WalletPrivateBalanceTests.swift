@@ -117,7 +117,7 @@ struct WalletPrivateBalanceTests {
         let balance = try await PrivateBalanceFixtures.read(account, in: store)
         #expect(balance.lastSettledMove == nil)
 
-        #expect(try await sent.settle() == .succeeded)
+        #expect(try await sent.settle() == .succeeded(slot: 405))
 
         #expect(balance.lastSettledMove?.id == (isMove ? sent.record.id : nil))
     }
@@ -181,7 +181,7 @@ struct WalletPrivateBalanceTests {
                                                            transactions: sent.transactions)
         let balance = try await PrivateBalanceFixtures.read(account, in: store)
 
-        try #require(await sent.settle() == .succeeded)
+        try #require(await sent.settle() == .succeeded(slot: 405))
         await balance.refresh()
 
         #expect(!balance.isFollowingUp)
@@ -194,7 +194,7 @@ struct WalletPrivateBalanceTests {
         let (store, notes) = try await PrivateBalanceFixtures.pendingDeposit(of: account,
                                                                              transactions: sent.transactions)
         let balance = try await PrivateBalanceFixtures.read(account, in: store)
-        try #require(await sent.settle() == .succeeded)
+        try #require(await sent.settle() == .succeeded(slot: 405))
         await balance.refresh()
         try #require(balance.followUpReadsLeft == 10)
 
@@ -242,7 +242,7 @@ struct WalletPrivateBalanceTests {
         #expect(!balance.isFollowingUp)
         #expect(try await clock.durationToNextWait(&waits) == .seconds(30))
 
-        #expect(try await sent.settle() == .succeeded)
+        #expect(try await sent.settle() == .succeeded(slot: 405))
 
         for await isFollowingUp in Observations({ balance.isFollowingUp }) where isFollowingUp { break }
         try await notes.save([PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()])
