@@ -218,6 +218,8 @@ nonisolated struct Simulation: Sendable {
     var fee: UInt64? { preparation.fee.value }
     /// The simulation's response, including any execution error.
     var diagnostics: SimulateTransaction.Response { preparation.simulation }
+    /// Why the simulated transaction can't run, or `nil` if it ran.
+    var executionError: ExecutionError? { diagnostics.value.error.map { ExecutionError($0, in: transaction) } }
     /// The balances that the simulation changed, or `nil` if unknown.
     var balanceChanges: [BalanceChange]? { BalanceChange.changes(in: transaction, from: diagnostics.value) }
     /// The submitting service's requirements, whose tip the transaction pays, or `nil` for none.
