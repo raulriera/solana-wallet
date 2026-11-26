@@ -18,7 +18,7 @@ struct PendingPayment {
         transactions = .inMemory(StoredValue([record])) { _ in coordinator }
     }
 
-    func settle() async throws -> Outcome.Status {
+    func settle() async throws -> TransactionOutcome.Status {
         try await transactions.watch(record, untilClosed: sockets)
     }
 }

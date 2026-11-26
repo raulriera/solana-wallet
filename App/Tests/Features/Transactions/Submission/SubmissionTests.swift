@@ -8,8 +8,8 @@ import Wallet
 @Suite(.serialized)
 struct SubmissionTests {
     private static let rateLimit = RPCError.http(statusCode: 429, retryAfter: "3")
-    private static let pending = Outcome(signature: ExternalFixture.signature, network: .devnet,
-                                         lastValidBlockHeight: 650, status: .pending)
+    private static let pending = TransactionOutcome(signature: ExternalFixture.signature, network: .devnet,
+                                                    lastValidBlockHeight: 650, status: .pending)
 
     @Test
     func `Submission sends the signed bytes once with finalized preflight`() async throws {
@@ -64,7 +64,8 @@ struct SubmissionTests {
 
         let outcome = try await Submitter(rpc: accepted.client).submit(signed)
 
-        #expect(outcome == Outcome(signature: signature, network: .devnet, lastValidBlockHeight: 550, status: .pending))
+        #expect(outcome == TransactionOutcome(signature: signature, network: .devnet, lastValidBlockHeight: 550,
+                                              status: .pending))
     }
 
     @Test

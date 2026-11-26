@@ -23,10 +23,12 @@ struct ConfirmationTests {
     }
 
     @Test(.timeLimit(.minutes(1)), arguments: [
-        ("null", Outcome.Status.succeeded(slot: 5)),
+        ("null", TransactionOutcome.Status.succeeded(slot: 5)),
         (#"{"InstructionError":[0,{"Custom":6001}]}"#, .failed(slot: 5, Self.programError)),
     ])
-    func `A landing settles the watch with its execution result`(error: String, status: Outcome.Status) async throws {
+    func `A landing settles the watch with its execution result`(
+        error: String, status: TransactionOutcome.Status
+    ) async throws {
         let http = try HTTPResponses.confirmation(statuses: [response(nil)], epochs: [epoch(slot: 1_000, height: 600)])
         let sockets = SocketSequence { _ in SocketSequence.watch(then: [SocketFixture.landingNotification(error: error)]) }
 
@@ -45,11 +47,11 @@ struct ConfirmationTests {
     }
 
     @Test(.timeLimit(.minutes(1)), arguments: [
-        (TransactionError?.none, Outcome.Status.succeeded(slot: 405)),
+        (TransactionError?.none, TransactionOutcome.Status.succeeded(slot: 405)),
         (Self.instructionError, .failed(slot: 405, Self.programError)),
     ])
     func `A catch-up read settles a transaction that landed before the subscription`(
-        error: TransactionError?, status: Outcome.Status
+        error: TransactionError?, status: TransactionOutcome.Status
     ) async throws {
         let http = try HTTPResponses.confirmation(statuses: [response(status(.finalized, error: error))],
                                                   epochs: [epoch(slot: 1_000, height: 600)])
@@ -415,7 +417,7 @@ struct ConfirmationTests {
     }
 
     private func confirm(over http: HTTPResponses,
-                         pacing roots: [UInt64]) async throws -> (outcome: Outcome, reads: [Int]) {
+                         pacing roots: [UInt64]) async throws -> (outcome: TransactionOutcome, reads: [Int]) {
         let sockets = SocketSequence()
         let remaining = Mutex(roots[...])
         let reads = Mutex<[Int]>([])
@@ -434,9 +436,10 @@ struct ConfirmationTests {
         return (outcome, reads.withLock(\.self))
     }
 
-    private static func outcome(_ status: Outcome.Status, lastValidBlockHeight: UInt64 = 650) -> Outcome {
-        Outcome(signature: ExternalFixture.signature, network: .devnet, lastValidBlockHeight: lastValidBlockHeight,
-                status: status)
+    private static func outcome(_ status: TransactionOutcome.Status,
+                                lastValidBlockHeight: UInt64 = 650) -> TransactionOutcome {
+        TransactionOutcome(signature: ExternalFixture.signature, network: .devnet,
+                           lastValidBlockHeight: lastValidBlockHeight, status: status)
     }
 
     private func reads(of http: HTTPResponses) async throws -> [String: Int] {

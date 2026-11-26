@@ -12,13 +12,14 @@ extension TransactionStore {
 
     static var unused: TransactionStore { inMemory() }
 
-    func watch(_ record: TransactionRecord, untilClosed sockets: SocketSequence) async throws -> Outcome.Status {
+    func watch(_ record: TransactionRecord,
+               untilClosed sockets: SocketSequence) async throws -> TransactionOutcome.Status {
         let outcome = try await watch(record.id, for: record.key)
         await sockets.waitUntilClosed()
         return outcome.status
     }
 
-    func settledStatus(of record: TransactionRecord) async -> Outcome.Status? {
+    func settledStatus(of record: TransactionRecord) async -> TransactionOutcome.Status? {
         for await kept in Observations({ self.record(record.id, for: record.key) }) {
             if let kept, !kept.isPending { return kept.outcome.status }
         }

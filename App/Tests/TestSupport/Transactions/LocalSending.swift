@@ -42,7 +42,7 @@ struct LocalSending {
         try await store.send(simulation, as: .payment, from: account, settling: settling)
     }
 
-    func settle(_ record: TransactionRecord) async throws -> Outcome.Status {
+    func settle(_ record: TransactionRecord) async throws -> TransactionOutcome.Status {
         try await store.watch(record, untilClosed: sockets)
     }
 }

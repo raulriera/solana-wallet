@@ -112,13 +112,13 @@ struct TransactionStoreTests {
     }
 
     @Test(arguments: [
-        (GetSignatureStatuses.Response.status(.finalized), UInt64(500), Outcome.Status.succeeded(slot: 405)),
+        (GetSignatureStatuses.Response.status(.finalized), UInt64(500), TransactionOutcome.Status.succeeded(slot: 405)),
         (.status(.finalized, error: Self.instructionError), 500,
          .failed(slot: 405, .program(instruction: 0, code: 6001))),
         (.status(nil), 600, .dropped),
     ])
     func `A settled record keeps its outcome and is no longer saved`(
-        status: GetSignatureStatuses.Response, height: UInt64, expected: Outcome.Status
+        status: GetSignatureStatuses.Response, height: UInt64, expected: TransactionOutcome.Status
     ) async throws {
         let sending = try LocalSending(statuses: [status], height: height)
         let record = try await sending.send()
@@ -308,7 +308,7 @@ struct TransactionStoreTests {
 
 private actor RecordingSettling: TransactionSettling {
     struct Call: Equatable {
-        let status: Outcome.Status
+        let status: TransactionOutcome.Status
         let isKept: Bool
         let saved: [TransactionRecord]?
         let settledCount: Int
@@ -325,7 +325,7 @@ private actor RecordingSettling: TransactionSettling {
         self.key = key
     }
 
-    func settle(_ outcome: Outcome) async {
+    func settle(_ outcome: TransactionOutcome) async {
         let isKept = await store.record(outcome.signature, for: key)?.outcome == outcome
         calls.append(Call(status: outcome.status, isKept: isKept, saved: await pending.value,
                           settledCount: await store.settledCount(for: key)))
