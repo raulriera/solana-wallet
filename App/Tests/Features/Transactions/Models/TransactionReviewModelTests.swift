@@ -69,7 +69,7 @@ struct TransactionReviewModelTests {
         await model.run(model.attempt)
         let record = try #require(model.record)
         #expect(record.kind == .payment)
-        #expect(record.network == .devnet)
+        #expect(record.outcome.network == .devnet)
 
         #expect(try await payment.transactions.settledOutcome(of: record).status == .succeeded(slot: 405))
         #expect(model.outcome?.status == .succeeded(slot: 405))

@@ -104,7 +104,7 @@ struct BalanceMoveProposalTests {
         let record = try await deposit.model.runApproval()
 
         #expect(record.kind == .privateDeposit)
-        #expect(record.network == .devnet)
+        #expect(record.outcome.network == .devnet)
         #expect(try await deposit.transactions.watch(record.id, for: record.key).status == .succeeded(slot: 405))
         #expect(deposit.model.outcome?.status == .succeeded(slot: 405))
         #expect(try await deposit.balances.refresh(deposit.account, on: .devnet)

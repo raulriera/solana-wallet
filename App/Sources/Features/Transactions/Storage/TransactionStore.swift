@@ -272,7 +272,7 @@ final class TransactionStore: Erasable {
     /// - Returns: The transaction's settled outcome.
     /// - Throws: The coordinator's creation or watch error, or `CancellationError`.
     private func settle(_ record: TransactionRecord, in entry: Entry) async throws -> TransactionOutcome {
-        let outcome = try await coordinator(for: record.network).confirm(record.outcome, of: record.transaction)
+        let outcome = try await coordinator(for: record.outcome.network).confirm(record.outcome, of: record.transaction)
         try Task.checkCancellation()
         if let index = entry.records.firstIndex(where: { $0.id == record.id }) {
             entry.records[index].settle(outcome.status, at: .now)
