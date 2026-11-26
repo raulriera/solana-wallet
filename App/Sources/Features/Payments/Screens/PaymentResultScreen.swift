@@ -34,23 +34,23 @@ struct PaymentResultScreen: TransactionResultContent {
         .onChange(of: outcome, initial: true) { isFocused = true }
     }
 
-    /// The result's symbol, title, and explanation.
-    private var card: (title: LocalizedStringResource, message: LocalizedStringResource, systemImage: String) {
+    private var card: TransactionResultCard {
         let payment = review.proposal
         return switch outcome.status {
         case .pending:
-            ("Sending", "Waiting for the network to confirm it.", "clock.circle.fill")
+            .sending
         case .succeeded:
-            ("Sent",
-             LocalizedStringResource("You sent \(payment.sent, format: .amount(of: payment.asset)) to \(payment.recipient.title).",
-                                     comment: "Message after a payment landed. The variables are the amount with its symbol, such as 0.5 SOL, and the recipient's name or short address."),
-             "checkmark.circle.fill")
+            TransactionResultCard(
+                title: "Sent",
+                message: LocalizedStringResource("You sent \(payment.sent, format: .amount(of: payment.asset)) to \(payment.recipient.title).",
+                                                 comment: "Message after a payment landed. The variables are the amount with its symbol, such as 0.5 SOL, and the recipient's name or short address."),
+                systemImage: "checkmark.circle.fill")
         case .failed:
-            ("Payment Failed",
-             "The network rejected this payment. Its network fee was paid. Nothing else left your wallet.",
-             "exclamationmark.triangle.fill")
+            .failed(
+                title: "Payment Failed",
+                message: "The network rejected this payment. Its network fee was paid. Nothing else left your wallet.")
         case .dropped:
-            ("Not Sent", "Nothing left your wallet.", "xmark.circle.fill")
+            .dropped(message: "Nothing left your wallet.")
         }
     }
 }
