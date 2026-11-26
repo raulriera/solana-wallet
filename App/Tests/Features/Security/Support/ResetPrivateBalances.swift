@@ -25,7 +25,7 @@ struct ResetPrivateBalances: PrivateBalancing {
         throw CancellationError()
     }
 
-    func complete(_ transaction: PreparedPrivateTransaction, with confirmation: widgets.Confirmation) async throws
+    func complete(_ transaction: PreparedPrivateTransaction, with outcome: TransactionOutcome) async throws
         -> PrivateBalanceStatus {
         Issue.record("A reset must not record private transactions.")
         return .off(isRegistered: false)
