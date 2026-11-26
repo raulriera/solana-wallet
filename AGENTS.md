@@ -8,7 +8,7 @@ Stop and ask the user before you break one of these.
 
 - Edit only after the user approves a plan, architecture included; a different shape needs a new plan. Work on one concern at a time.
 - Commit, amend, reset, push, open a PR, or merge only when the user's current message names that action. Never force push or create merge commits. Change `main` only when the user asks, and never rewrite its history.
-- Before you ask for review, run simplify, code review, the skills below that fit the change, and the Unit test plan on the final code, and fix what they find.
+- Before a branch's PR, run simplify, code review, the skills below that fit the change, and the Unit test plan on the whole branch, and fix what they find.
 - Keep the app and tests simple, readable, and easy to extend, with Don't Repeat Yourself and Single Concern. Before a second copy of a code shape, extract one generic, non-product helper, such as an extension, operator, or small type; a ban on product-specific helpers never covers generic ones. Until the first release, add no backwards compatibility, migrations, or fallbacks for rare faults.
 - Network, amount, and asset are explicit inputs: no default argument, fallback, or optional that stands for a default. For the asset, this covers tests and fixtures too.
 - Never compose views in computed properties or helper functions, `@ViewBuilder` included; other helpers return data or perform actions. Each extracted view is an independent `View` type in its own file. Protocol-required rendering entry points and fluent modifier and style helpers are exempt.
@@ -18,7 +18,7 @@ Stop and ask the user before you break one of these.
 - A milestone is one concern, reviewable in one sitting: at most 8 non-Markdown files, where renames and mechanical edits count and one-line imports don't. List the files before writing code. Sweeps and side fixes are separate milestones.
 - Agree on UI design and behavior with the user before building it; mockups don't approve production. See [references/ui.md](references/ui.md).
 - Name branches `<type>/<topic>` with a Conventional Commits type, such as `refactor/provider-wording`, never with an agent prefix such as `claude/`; rename a wrong one. Update branches by rebasing onto `origin/main`.
-- Build a feature on one branch off `main`. Leave each milestone uncommitted until the user reviews it; after review, it becomes its own commit before the next one starts. Land work on `main` by rebase or squash, PRs included.
+- Build a feature on one branch off `main`. Leave each milestone uncommitted until the user reviews it, after a build, the Unit test plan, and a check of the diff against the Non-negotiables; after review, it becomes its own commit before the next one starts. Land work on `main` by rebase or squash, PRs included.
 - Commits use Conventional Commits and the user's git identity. Commits and PRs carry no AI attribution.
 - Ask before opening a PR. Use a short title and the template: one short summary paragraph and one line per verification step.
 - Never lose work: before you delete or archive a branch or worktree, land its committed work where the user wants it.
@@ -38,7 +38,7 @@ Use Xcode's skills for their concerns, alongside the ones named here.
 
 - UI and SwiftUI code: [SwiftUI Expert](https://github.com/AvdLee/SwiftUI-Agent-Skill), `swiftui-specialist`, and `swiftui-whats-new-27`. Layout, resizing, and iPhone Duo reviews: `app-resizability`. Simulator verification: `device-interaction`.
 - Concurrency: validate changes against current Apple documentation and `swift-concurrency`.
-- Every test change, before review: `modernize-tests` with `swift-testing-expert`.
+- Test changes, before a branch's PR: `modernize-tests` with `swift-testing-expert`.
 - Accessibility audits: `accessibility-dynamic-type-specialist`, `accessibility-voiceover-specialist`, and `accessibility-sufficient-contrast-specialist`.
 - Others: `app-intents-specialist` and `app-intents-whats-new-27` (App Intents), `xctrace` (profiling and trace analysis), `translation` and `translation-coordinator` (String Catalogs), `audit-xcode-security-settings` (build settings), `building-document-based-swiftui-applications` (file packages and document types, such as theme packs), `adopt-c-bounds-safety` (C).
 - `xcrun agent skills export` installs most of Xcode's skills; the accessibility and translation skills come only from `xcrun agent plugin path --plugin-format <agent>`. Skills that call Xcode need `xcrun mcpbridge`.
