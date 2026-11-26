@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Shows a sent payment's outcome, with a link to its explorer page, a way to retry a dropped payment, and a way to
-/// start a new payment.
+/// Shows a sent payment's outcome, with a link to its explorer page, a way to retry a dropped payment, and, once the
+/// payment settles, a way to start a new payment.
 struct PaymentResultScreen: TransactionResultContent {
     @Environment(\.newPayment) private var newPayment
     @AccessibilityFocusState private var isFocused: Bool
@@ -23,7 +23,7 @@ struct PaymentResultScreen: TransactionResultContent {
                     Button("Try Again", action: review.tryAgain)
                 }
                 Link("View in Explorer", destination: outcome.explorerURL)
-                if let newPayment {
+                if let newPayment, outcome.status != .pending {
                     Button("New Payment") { newPayment() }
                 }
             }
