@@ -6,8 +6,8 @@ nonisolated struct RecentPaymentSettlement: TransactionSettling {
     let recents: RecentPaymentStore
     let recipient: Address
 
-    func settle(_ confirmation: Confirmation) async {
-        guard confirmation.outcome == .succeeded else { return }
-        try? await recents.add(RecentPayment(address: recipient, date: .now), on: confirmation.submission.network)
+    func settle(_ outcome: TransactionOutcome) async {
+        guard case .succeeded = outcome.status else { return }
+        try? await recents.add(RecentPayment(address: recipient, date: .now), on: outcome.network)
     }
 }
