@@ -45,14 +45,15 @@ struct PortfolioObservationTests {
     @Test
     func `A settled transaction reads the balances again`() async throws {
         let account = try Account.fixture(index: 1)
-        let sent = try PendingPayment(from: account.id)
-        let window = try await Window(showing: ShownWallet(account), transactions: sent.transactions)
+        let record = TransactionRecord.fixture(.payment, account: account.id)
+        let sending = try LocalSending(pending: StoredValue([record]))
+        let window = try await Window(showing: ShownWallet(account), transactions: sending.store)
         defer { window.hosted.close() }
         var requests = window.service.requests.makeAsyncIterator()
         _ = try #require(await requests.next())
         #expect(await window.service.calls.map(\.kind) == [.observation])
 
-        #expect(try await sent.settle() == .succeeded(slot: 405))
+        #expect(try await sending.settle(record) == .succeeded(slot: 405))
 
         let reload = try #require(await requests.next())
         #expect(reload.kind == .reload)

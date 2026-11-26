@@ -112,14 +112,15 @@ struct WalletPrivateBalanceTests {
     func `Only a settled private move becomes the last settled move`(kind: TransactionRecord.Kind, isMove: Bool)
         async throws {
         let account = try await PrivateBalanceFixtures.account()
-        let sent = try PendingMove(kind, from: account.id)
-        let store = try await PrivateBalanceFixtures.store(holding: .pending, of: account, transactions: sent.transactions)
+        let record = TransactionRecord.fixture(kind, account: account.id)
+        let sending = try LocalSending(pending: StoredValue([record]))
+        let store = try await PrivateBalanceFixtures.store(holding: .pending, of: account, transactions: sending.store)
         let balance = try await PrivateBalanceFixtures.read(account, in: store)
         #expect(balance.lastSettledMove == nil)
 
-        #expect(try await sent.settle() == .succeeded(slot: 405))
+        #expect(try await sending.settle(record) == .succeeded(slot: 405))
 
-        #expect(balance.lastSettledMove?.id == (isMove ? sent.record.id : nil))
+        #expect(balance.lastSettledMove?.id == (isMove ? record.id : nil))
     }
 
     @Test
@@ -176,12 +177,13 @@ struct WalletPrivateBalanceTests {
     @Test
     func `A read after a settled private move without pending SOL starts no follow-up`() async throws {
         let account = try await PrivateBalanceFixtures.account()
-        let sent = try PendingMove(from: account.id)
+        let record = TransactionRecord.fixture(.privateDeposit, account: account.id)
+        let sending = try LocalSending(pending: StoredValue([record]))
         let store = try await PrivateBalanceFixtures.store(holding: .available, of: account,
-                                                           transactions: sent.transactions)
+                                                           transactions: sending.store)
         let balance = try await PrivateBalanceFixtures.read(account, in: store)
 
-        try #require(await sent.settle() == .succeeded(slot: 405))
+        try #require(await sending.settle(record) == .succeeded(slot: 405))
         await balance.refresh()
 
         #expect(!balance.isFollowingUp)
@@ -190,11 +192,12 @@ struct WalletPrivateBalanceTests {
     @Test
     func `A follow-up ends once nothing is pending`() async throws {
         let account = try await PrivateBalanceFixtures.account()
-        let sent = try PendingMove(from: account.id)
+        let record = TransactionRecord.fixture(.privateDeposit, account: account.id)
+        let sending = try LocalSending(pending: StoredValue([record]))
         let (store, notes) = try await PrivateBalanceFixtures.pendingDeposit(of: account,
-                                                                             transactions: sent.transactions)
+                                                                             transactions: sending.store)
         let balance = try await PrivateBalanceFixtures.read(account, in: store)
-        try #require(await sent.settle() == .succeeded(slot: 405))
+        try #require(await sending.settle(record) == .succeeded(slot: 405))
         await balance.refresh()
         try #require(balance.followUpReadsLeft == 10)
 
@@ -228,11 +231,12 @@ struct WalletPrivateBalanceTests {
     @Test(arguments: [TransactionRecord.Kind.privateDeposit, .privatePayment])
     func `Pending SOL after a settled private move is read again quickly`(kind: TransactionRecord.Kind) async throws {
         let account = try await PrivateBalanceFixtures.account()
-        let sent = try PendingMove(kind, from: account.id)
+        let record = TransactionRecord.fixture(kind, account: account.id)
+        let sending = try LocalSending(pending: StoredValue([record]))
         let clock = ManualClock()
         var waits = clock.waits.makeAsyncIterator()
         let (store, notes) = try await PrivateBalanceFixtures.pendingDeposit(of: account,
-                                                                             transactions: sent.transactions,
+                                                                             transactions: sending.store,
                                                                              clock: clock)
         let viewing = Task { await store.observe(account, on: .devnet) }
         defer { viewing.cancel() }
@@ -242,7 +246,7 @@ struct WalletPrivateBalanceTests {
         #expect(!balance.isFollowingUp)
         #expect(try await clock.durationToNextWait(&waits) == .seconds(30))
 
-        #expect(try await sent.settle() == .succeeded(slot: 405))
+        #expect(try await sending.settle(record) == .succeeded(slot: 405))
 
         for await isFollowingUp in Observations({ balance.isFollowingUp }) where isFollowingUp { break }
         try await notes.save([PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()])

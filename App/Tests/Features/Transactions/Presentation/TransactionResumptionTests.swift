@@ -10,16 +10,17 @@ import Transactions
 struct TransactionResumptionTests {
     @Test
     func `A window that becomes active resumes the pending watches`() async throws {
-        let sent = try PendingPayment(from: UUID())
+        let record = TransactionRecord.fixture(.payment, account: UUID())
+        let sending = try LocalSending(pending: StoredValue([record]))
         let scene = ResumingScene(.background)
-        let hosted = try HostedWindow(TransactionResumptionRoot(scene: scene, transactions: sent.transactions))
+        let hosted = try HostedWindow(TransactionResumptionRoot(scene: scene, transactions: sending.store))
         defer { hosted.close() }
         try #require(try await hosted.appears())
 
         scene.phase = .active
 
-        #expect(try await sent.transactions.settledOutcome(of: sent.record).status == .succeeded(slot: 405))
-        await sent.sockets.waitUntilClosed()
+        #expect(try await sending.store.settledOutcome(of: record).status == .succeeded(slot: 405))
+        await sending.sockets.waitUntilClosed()
     }
 
     @Test
