@@ -20,7 +20,6 @@ struct SigningTests {
         )
 
         let preparation = try await coordinator.simulate([fixture.transfer], using: fixture.account)
-        #expect(preparation.lastValidBlockHeight == 550)
         #expect(await store.reads.isEmpty)
         let signed = try await coordinator.sign(preparation)
 

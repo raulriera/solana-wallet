@@ -220,11 +220,6 @@ nonisolated struct Simulation: Sendable {
     var network: Network { preparation.network }
     /// The network fee in lamports, including its priority fee, or `nil` if unknown.
     var fee: UInt64? { preparation.fee.value }
-    /// The blockhash's last valid block height, or `nil` for an imported transaction.
-    var lastValidBlockHeight: UInt64? {
-        guard case .local = preparation.source else { return nil }
-        return preparation.source.lastValidBlockHeight
-    }
     /// The simulation's response, including any execution error.
     var diagnostics: SimulateTransaction.Response { preparation.simulation }
     /// The balances that the simulation changed, or `nil` if unknown.

@@ -27,7 +27,6 @@ struct ExternalTransactionTests {
         let signed = try await coordinator.sign(preparation)
 
         #expect(preparation.transaction == expected.transaction)
-        #expect(preparation.lastValidBlockHeight == nil)
         #expect(preparation.transaction.serializedRepresentation == input)
         let reference = try ExternalFixture.signed(hasPayerSignature: hasPayerSignature)
         #expect(signed.serializedRepresentation.dropLast(64) == reference.dropLast(64))
@@ -68,7 +67,6 @@ struct ExternalTransactionTests {
 
         let simulation = try await coordinator.simulate(expected.transaction, using: SigningFixture().account)
 
-        #expect(simulation.lastValidBlockHeight == nil)
         let error = try await #require(throws: DeliveryError.self) {
             try await coordinator.submit(simulation)
         }
