@@ -4,10 +4,10 @@ import SwiftUI
 struct KeypadLayout: Layout {
     private static let columns = 3
     /// The side of a key at the largest size.
-    private static let largestKey: CGFloat = 70
-    private static let largestColumnGap: CGFloat = 30
+    private static let largestKey: CGFloat = 88
+    private static let largestColumnGap: CGFloat = 24
     /// The gap between rows and the margin above and below the keys, at the largest size.
-    private static let largestRowGap: CGFloat = 18
+    private static let largestRowGap: CGFloat = 20
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         Self.size(fitting: proposal, count: subviews.count)
