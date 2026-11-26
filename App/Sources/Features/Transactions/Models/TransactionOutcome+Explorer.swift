@@ -1,7 +1,7 @@
 import Foundation
 import RPC
 
-nonisolated extension Outcome {
+nonisolated extension TransactionOutcome {
     /// The transaction's page on Solana Explorer.
     var explorerURL: URL {
         var components = URLComponents()

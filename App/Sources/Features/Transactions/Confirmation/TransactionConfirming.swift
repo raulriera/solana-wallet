@@ -9,5 +9,5 @@ nonisolated protocol TransactionConfirming: Sendable {
     ///   - transaction: The sent transaction.
     /// - Returns: The succeeded, failed, or dropped outcome.
     /// - Throws: A network, response, RPC, or cancellation error.
-    func confirm(_ pending: Outcome, of transaction: Transaction) async throws -> Outcome
+    func confirm(_ pending: TransactionOutcome, of transaction: Transaction) async throws -> TransactionOutcome
 }

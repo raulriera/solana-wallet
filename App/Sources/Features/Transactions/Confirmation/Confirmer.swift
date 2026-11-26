@@ -21,7 +21,7 @@ nonisolated struct Confirmer: TransactionConfirming {
     }
 
     @concurrent
-    func confirm(_ pending: Outcome, of transaction: Transaction) async throws -> Outcome {
+    func confirm(_ pending: TransactionOutcome, of transaction: Transaction) async throws -> TransactionOutcome {
         try Task.checkCancellation()
         var schedule = Schedule()
         while true {
@@ -43,8 +43,8 @@ nonisolated struct Confirmer: TransactionConfirming {
     ///   - schedule: The checks and reconnection wait that every connection shares.
     /// - Returns: The settled outcome.
     /// - Throws: A subscription, RPC, stall, lost connection, or cancellation error.
-    private func watch(_ pending: Outcome, of transaction: Transaction,
-                       schedule: inout Schedule) async throws -> Outcome {
+    private func watch(_ pending: TransactionOutcome, of transaction: Transaction,
+                       schedule: inout Schedule) async throws -> TransactionOutcome {
         let events = try await rpc.events(for: pending.signature)
         let checksExpiry = schedule.expiry == nil
         async let catchUpRead = rpc.send(GetSignatureStatuses(signatures: [pending.signature]))
@@ -109,8 +109,8 @@ nonisolated struct Confirmer: TransactionConfirming {
     ///   - schedule: The next check and, once read, the expiry slot.
     /// - Returns: The outcome once a status read settles it, or `nil` to keep watching.
     /// - Throws: An RPC or cancellation error.
-    private func check(_ pending: Outcome, of transaction: Transaction, at root: UInt64,
-                       schedule: inout Schedule) async throws -> Outcome? {
+    private func check(_ pending: TransactionOutcome, of transaction: Transaction, at root: UInt64,
+                       schedule: inout Schedule) async throws -> TransactionOutcome? {
         guard try await hasExpired(pending, at: root, schedule: &schedule) else { return nil }
         let response = try await rpc.send(GetSignatureStatuses(signatures: [pending.signature]))
         return settle(response, for: pending, of: transaction, at: root, schedule: &schedule)
@@ -125,8 +125,8 @@ nonisolated struct Confirmer: TransactionConfirming {
     ///   - root: The newest root, or `0` before the first one.
     ///   - schedule: The expiry slot, once read, and the next check.
     /// - Returns: The outcome, or `nil` to keep watching.
-    private func settle(_ response: GetSignatureStatuses.Response, for pending: Outcome, of transaction: Transaction,
-                        at root: UInt64, schedule: inout Schedule) -> Outcome? {
+    private func settle(_ response: GetSignatureStatuses.Response, for pending: TransactionOutcome,
+                        of transaction: Transaction, at root: UInt64, schedule: inout Schedule) -> TransactionOutcome? {
         let status = response.value[0]
         if let status, status.confirmationStatus == .finalized {
             return pending.landed(at: status.slot, error: status.error, in: transaction)
@@ -148,7 +148,8 @@ nonisolated struct Confirmer: TransactionConfirming {
     ///   - schedule: The next check and, once read, the expiry slot.
     /// - Returns: Whether a finalized block height above the last valid one was read.
     /// - Throws: A read or cancellation error.
-    private func hasExpired(_ pending: Outcome, at root: UInt64, schedule: inout Schedule) async throws -> Bool {
+    private func hasExpired(_ pending: TransactionOutcome, at root: UInt64,
+                            schedule: inout Schedule) async throws -> Bool {
         if schedule.expiry != nil { return true }
         record(try await rpc.send(GetEpochInfo()), for: pending, at: root, schedule: &schedule)
         return schedule.expiry != nil
@@ -161,7 +162,7 @@ nonisolated struct Confirmer: TransactionConfirming {
     ///   - pending: The transaction's pending outcome.
     ///   - root: The newest root.
     ///   - schedule: The next check or, once the blockhash has expired, the expiry slot.
-    private func record(_ epoch: GetEpochInfo.Response, for pending: Outcome, at root: UInt64,
+    private func record(_ epoch: GetEpochInfo.Response, for pending: TransactionOutcome, at root: UInt64,
                         schedule: inout Schedule) {
         guard epoch.blockHeight > pending.lastValidBlockHeight else {
             let remaining = pending.lastValidBlockHeight - epoch.blockHeight
@@ -195,7 +196,7 @@ nonisolated struct Confirmer: TransactionConfirming {
     }
 }
 
-private nonisolated extension Outcome {
+private nonisolated extension TransactionOutcome {
     /// Returns the succeeded or failed outcome of a landing.
     ///
     /// - Parameters:
@@ -203,7 +204,7 @@ private nonisolated extension Outcome {
     ///   - error: The transaction's error, or `nil` if it ran.
     ///   - transaction: The sent transaction.
     /// - Returns: The settled outcome.
-    func landed(at slot: UInt64, error: TransactionError?, in transaction: Transaction) -> Outcome {
+    func landed(at slot: UInt64, error: TransactionError?, in transaction: Transaction) -> TransactionOutcome {
         settled(error.map { .failed(slot: slot, ExecutionError($0, in: transaction)) } ?? .succeeded(slot: slot))
     }
 }

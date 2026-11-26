@@ -14,10 +14,11 @@ nonisolated struct Submitter: TransactionSubmitting {
     }
 
     @concurrent
-    func submit(_ signed: SignedTransaction) async throws -> Outcome {
+    func submit(_ signed: SignedTransaction) async throws -> TransactionOutcome {
         guard let signature = signed.signature else { throw SubmitterError.missingSignatures }
-        let pending = Outcome(signature: signature, network: signed.preparation.network,
-                              lastValidBlockHeight: signed.preparation.source.lastValidBlockHeight, status: .pending)
+        let pending = TransactionOutcome(signature: signature, network: signed.preparation.network,
+                                         lastValidBlockHeight: signed.preparation.source.lastValidBlockHeight,
+                                         status: .pending)
         do {
             try await send(signed, signature: signature)
             return pending

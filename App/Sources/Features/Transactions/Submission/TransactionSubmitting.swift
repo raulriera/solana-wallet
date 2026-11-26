@@ -5,5 +5,5 @@ nonisolated protocol TransactionSubmitting: Sendable {
     /// - Parameter signed: The signed transaction.
     /// - Returns: The transaction's pending outcome.
     /// - Throws: A missing-signature error, or a ``DeliveryError`` with the pending outcome.
-    func submit(_ signed: SignedTransaction) async throws -> Outcome
+    func submit(_ signed: SignedTransaction) async throws -> TransactionOutcome
 }
