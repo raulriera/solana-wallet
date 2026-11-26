@@ -49,10 +49,7 @@ struct BalanceMoveProposalTests {
         ),
         (
             .nativeSOL,
-            TransactionError(
-                name: "InstructionError",
-                details: .array([.integer(1), .object(["Custom": .integer(6001)])])
-            ),
+            TransactionError.instructionError(1, custom: 6001),
             ["Program failed: custom program error: 0x1771"], .preparationFailed
         ),
         (

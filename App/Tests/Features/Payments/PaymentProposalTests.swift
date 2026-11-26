@@ -38,8 +38,7 @@ struct PaymentProposalTests {
         (TransactionError(name: "InsufficientFundsForFee", details: nil), SendError.notEnoughSOL),
         (TransactionError(name: "InsufficientFundsForRent", details: .object(["account_index": .integer(1)])),
          .amountTooSmall),
-        (TransactionError(name: "InstructionError", details: .array([.integer(0), .object(["Custom": .integer(6001)])])),
-         .preparationFailed),
+        (TransactionError.instructionError(0, custom: 6001), .preparationFailed),
     ])
     func `A failed simulation throws the payment's error`(error: TransactionError, expected: SendError) async throws {
         let payment = try LocalPaymentReview(simulation: .failure(error, fee: LocalPaymentReview.networkFee))

@@ -10,9 +10,6 @@ struct TransactionReviewModelTests {
     private static let rateLimit = RPCError.http(statusCode: 429, retryAfter: "3")
     nonisolated private static let slotError = RPCError.server(code: -32016,
                                                                message: "Minimum context slot has not been reached")
-    nonisolated private static let instructionError = TransactionError(
-        name: "InstructionError", details: .array([.integer(0), .object(["Custom": .integer(1)])])
-    )
     nonisolated private static let invalidParams = RPCError.server(code: -32602, message: "Invalid params")
 
     @Test
@@ -258,8 +255,8 @@ struct TransactionReviewModelTests {
     }
 
     @Test(arguments: [
-        ([1, 0], GetSignatureStatuses.Response.status(.finalized, error: Self.instructionError), UInt64(500), false,
-         SendError.notFinished, 1),
+        ([1, 0], GetSignatureStatuses.Response.status(.finalized, error: .instructionError(0, custom: 1)),
+         UInt64(500), false, SendError.notFinished, 1),
         ([1, 0], .status(.finalized), 500, true, .notFinished, 1),
         ([1, 1, 0], .status(.finalized), 500, false, .notFinished, 1),
         ([1], .status(nil), 600, false, .notSent, 3),
@@ -429,7 +426,7 @@ struct TransactionReviewModelTests {
 
     @Test
     func `A failed transaction shows its outcome`() async throws {
-        let payment = try LocalPaymentReview(statuses: [.status(.finalized, error: Self.instructionError)])
+        let payment = try LocalPaymentReview(statuses: [.status(.finalized, error: .instructionError(0, custom: 1))])
         let model = payment.model
         try await payment.model.runReview()
 

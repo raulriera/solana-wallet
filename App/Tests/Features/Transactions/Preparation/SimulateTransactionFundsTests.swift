@@ -3,21 +3,18 @@ import Testing
 @testable import widgets
 
 struct SimulateTransactionFundsTests {
-    private static let transferError = TransactionError(name: "InstructionError",
-                                                        details: .array([.integer(0), .object(["Custom": .integer(1)])]))
-
     @Test(arguments: [
         (SimulateTransactionFundsTests.value(error: nil, logs: ["Transfer: insufficient lamports 0, need 1000"]), false),
         (SimulateTransactionFundsTests.value(error: TransactionError(name: "InsufficientFundsForFee", details: nil)), true),
         (SimulateTransactionFundsTests.value(error: SimulateTransactionFundsTests.rentError(at: 0)), true),
         (SimulateTransactionFundsTests.value(error: SimulateTransactionFundsTests.rentError(at: 1)), false),
-        (SimulateTransactionFundsTests.value(error: SimulateTransactionFundsTests.transferError,
+        (SimulateTransactionFundsTests.value(error: .instructionError(0, custom: 1),
                                              logs: ["Program 11111111111111111111111111111111 invoke [1]",
                                                     "Transfer: insufficient lamports 0, need 1000"]), true),
-        (SimulateTransactionFundsTests.value(error: SimulateTransactionFundsTests.transferError,
+        (SimulateTransactionFundsTests.value(error: .instructionError(0, custom: 1),
                                              logs: ["Program 11111111111111111111111111111111 failed: custom program error: 0x1"]),
          false),
-        (SimulateTransactionFundsTests.value(error: SimulateTransactionFundsTests.transferError, logs: nil), false),
+        (SimulateTransactionFundsTests.value(error: .instructionError(0, custom: 1), logs: nil), false),
     ])
     func `Only executions that run out of SOL lack funds`(value: SimulateTransaction.Value, lacksFunds: Bool) {
         #expect(value.lacksFunds == lacksFunds)

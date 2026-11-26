@@ -6,8 +6,6 @@ import Transactions
 @testable import widgets
 
 struct ConfirmationTests {
-    private static let instructionError = TransactionError(name: "InstructionError",
-                                                           details: .array([.integer(0), .object(["Custom": .integer(6001)])]))
     private static let programError = ExecutionError.program(instruction: 0, code: 6001)
     private static let unavailable = RPCError.http(statusCode: 503, retryAfter: nil)
     private static let rateLimit = RPCError.http(statusCode: 429, retryAfter: "3")
@@ -48,7 +46,7 @@ struct ConfirmationTests {
 
     @Test(.timeLimit(.minutes(1)), arguments: [
         (TransactionError?.none, TransactionOutcome.Status.succeeded(slot: 405)),
-        (Self.instructionError, .failed(slot: 405, Self.programError)),
+        (TransactionError.instructionError(0, custom: 6001), .failed(slot: 405, Self.programError)),
     ])
     func `A catch-up read settles a transaction that landed before the subscription`(
         error: TransactionError?, expected: TransactionOutcome.Status
@@ -94,7 +92,8 @@ struct ConfirmationTests {
 
     @Test(.timeLimit(.minutes(1)))
     func `A status found after expiry settles the watch with its outcome`() async throws {
-        let http = try HTTPResponses.confirmation(statuses: [response(nil), response(status(.finalized, error: Self.instructionError))],
+        let failure = status(.finalized, error: .instructionError(0, custom: 6001))
+        let http = try HTTPResponses.confirmation(statuses: [response(nil), response(failure)],
                                                   epochs: [epoch(slot: 1_000, height: 600), epoch(slot: 1_051, height: 651)])
         let sockets = SocketSequence { _ in SocketSequence.watch(then: [SocketFixture.rootNotification(1_051)]) }
 

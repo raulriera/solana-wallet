@@ -140,9 +140,7 @@ struct PreparationTests {
 
     @Test
     func `Insufficient funds preserve simulation diagnostics and transfer details`() async throws {
-        let error = TransactionError(name: "InstructionError", details: .array([
-            .integer(0), .object(["Custom": .integer(1)])
-        ]))
+        let error = TransactionError.instructionError(0, custom: 1)
         let expected = try PreparationFixture.preparation(error: error)
         let expectedSource = try PreparationFixture.source(expected)
         let service = Preparer(rpc: (try HTTPResponses.preparation(fixture: expected)).client)

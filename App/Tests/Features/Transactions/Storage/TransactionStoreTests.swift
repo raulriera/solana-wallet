@@ -9,9 +9,6 @@ import Transactions
 @Suite(.timeLimit(.minutes(1)))
 struct TransactionStoreTests {
     private static let rateLimit = RPCError.http(statusCode: 429, retryAfter: "3")
-    nonisolated private static let instructionError = TransactionError(
-        name: "InstructionError", details: .array([.integer(0), .object(["Custom": .integer(6001)])])
-    )
 
     @Test
     func `A sent payment is saved as pending`() async throws {
@@ -113,7 +110,7 @@ struct TransactionStoreTests {
 
     @Test(arguments: [
         (GetSignatureStatuses.Response.status(.finalized), UInt64(500), TransactionOutcome.Status.succeeded(slot: 405)),
-        (.status(.finalized, error: Self.instructionError), 500,
+        (.status(.finalized, error: .instructionError(0, custom: 6001)), 500,
          .failed(slot: 405, .program(instruction: 0, code: 6001))),
         (.status(nil), 600, .dropped),
     ])
