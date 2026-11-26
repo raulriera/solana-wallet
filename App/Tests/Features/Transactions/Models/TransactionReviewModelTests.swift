@@ -485,12 +485,14 @@ struct TransactionReviewModelTests {
         await #expect(throws: (any Error).self) { try await payment.transactions.watch(record.id, for: record.key) }
 
         #expect(model.outcome?.status == .pending)
+        #expect(model.isSending)
         #expect(model.error == nil)
 
         await payment.transactions.resume()
 
         #expect(await payment.transactions.settledStatus(of: record) == .succeeded(slot: 405))
         #expect(model.outcome?.status == .succeeded(slot: 405))
+        #expect(!model.isSending)
         #expect(sockets.sockets.count == 2)
         await sockets.waitUntilClosed()
     }

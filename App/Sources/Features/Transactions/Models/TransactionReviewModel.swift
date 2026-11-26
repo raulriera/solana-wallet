@@ -68,8 +68,8 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
         return transactions.record(record.id, for: record.key)?.outcome
     }
 
-    /// Whether the transaction is being signed and sent.
-    var isSending: Bool { attempt?.work == .send }
+    /// Whether the transaction is being signed and sent, or waits to settle.
+    var isSending: Bool { attempt?.work == .send || outcome?.status == .pending }
 
     var canApprove: Bool { attempt == nil && isProposed && record == nil }
 
