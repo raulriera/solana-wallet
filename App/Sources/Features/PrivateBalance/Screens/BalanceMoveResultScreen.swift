@@ -13,7 +13,7 @@ struct BalanceMoveResultScreen: TransactionResultContent {
         Form {
             Section {
                 TitleCardContent(title: card.title, message: card.message, systemImage: card.systemImage)
-                    .symbolEffect(.breathe, isActive: outcome.isPending)
+                    .symbolEffect(.breathe, isActive: review.isSending)
                     .accessibilityElement(children: .combine)
                     .accessibilityFocused($isFocused)
             }
@@ -40,7 +40,7 @@ struct BalanceMoveResultScreen: TransactionResultContent {
         let asset = move.asset
         switch (move.direction, outcome.status) {
         case (_, .pending):
-            return .sending
+            return .pending(review.confirmationError)
         case (.toPrivate, .succeeded):
             let title = LocalizedStringResource(
                 "\(asset.displaySymbol) Is Private",

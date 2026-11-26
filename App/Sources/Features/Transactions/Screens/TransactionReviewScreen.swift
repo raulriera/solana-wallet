@@ -18,6 +18,7 @@ struct TransactionReviewScreen<ReviewScreen: TransactionReviewContent, ResultScr
                     .transition(.opacity)
             }
         }
+        .animation(.default, value: review.confirmationError)
         .navigationBarBackButtonHidden(review.isSent)
         .interactiveDismissDisabled(review.isSent)
         .transactionReviewLifecycle(of: review)

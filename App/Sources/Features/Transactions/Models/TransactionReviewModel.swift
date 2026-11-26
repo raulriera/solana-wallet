@@ -37,6 +37,8 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     /// A send with preliminary transactions keeps its last transaction's record once that transaction settles.
     private(set) var record: TransactionRecord?
     var error: Proposal.Error?
+    /// Why the check of the sent transaction stopped before the transaction settled, or `nil` if it didn't stop.
+    private(set) var confirmationError: ConfirmationError?
     /// The attempt that's waiting or running, or `nil` for none.
     private(set) var attempt: Attempt?
     @ObservationIgnored private var preparation: Proposal.Preparation?
@@ -68,8 +70,8 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
         return transactions.record(record.id, for: record.key)?.outcome
     }
 
-    /// Whether the transaction is being signed and sent, or waits to settle.
-    var isSending: Bool { attempt?.work == .send || outcome?.status == .pending }
+    /// Whether the transaction is being signed and sent, or waits to settle while its check runs.
+    var isSending: Bool { attempt?.work == .send || (outcome?.status == .pending && confirmationError == nil) }
 
     /// Whether the transaction is being signed and sent, or was sent.
     var isSent: Bool { isSending || outcome != nil }
@@ -122,6 +124,17 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
         start(.review)
     }
 
+    /// Waits for the sent transaction to settle, and keeps why its check stopped if it stops first.
+    func watchOutcome() async {
+        guard let record else { return }
+        do {
+            _ = try await transactions.watch(record.id, for: record.key)
+        } catch is CancellationError {
+        } catch {
+            confirmationError = ConfirmationError(error)
+        }
+    }
+
     /// Runs an attempt's step once.
     ///
     /// - Parameter attempt: The attempt to run, or `nil` for none.
@@ -163,6 +176,7 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     /// - Parameter work: The attempt's work.
     private func start(_ work: Work) {
         error = nil
+        confirmationError = nil
         isStopping = false
         hasLanded = false
         attempt = Attempt(work: work)

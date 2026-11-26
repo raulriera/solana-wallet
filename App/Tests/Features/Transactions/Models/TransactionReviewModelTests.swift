@@ -470,9 +470,14 @@ struct TransactionReviewModelTests {
         #expect(model.proposal.simulations.prepareCount == prepareCount)
     }
 
-    @Test
-    func `A stopped watch keeps the outcome pending until a later watch settles it`() async throws {
-        let refusal = Self.rateLimit
+    @Test(arguments: [
+        (RPCError.http(statusCode: 429, retryAfter: "3"), ConfirmationError.rateLimited),
+        (.http(statusCode: 401, retryAfter: nil), .invalidKey),
+        (.decoding, .unavailable),
+    ])
+    func `A stopped check shows why it stopped until a later check settles the transaction`(
+        refusal: RPCError, reason: ConfirmationError
+    ) async throws {
         let sockets = SocketSequence { $0 == 0 ? SocketSequence.failing(with: refusal) : SocketSequence.watch() }
         let payment = try LocalPaymentReview(statuses: [.status(.finalized)], sockets: sockets)
         let model = payment.model
@@ -480,10 +485,12 @@ struct TransactionReviewModelTests {
         model.approve()
         await model.run(model.attempt)
         let record = try #require(model.record)
-        await #expect(throws: (any Error).self) { try await payment.transactions.watch(record.id, for: record.key) }
 
+        await model.watchOutcome()
+
+        #expect(model.confirmationError == reason)
         #expect(model.outcome?.status == .pending)
-        #expect(model.isSending)
+        #expect(!model.isSending)
         #expect(model.error == nil)
 
         await payment.transactions.resume()

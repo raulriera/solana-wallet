@@ -13,7 +13,7 @@ struct PaymentResultScreen: TransactionResultContent {
         Form {
             Section {
                 TitleCardContent(title: card.title, message: card.message, systemImage: card.systemImage)
-                    .symbolEffect(.breathe, isActive: outcome.isPending)
+                    .symbolEffect(.breathe, isActive: review.isSending)
                     .accessibilityElement(children: .combine)
                     .accessibilityFocused($isFocused)
             }
@@ -38,7 +38,7 @@ struct PaymentResultScreen: TransactionResultContent {
         let payment = review.proposal
         return switch outcome.status {
         case .pending:
-            .sending
+            .pending(review.confirmationError)
         case .succeeded:
             TransactionResultCard(
                 title: "Sent",
