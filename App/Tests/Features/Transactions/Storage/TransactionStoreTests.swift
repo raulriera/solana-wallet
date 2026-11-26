@@ -18,7 +18,7 @@ struct TransactionStoreTests {
 
         let record = try await sending.send(simulation)
 
-        #expect(record.isPending)
+        #expect(record.outcome.isPending)
         #expect(record.settled == nil)
         #expect(record.kind == .payment)
         #expect(record.key == sending.key)
@@ -82,7 +82,7 @@ struct TransactionStoreTests {
 
         let record = try await sending.send()
 
-        #expect(record.isPending)
+        #expect(record.outcome.isPending)
         let saved = await sending.pending.value
         #expect(saved == [record])
         gate.resume()

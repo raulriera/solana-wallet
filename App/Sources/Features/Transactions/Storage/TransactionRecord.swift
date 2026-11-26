@@ -32,8 +32,6 @@ nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable
 
     var id: String { outcome.signature }
 
-    var isPending: Bool { outcome.status == .pending }
-
     var key: Key { Key(account: account, network: outcome.network) }
 
     /// Creates a pending record of a sent transaction.

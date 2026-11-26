@@ -13,7 +13,7 @@ struct BalanceMoveResultScreen: TransactionResultContent {
         Form {
             Section {
                 TitleCardContent(title: card.title, message: card.message, systemImage: card.systemImage)
-                    .symbolEffect(.breathe, isActive: outcome.status == .pending)
+                    .symbolEffect(.breathe, isActive: outcome.isPending)
                     .accessibilityElement(children: .combine)
                     .accessibilityFocused($isFocused)
             }
@@ -23,7 +23,7 @@ struct BalanceMoveResultScreen: TransactionResultContent {
                     Button("Try Again", action: review.tryAgain)
                 }
                 Link("View in Explorer", destination: outcome.explorerURL)
-                if let dismissParentContainer, outcome.status != .pending {
+                if let dismissParentContainer, !outcome.isPending {
                     Button("Done") { dismissParentContainer() }
                 }
             }

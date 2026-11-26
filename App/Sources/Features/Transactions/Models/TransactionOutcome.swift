@@ -9,6 +9,8 @@ nonisolated struct TransactionOutcome: Codable, Equatable, Sendable {
     let lastValidBlockHeight: UInt64
     let status: Status
 
+    var isPending: Bool { status == .pending }
+
     /// Whether a sent transaction landed, and how it ran.
     enum Status: Codable, Equatable, Sendable {
         /// The transaction isn't finalized yet but can still be.

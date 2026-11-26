@@ -140,7 +140,7 @@ final class TransactionStore: Erasable {
         if let watch = entry.watches[id] { return try await result(of: watch, for: id, in: entry) }
         await load()
         guard let record = record(id, for: key) else { throw TransactionStoreError.missingRecord }
-        guard record.isPending else { return record.outcome }
+        guard record.outcome.isPending else { return record.outcome }
         return try await result(of: startWatch(of: record, in: entry), for: id, in: entry)
     }
 
@@ -151,7 +151,7 @@ final class TransactionStore: Erasable {
     /// - Throws: `CancellationError` if the caller is cancelled first.
     func settledOutcome(of record: TransactionRecord) async throws -> TransactionOutcome {
         for await kept in Observations({ self.record(record.id, for: record.key) }) {
-            if let kept, !kept.isPending { return kept.outcome }
+            if let kept, !kept.outcome.isPending { return kept.outcome }
         }
         throw CancellationError()
     }
@@ -162,7 +162,7 @@ final class TransactionStore: Erasable {
     func resume(replacingFailedWatches: Bool = false) async {
         await load()
         for entry in entries.values {
-            for record in entry.records where record.isPending {
+            for record in entry.records where record.outcome.isPending {
                 if let watch = entry.watches[record.id], !(replacingFailedWatches && watch.isFinished) { continue }
                 startWatch(of: record, in: entry)
             }
@@ -193,7 +193,7 @@ final class TransactionStore: Erasable {
 
     /// The records that haven't settled, across every account and network.
     private var pending: [TransactionRecord] {
-        entries.values.flatMap(\.records).filter(\.isPending)
+        entries.values.flatMap(\.records).filter(\.outcome.isPending)
     }
 
     /// Returns a key's entry, creating it on first use.
