@@ -11,6 +11,7 @@ struct TitleCardContent<Icon: View>: View {
         VStack(alignment: .leading, spacing: 8) {
             icon
                 .font(.largeTitle)
+                .contentTransition(.symbolEffect(.replace))
                 .foregroundStyle(palette.primary)
                 .padding(.bottom, 8)
                 .accessibilityHidden(true)

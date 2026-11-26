@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Shows how a sent payment settled, with a link to its explorer page, a way to retry a dropped payment, and a way to
+/// Shows a sent payment's outcome, with a link to its explorer page, a way to retry a dropped payment, and a way to
 /// start a new payment.
 struct PaymentResultScreen: TransactionResultContent {
     @Environment(\.newPayment) private var newPayment
@@ -13,17 +13,16 @@ struct PaymentResultScreen: TransactionResultContent {
         Form {
             Section {
                 TitleCardContent(title: card.title, message: card.message, systemImage: card.systemImage)
+                    .symbolEffect(.breathe, isActive: outcome.status == .pending)
                     .accessibilityElement(children: .combine)
                     .accessibilityFocused($isFocused)
             }
 
             Section {
-                if let submission = review.submission {
-                    if outcome == .dropped {
-                        Button("Try Again", action: review.tryAgain)
-                    }
-                    Link("View in Explorer", destination: submission.explorerURL)
+                if outcome.status == .dropped {
+                    Button("Try Again", action: review.tryAgain)
                 }
+                Link("View in Explorer", destination: outcome.explorerURL)
                 if let newPayment {
                     Button("New Payment") { newPayment() }
                 }
@@ -38,7 +37,9 @@ struct PaymentResultScreen: TransactionResultContent {
     /// The result's symbol, title, and explanation.
     private var card: (title: LocalizedStringResource, message: LocalizedStringResource, systemImage: String) {
         let payment = review.proposal
-        return switch outcome {
+        return switch outcome.status {
+        case .pending:
+            ("Sending", "Waiting for the network to confirm it.", "clock.circle.fill")
         case .succeeded:
             ("Sent",
              LocalizedStringResource("You sent \(payment.sent, format: .amount(of: payment.asset)) to \(payment.recipient.title).",

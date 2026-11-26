@@ -16,10 +16,10 @@ private struct TransactionReviewLifecycle<Proposal: TransactionProposal>: ViewMo
                 }
             }
             .sensoryFeedback(trigger: review.outcome) { _, outcome in
-                switch outcome {
+                switch outcome?.status {
                 case .succeeded?: .success
                 case .failed?, .dropped?: .error
-                case nil: nil
+                case .pending?, nil: nil
                 }
             }
             .onChange(of: scenePhase) { _, phase in

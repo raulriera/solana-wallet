@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Runs and shows a transaction's review and replaces it with the result once the transaction settles, keeping the
-/// person on the screen from the moment the transaction is sent.
+/// Runs and shows a transaction's review and replaces it with the result once the transaction is sent, keeping the
+/// person on the screen from the moment the send starts.
 struct TransactionReviewScreen<ReviewScreen: TransactionReviewContent, ResultScreen: TransactionResultContent>: View
     where ResultScreen.Proposal == ReviewScreen.Proposal {
     let review: TransactionReviewModel<ReviewScreen.Proposal>

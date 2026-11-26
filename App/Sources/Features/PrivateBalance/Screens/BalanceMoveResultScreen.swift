@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Shows how a sent balance move settled, with its explorer link, a retry for a dropped move, and a way to close it.
+/// Shows a sent balance move's outcome, with its explorer link, a retry for a dropped move, and a way to close it.
 struct BalanceMoveResultScreen: TransactionResultContent {
     @Environment(\.dismissParentContainer) private var dismissParentContainer
     @AccessibilityFocusState private var isFocused: Bool
@@ -12,17 +12,16 @@ struct BalanceMoveResultScreen: TransactionResultContent {
         Form {
             Section {
                 TitleCardContent(title: card.title, message: card.message, systemImage: card.systemImage)
+                    .symbolEffect(.breathe, isActive: outcome.status == .pending)
                     .accessibilityElement(children: .combine)
                     .accessibilityFocused($isFocused)
             }
 
             Section {
-                if let submission = review.submission {
-                    if outcome == .dropped {
-                        Button("Try Again", action: review.tryAgain)
-                    }
-                    Link("View in Explorer", destination: submission.explorerURL)
+                if outcome.status == .dropped {
+                    Button("Try Again", action: review.tryAgain)
                 }
+                Link("View in Explorer", destination: outcome.explorerURL)
                 if let dismissParentContainer {
                     Button("Done") { dismissParentContainer() }
                 }
@@ -39,7 +38,9 @@ struct BalanceMoveResultScreen: TransactionResultContent {
         let move = review.proposal
         let sent = move.sent
         let asset = move.asset
-        switch (move.direction, outcome) {
+        switch (move.direction, outcome.status) {
+        case (_, .pending):
+            return ("Sending", "Waiting for the network to confirm it.", "clock.circle.fill")
         case (.toPrivate, .succeeded):
             let title = LocalizedStringResource(
                 "\(asset.displaySymbol) Is Private",

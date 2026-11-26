@@ -60,16 +60,14 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     /// The most times that a send tries its next transaction again after an error that can clear by itself.
     private static var maximumRetries: Int { 2 }
 
-    /// How the sent transaction settled, or `nil` before it's sent and while it's pending.
+    /// The sent transaction's outcome, or `nil` before it's sent.
     var outcome: TransactionOutcome? {
         guard let record else { return nil }
         return transactions.record(record.id, for: record.key)?.outcome
     }
 
-    var submission: Submission? { record?.submission }
-
-    /// Whether the transaction is being signed and sent, or waits to settle.
-    var isSending: Bool { attempt?.work == .send || (record != nil && outcome == nil) }
+    /// Whether the transaction is being signed and sent.
+    var isSending: Bool { attempt?.work == .send }
 
     var canApprove: Bool { attempt == nil && isProposed && record == nil }
 
@@ -112,7 +110,7 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     /// The review simulates the same preparation again, and prepares the transaction again only if the proposal
     /// rejects that preparation.
     func tryAgain() {
-        guard attempt == nil, outcome == .dropped else { return }
+        guard attempt == nil, outcome?.status == .dropped else { return }
         record = nil
         start(.review)
     }
@@ -249,15 +247,15 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
             let sent = try await transactions.send(proposed.simulation, as: proposed.kind, from: account,
                                                    settling: proposed.settling, using: coordinator)
             self.proposed = nil
-            let outcome = try? await outcome(of: sent)
-            if outcome == .succeeded || outcome == .failed { hasLanded = true }
-            switch outcome {
+            let status = try? await outcome(of: sent).status
+            if let status, status != .dropped { hasLanded = true }
+            switch status {
             case .succeeded? where proposed.isPreliminary:
                 resends = 0
                 preparation = nil
                 approvedTransactions -= 1
             case .dropped? where resends < Self.maximumResends: resends += 1
-            case .succeeded?, .dropped?, .failed?, nil:
+            case .pending?, .succeeded?, .dropped?, .failed?, nil:
                 guard !proposed.isPreliminary else {
                     try Task.checkCancellation()
                     throw sendError
@@ -274,18 +272,18 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
         }
     }
 
-    /// Waits for a sent transaction's outcome; when its watch ends with an error, it waits until a later watch finds the
-    /// outcome.
+    /// Waits for a sent transaction's settled outcome; when its watch ends with an error, it waits until a later watch
+    /// settles it.
     ///
     /// - Parameter sent: The sent transaction's record.
-    /// - Returns: The transaction's outcome.
+    /// - Returns: The transaction's settled outcome.
     /// - Throws: `CancellationError` if the task or the watch is cancelled.
     private func outcome(of sent: TransactionRecord) async throws -> TransactionOutcome {
         do {
             return try await transactions.watch(sent.id, for: sent.key)
         } catch where !(error is CancellationError) {
-            for await outcome in Observations({ self.transactions.record(sent.id, for: sent.key)?.outcome }) {
-                if let outcome { return outcome }
+            for await kept in Observations({ self.transactions.record(sent.id, for: sent.key) }) {
+                if let kept, !kept.isPending { return kept.outcome }
             }
             throw CancellationError()
         }
