@@ -114,13 +114,14 @@ final class TransactionStore: Erasable {
               using coordinator: (any TransactionCoordinating)? = nil) async throws -> TransactionRecord {
         let coordinator = try coordinator ?? self.coordinator(for: simulation.network)
         let delivery = Task { @concurrent in
-            let submission: Submission
+            let outcome: Outcome
             do {
-                submission = try await coordinator.submit(simulation)
+                outcome = try await coordinator.submit(simulation)
             } catch let error as DeliveryError {
-                submission = error.submission
+                outcome = error.outcome
             }
-            return await self.track(TransactionRecord(kind, from: account.id, submission: submission),
+            return await self.track(TransactionRecord(kind, from: account.id, transaction: simulation.transaction,
+                                                      outcome: outcome),
                                     settling: settling)
         }
         return try await delivery.value
@@ -131,15 +132,15 @@ final class TransactionStore: Erasable {
     /// - Parameters:
     ///   - id: The record's signature.
     ///   - key: The account and network.
-    /// - Returns: The transaction's outcome.
+    /// - Returns: The transaction's settled outcome.
     /// - Throws: ``TransactionStoreError/missingRecord`` if the record isn't kept, `CancellationError` if the caller
     ///   is cancelled, or the watch's error.
-    func watch(_ id: TransactionRecord.ID, for key: TransactionRecord.Key) async throws -> TransactionOutcome {
+    func watch(_ id: TransactionRecord.ID, for key: TransactionRecord.Key) async throws -> Outcome {
         let entry = entry(for: key)
         if let watch = entry.watches[id] { return try await result(of: watch, for: id, in: entry) }
         await load()
         guard let record = record(id, for: key) else { throw TransactionStoreError.missingRecord }
-        if let outcome = record.outcome { return outcome }
+        guard record.isPending else { return record.outcome }
         return try await result(of: startWatch(of: record, in: entry), for: id, in: entry)
     }
 
@@ -243,10 +244,10 @@ final class TransactionStore: Erasable {
     ///   - watch: The record's watch.
     ///   - id: The record's signature.
     ///   - entry: The record's key's entry.
-    /// - Returns: The transaction's outcome.
+    /// - Returns: The transaction's settled outcome.
     /// - Throws: `CancellationError` if the caller is cancelled, or the watch's error.
     private func result(of watch: TransactionWatch, for id: TransactionRecord.ID, in entry: Entry) async throws
-        -> TransactionOutcome {
+        -> Outcome {
         defer { if watch.isFinished, entry.watches[id] === watch { entry.watches[id] = nil } }
         return try await watch.value()
     }
@@ -256,19 +257,19 @@ final class TransactionStore: Erasable {
     /// - Parameters:
     ///   - record: The pending record.
     ///   - entry: The record's key's entry.
-    /// - Returns: The transaction's outcome.
+    /// - Returns: The transaction's settled outcome.
     /// - Throws: The coordinator's creation or watch error, or `CancellationError`.
-    private func settle(_ record: TransactionRecord, in entry: Entry) async throws -> TransactionOutcome {
-        let confirmation = try await coordinator(for: record.network).confirm(record.submission)
+    private func settle(_ record: TransactionRecord, in entry: Entry) async throws -> Outcome {
+        let outcome = try await coordinator(for: record.network).confirm(record.outcome, of: record.transaction)
         try Task.checkCancellation()
         if let index = entry.records.firstIndex(where: { $0.id == record.id }) {
-            entry.records[index].settle(confirmation.outcome, at: .now)
+            entry.records[index].settle(outcome.status, at: .now)
         }
         await save()
         try Task.checkCancellation()
-        if let settling = entry.settlings.removeValue(forKey: record.id) { await settling.settle(confirmation) }
+        if let settling = entry.settlings.removeValue(forKey: record.id) { await settling.settle(outcome) }
         entry.settledCount += 1
-        return confirmation.outcome
+        return outcome
     }
 
     /// One account's records on one network, its settled count, and the watches and settlings of its pending records.

@@ -35,12 +35,14 @@ struct LocalSending {
     }
 
     func send(settling: (any TransactionSettling)? = nil) async throws -> TransactionRecord {
-        try await store.send(simulate(), as: .payment, from: account, settling: settling)
+        try await send(simulate(), settling: settling)
     }
 
-    func settle(_ record: TransactionRecord) async throws -> TransactionOutcome {
-        let status = try await store.watch(record.id, for: key)
-        await sockets.waitUntilClosed()
-        return status
+    func send(_ simulation: Simulation, settling: (any TransactionSettling)? = nil) async throws -> TransactionRecord {
+        try await store.send(simulation, as: .payment, from: account, settling: settling)
+    }
+
+    func settle(_ record: TransactionRecord) async throws -> Outcome.Status {
+        try await store.watch(record, untilClosed: sockets)
     }
 }

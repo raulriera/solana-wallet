@@ -6,17 +6,17 @@ import Foundation
 @MainActor
 final class TransactionWatch {
     private var task: Task<Void, Never>?
-    private var result: Result<TransactionOutcome, any Error>?
-    private var waiters: [UUID: CheckedContinuation<TransactionOutcome, any Error>] = [:]
+    private var result: Result<Outcome, any Error>?
+    private var waiters: [UUID: CheckedContinuation<Outcome, any Error>] = [:]
 
     var isFinished: Bool { result != nil }
 
     /// Creates a watch and runs it in its own task.
     ///
     /// - Parameter operation: Watches the transaction until it settles and returns its outcome.
-    init(_ operation: @escaping @MainActor () async throws -> TransactionOutcome) {
+    init(_ operation: @escaping @MainActor () async throws -> Outcome) {
         task = Task {
-            let result: Result<TransactionOutcome, any Error>
+            let result: Result<Outcome, any Error>
             do {
                 result = .success(try await operation())
             } catch {
@@ -28,9 +28,9 @@ final class TransactionWatch {
 
     /// Waits for the watch's result.
     ///
-    /// - Returns: The transaction's outcome.
+    /// - Returns: The transaction's settled outcome.
     /// - Throws: `CancellationError` if the caller is cancelled, or the watch's error.
-    func value() async throws -> TransactionOutcome {
+    func value() async throws -> Outcome {
         let id = UUID()
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
@@ -54,8 +54,8 @@ final class TransactionWatch {
 
     /// Keeps the watch's result and hands it to every caller that waits.
     ///
-    /// - Parameter result: The transaction's outcome, or the watch's error.
-    private func finish(with result: Result<TransactionOutcome, any Error>) {
+    /// - Parameter result: The transaction's settled outcome, or the watch's error.
+    private func finish(with result: Result<Outcome, any Error>) {
         self.result = result
         let waiters = waiters
         self.waiters = [:]
