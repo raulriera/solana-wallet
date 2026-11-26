@@ -27,7 +27,7 @@ struct TransactionReviewModelTests {
 
     @Test
     func `A failed simulation shows the proposal's error without a review`() async throws {
-        let error = TransactionError(name: "InsufficientFundsForFee", details: nil)
+        let error = TransactionError.insufficientFundsForFee
         let model = try LocalPaymentReview(simulation: .failure(error, fee: LocalPaymentReview.networkFee)).model
 
         model.prepareReview()

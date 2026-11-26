@@ -44,7 +44,7 @@ struct BalanceMoveProposalTests {
 
     @Test(arguments: [
         (
-            PrivateAsset.nativeSOL, TransactionError(name: "InsufficientFundsForFee", details: nil), [String](),
+            PrivateAsset.nativeSOL, TransactionError.insufficientFundsForFee, [String](),
             PrivateBalanceError.insufficientPublicBalance
         ),
         (
@@ -53,7 +53,7 @@ struct BalanceMoveProposalTests {
             ["Program failed: custom program error: 0x1771"], .preparationFailed
         ),
         (
-            .token(.devnetUSDC), TransactionError(name: "InsufficientFundsForFee", details: nil), [],
+            .token(.devnetUSDC), TransactionError.insufficientFundsForFee, [],
             .insufficientPublicBalanceForFees
         ),
     ])

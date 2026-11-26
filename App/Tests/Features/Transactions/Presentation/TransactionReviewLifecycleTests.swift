@@ -23,7 +23,7 @@ struct TransactionReviewLifecycleTests {
 
     @Test
     func `A failed review shows its alert`() async throws {
-        let error = TransactionError(name: "InsufficientFundsForFee", details: nil)
+        let error = TransactionError.insufficientFundsForFee
         let payment = try LocalPaymentReview(simulation: .failure(error, fee: LocalPaymentReview.networkFee))
         payment.model.prepareReview()
         let hosted = try HostedWindow(NavigationStack {

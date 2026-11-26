@@ -80,7 +80,7 @@ struct SigningTests {
         var simulationFee: UInt64? = 10_000
         switch condition {
         case "failed simulation":
-            error = TransactionError(name: "InsufficientFundsForFee", details: nil)
+            error = .insufficientFundsForFee
             expected = .simulationFailed
         case "unknown fee":
             fixture.fee = .init(context: Context(slot: 401), value: nil)
