@@ -2,8 +2,6 @@ import SwiftUI
 
 /// Runs and shows a transaction's review and replaces it with the result once the transaction is sent, keeping the
 /// person on the screen from the moment the send starts.
-///
-/// A send with preliminary transactions shows the result once its last transaction settles.
 struct TransactionReviewScreen<ReviewScreen: TransactionReviewContent, ResultScreen: TransactionResultContent>: View
     where ResultScreen.Proposal == ReviewScreen.Proposal {
     let review: TransactionReviewModel<ReviewScreen.Proposal>
@@ -11,7 +9,6 @@ struct TransactionReviewScreen<ReviewScreen: TransactionReviewContent, ResultScr
     @State private var shownOutcome: TransactionOutcome?
 
     var body: some View {
-        let isSent = review.isSending || review.outcome != nil
         ZStack {
             if let outcome = shownOutcome {
                 ResultScreen(review: review, outcome: outcome)
@@ -21,8 +18,8 @@ struct TransactionReviewScreen<ReviewScreen: TransactionReviewContent, ResultScr
                     .transition(.opacity)
             }
         }
-        .navigationBarBackButtonHidden(isSent)
-        .interactiveDismissDisabled(isSent)
+        .navigationBarBackButtonHidden(review.isSent)
+        .interactiveDismissDisabled(review.isSent)
         .transactionReviewLifecycle(of: review)
         .onChange(of: review.outcome?.status, initial: true) {
             withAnimation { shownOutcome = review.outcome }

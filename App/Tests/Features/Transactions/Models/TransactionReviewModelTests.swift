@@ -56,7 +56,7 @@ struct TransactionReviewModelTests {
         await model.run(model.attempt)
         try #require(model.error == .preparationFailed)
 
-        model.retry()
+        model.prepareReview()
 
         #expect(model.attempt?.work == .review)
         #expect(model.error == nil)
@@ -77,6 +77,7 @@ struct TransactionReviewModelTests {
         #expect(try await payment.transactions.settledOutcome(of: record).status == .succeeded(slot: 405))
         #expect(model.outcome?.status == .succeeded(slot: 405))
         #expect(!model.isSending)
+        #expect(model.isSent)
         #expect(!model.canApprove)
         #expect(model.error == nil)
         await payment.sockets.waitUntilClosed()
@@ -135,7 +136,7 @@ struct TransactionReviewModelTests {
         await model.run(model.attempt)
         try #require(model.error == .preparationFailed)
 
-        model.retry()
+        model.prepareReview()
         await model.run(model.attempt)
 
         #expect(model.canApprove)
@@ -155,7 +156,7 @@ struct TransactionReviewModelTests {
         await model.run(model.attempt)
         try #require(model.error == .preparationFailed)
 
-        model.retry()
+        model.prepareReview()
         await model.run(model.attempt)
 
         #expect(model.error == .notEnoughSOL)
@@ -204,7 +205,7 @@ struct TransactionReviewModelTests {
         await send.value
         try #require(model.error == .notFinished)
 
-        model.retry()
+        model.prepareReview()
         await model.run(model.attempt)
 
         #expect(model.canApprove)
@@ -401,7 +402,7 @@ struct TransactionReviewModelTests {
         await model.run(model.attempt)
         try #require(model.error == .notFinished)
 
-        model.retry()
+        model.prepareReview()
         await model.run(model.attempt)
 
         #expect(model.canApprove)
@@ -527,7 +528,7 @@ struct TransactionReviewModelTests {
         #expect(model.outcome == nil)
         #expect(!model.canApprove)
 
-        model.retry()
+        model.prepareReview()
         await model.run(model.attempt)
 
         #expect(model.canApprove)

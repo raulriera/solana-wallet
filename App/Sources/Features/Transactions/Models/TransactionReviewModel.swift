@@ -71,6 +71,9 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     /// Whether the transaction is being signed and sent, or waits to settle.
     var isSending: Bool { attempt?.work == .send || outcome?.status == .pending }
 
+    /// Whether the transaction is being signed and sent, or was sent.
+    var isSent: Bool { isSending || outcome != nil }
+
     var canApprove: Bool { attempt == nil && isProposed && record == nil }
 
     /// The error that ends the running send: not finished once one of its transactions landed, otherwise not sent.
@@ -96,6 +99,8 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     }
 
     /// Starts preparing and simulating the transaction, unless a step is waiting or running or it was sent.
+    ///
+    /// After an error, it simulates the preparation that the error kept, if any, instead of preparing again.
     func prepareReview() {
         guard attempt == nil, record == nil else { return }
         start(.review)
@@ -114,15 +119,6 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     func tryAgain() {
         guard attempt == nil, outcome?.status == .dropped else { return }
         record = nil
-        start(.review)
-    }
-
-    /// Starts the review again after an error, unless a step is waiting or running or the transaction was sent.
-    ///
-    /// It simulates the same preparation again when the error could clear by itself, or when the send ended before its
-    /// next transaction.
-    func retry() {
-        guard attempt == nil, record == nil else { return }
         start(.review)
     }
 
