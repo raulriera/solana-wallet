@@ -47,7 +47,7 @@ final class TransactionWatch {
         }
     }
 
-    /// Cancels the watch.
+    /// Cancels the operation; the watch then ends with what the operation returns or throws.
     func cancel() {
         task?.cancel()
     }

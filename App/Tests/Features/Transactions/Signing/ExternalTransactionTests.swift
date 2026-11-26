@@ -57,7 +57,7 @@ struct ExternalTransactionTests {
     }
 
     @Test
-    func `An imported receipt expires 150 blocks after the finalized block height`() async throws {
+    func `An imported transaction expires 150 blocks after the finalized block height`() async throws {
         let expected = try ExternalFixture.preparation()
         let preparationHTTP = try HTTPResponses.preparation(fixture: expected)
         let signingHTTP = try HTTPResponses.signing(fee: 15_000)

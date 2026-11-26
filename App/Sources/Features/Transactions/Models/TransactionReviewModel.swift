@@ -155,7 +155,7 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     }
 
     /// Stops a running send with preliminary transactions before it sends its next transaction: the send ends when
-    /// the transaction that was sent has an outcome, or when the next transaction is prepared.
+    /// the transaction that was sent settles, or when the next transaction is prepared.
     ///
     /// The next attempt starts without the stop, so a stop while no send runs has no effect.
     func stopSending() {
@@ -221,9 +221,9 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
         }
     }
 
-    /// Sends the proposal's preliminary transactions and then its own: it sends each transaction, waits for its
-    /// outcome, and prepares the next one. A transaction whose watch ends with an error waits until a later watch finds
-    /// its outcome. It sends a dropped transaction again only with the same preparation, and ends when the proposal
+    /// Sends the proposal's preliminary transactions and then its own: it sends each transaction, waits for it to
+    /// settle, and prepares the next one. A transaction whose watch ends with an error waits until its record
+    /// settles. It sends a dropped transaction again only with the same preparation, and ends when the proposal
     /// rejects that preparation, so that a transaction that landed despite a drop can't be paid again with a new
     /// preparation.
     ///

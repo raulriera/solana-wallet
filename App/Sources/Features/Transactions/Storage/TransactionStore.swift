@@ -103,7 +103,7 @@ final class TransactionStore: Erasable {
     ///   - simulation: The approved simulation from this store's coordinator for its network.
     ///   - kind: What the transaction does.
     ///   - account: The account that signs and pays.
-    ///   - settling: What finishes the transaction's work once its outcome is found, or `nil` for nothing.
+    ///   - settling: What runs the transaction's remaining work once it settles, or `nil` for nothing.
     ///   - coordinator: The coordinator that signs and sends, which accepts the simulation, or `nil` for this
     ///     store's coordinator for the simulation's network.
     /// - Returns: The pending record.
@@ -127,7 +127,7 @@ final class TransactionStore: Erasable {
         return try await delivery.value
     }
 
-    /// Waits for a pending record's outcome, joining its watch or starting one.
+    /// Waits for a record to settle, joining its watch or starting one; a settled record returns at once.
     ///
     /// - Parameters:
     ///   - id: The record's signature.
@@ -208,7 +208,7 @@ final class TransactionStore: Erasable {
     ///
     /// - Parameters:
     ///   - record: The pending record.
-    ///   - settling: What finishes the transaction's work once its outcome is found, or `nil` for nothing.
+    ///   - settling: What runs the transaction's remaining work once it settles, or `nil` for nothing.
     /// - Returns: The record.
     private func track(_ record: TransactionRecord, settling: (any TransactionSettling)?) async -> TransactionRecord {
         let entry = entry(for: record.key)
@@ -272,7 +272,7 @@ final class TransactionStore: Erasable {
         return outcome
     }
 
-    /// One account's records on one network, its settled count, and the watches and settlings of its pending records.
+    /// What the store keeps for one account on one network.
     @MainActor
     @Observable
     fileprivate final class Entry {

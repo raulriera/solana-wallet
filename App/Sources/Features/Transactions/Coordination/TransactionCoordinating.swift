@@ -42,7 +42,7 @@ nonisolated protocol TransactionCoordinating: TransactionConfirming {
     /// - Throws: A validation, authentication, or signing error.
     func sign(_ simulation: Simulation) async throws -> Transaction
 
-    /// Signs and sends an approved simulation without waiting for its outcome.
+    /// Signs and sends an approved simulation without waiting for it to settle.
     ///
     /// - Parameter simulation: The approved simulation.
     /// - Returns: The transaction's pending outcome.

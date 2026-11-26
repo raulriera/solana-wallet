@@ -5,16 +5,17 @@ nonisolated struct TransactionOutcome: Codable, Equatable, Sendable {
     /// The transaction's first signature, which identifies it.
     let signature: String
     let network: Network
+    /// The highest block height at which the transaction can land; for an imported transaction, an upper bound.
     let lastValidBlockHeight: UInt64
     let status: Status
 
     /// Whether a sent transaction landed, and how it ran.
     enum Status: Codable, Equatable, Sendable {
-        /// The transaction hasn't landed, and can still land.
+        /// The transaction isn't finalized yet but can still be.
         case pending
-        /// The transaction ran and succeeded in a slot whose state includes it.
+        /// The transaction succeeded in `slot`, which is finalized.
         case succeeded(slot: UInt64)
-        /// The transaction ran and failed in a slot whose state includes it; its fee was paid.
+        /// The transaction failed in `slot`, which is finalized; its fee was paid.
         case failed(slot: UInt64, ExecutionError)
         /// The transaction can never land.
         case dropped
