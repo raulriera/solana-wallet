@@ -283,44 +283,36 @@ struct ConfirmationTests {
         (Self.rateLimit, Self.rateLimit, SocketSequence.watch(), 1),
         (Self.rejectedKey, Self.rejectedKey, SocketSequence.watch(), 1),
     ])
-    func `A rate limit or rejected key stops the watch with the pending outcome`(
+    func `A rate limit or rejected key stops the watch with its error`(
         refusal: RPCError, readError: RPCError?, connection: @escaping SocketFixture.Responder, statusReads: Int
     ) async throws {
         let http = try HTTPResponses.confirmation(statuses: [], error: readError)
         let sockets = SocketSequence { _ in connection }
-        let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
 
-        let delivery = try await #require(throws: DeliveryError.self) {
-            try await coordinator(over: http, sockets: sockets, store: store).confirm(pending, of: transaction)
+        await #expect(throws: refusal) {
+            try await confirmer(http, sockets).confirm(pending, of: transaction)
         }
 
-        #expect(delivery.outcome == pending)
-        #expect(delivery.cause as? RPCError == refusal)
         #expect(try await reads(of: http)["getSignatureStatuses", default: 0] == statusReads)
         #expect(sockets.sockets.count == 1)
         await sockets.waitUntilClosed()
-        #expect(await store.reads.isEmpty)
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func `Cancelling a coordinator's watch keeps the pending outcome`() async throws {
+    func `Cancelling a watch during a read cancels the read`() async throws {
         let held = Suspension()
         let http = try HTTPResponses.confirmation(statuses: [response(nil)], gate: held)
         let sockets = SocketSequence()
-        let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
-        let transactions = coordinator(over: http, sockets: sockets, store: store)
-        let operation = Task { @concurrent in try await transactions.confirm(pending, of: transaction) }
+        let watch = confirmer(http, sockets)
+        let operation = Task { @concurrent in try await watch.confirm(pending, of: transaction) }
         defer { operation.cancel() }
         await held.waitUntilStarted()
 
         operation.cancel()
 
-        let delivery = try await #require(throws: DeliveryError.self) { try await operation.value }
-        #expect(delivery.outcome == pending)
-        #expect(delivery.cause is CancellationError)
+        await #expect(throws: CancellationError.self) { try await operation.value }
         #expect(await http.wasCancelled)
         await sockets.waitUntilClosed()
-        #expect(await store.reads.isEmpty)
     }
 
     @Test(.timeLimit(.minutes(1)))
@@ -443,13 +435,6 @@ struct ConfirmationTests {
 
     private func reads(of http: HTTPResponses) async throws -> [String: Int] {
         try await http.requests.reduce(into: [:]) { counts, request in counts[try request.rpcMethod, default: 0] += 1 }
-    }
-
-    private func coordinator(over http: HTTPResponses, sockets: SocketSequence,
-                             store: SigningRecoveryStore) -> any TransactionCoordinating {
-        let rpc = http.client(socket: { sockets.connect($0) })
-        return TransactionCoordinator(rpc: rpc, preparer: Preparer(rpc: rpc), signer: Signer(validator: PreparationValidator(rpc: rpc), store: store),
-                                      submitter: Submitter(rpc: rpc), confirmer: confirmer(http, sockets))
     }
 
     private func clock(stall: @escaping ControlledClock.Sleep = { _ in try await Task.sleep(for: .seconds(3_600)) },

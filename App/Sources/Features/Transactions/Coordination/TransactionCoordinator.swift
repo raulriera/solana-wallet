@@ -134,11 +134,7 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
     }
 
     func confirm(_ pending: TransactionOutcome, of transaction: Transaction) async throws -> TransactionOutcome {
-        do {
-            return try await confirmer.confirm(pending, of: transaction)
-        } catch {
-            throw DeliveryError(outcome: pending, cause: error)
-        }
+        try await confirmer.confirm(pending, of: transaction)
     }
 
     /// Signs an approved simulation with each of its authorities in order.
