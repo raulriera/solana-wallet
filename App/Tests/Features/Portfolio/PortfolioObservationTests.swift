@@ -52,7 +52,7 @@ struct PortfolioObservationTests {
         _ = try #require(await requests.next())
         #expect(await window.service.calls.map(\.kind) == [.observation])
 
-        #expect(try await sent.settle() == .succeeded)
+        #expect(try await sent.settle() == .succeeded(slot: 405))
 
         let reload = try #require(await requests.next())
         #expect(reload.kind == .reload)

@@ -72,10 +72,10 @@ struct TransactionReviewModelTests {
         await model.run(model.attempt)
         let record = try #require(model.record)
         #expect(record.kind == .payment)
-        #expect(model.submission?.network == .devnet)
+        #expect(record.network == .devnet)
 
-        #expect(await payment.transactions.outcome(of: record) == .succeeded)
-        #expect(model.outcome == .succeeded)
+        #expect(await payment.transactions.settledStatus(of: record) == .succeeded(slot: 405))
+        #expect(model.outcome?.status == .succeeded(slot: 405))
         #expect(!model.isSending)
         #expect(!model.canApprove)
         #expect(model.error == nil)
@@ -99,8 +99,8 @@ struct TransactionReviewModelTests {
 
         let record = try #require(model.record)
         #expect(model.error == nil)
-        #expect(await payment.transactions.outcome(of: record) == .succeeded)
-        #expect(model.outcome == .succeeded)
+        #expect(await payment.transactions.settledStatus(of: record) == .succeeded(slot: 405))
+        #expect(model.outcome?.status == .succeeded(slot: 405))
         await payment.sockets.waitUntilClosed()
     }
 
@@ -114,7 +114,7 @@ struct TransactionReviewModelTests {
         await model.run(model.attempt)
 
         let shared = await review.recovery.shared
-        #expect(model.outcome == .succeeded)
+        #expect(model.outcome?.status == .succeeded(slot: 405))
         #expect(await review.sent.requests.count == 2)
         #expect(shared.count == 1)
         #expect(await shared.first?.store.reads.count == 2)
@@ -181,7 +181,7 @@ struct TransactionReviewModelTests {
         await send.value
 
         #expect(advanced == expectedWaits)
-        #expect(model.outcome == .succeeded)
+        #expect(model.outcome?.status == .succeeded(slot: 405))
         #expect(model.proposal.simulations.count == simulationCount)
         #expect(model.proposal.simulations.prepareCount == 2)
         await review.sockets.waitUntilClosed()
@@ -304,7 +304,7 @@ struct TransactionReviewModelTests {
 
         await send.value
 
-        #expect(model.outcome == .succeeded)
+        #expect(model.outcome?.status == .succeeded(slot: 405))
         #expect(await review.sent.requests.count == 2)
         #expect(sockets.sockets.count == 3)
         await sockets.waitUntilClosed()
@@ -319,7 +319,7 @@ struct TransactionReviewModelTests {
         model.approve()
         await model.run(model.attempt)
 
-        #expect(model.outcome == .succeeded)
+        #expect(model.outcome?.status == .succeeded(slot: 405))
         #expect(await review.sent.requests.count == 3)
         await review.sockets.waitUntilClosed()
     }
@@ -334,7 +334,7 @@ struct TransactionReviewModelTests {
         model.approve()
         await model.run(model.attempt)
 
-        #expect(model.outcome == .succeeded)
+        #expect(model.outcome?.status == .succeeded(slot: 405))
         #expect(try #require(model.review).networkFee * 2 == approved.networkFee)
         await review.sockets.waitUntilClosed()
     }
@@ -350,7 +350,7 @@ struct TransactionReviewModelTests {
         model.approve()
         await model.run(model.attempt)
 
-        #expect(model.outcome == .succeeded)
+        #expect(model.outcome?.status == .succeeded(slot: 405))
         #expect(await review.sent.requests.count == 3)
         await review.sockets.waitUntilClosed()
     }
@@ -435,9 +435,10 @@ struct TransactionReviewModelTests {
         model.approve()
         await model.run(model.attempt)
 
-        #expect(await payment.transactions.outcome(of: try #require(model.record)) == .failed)
-        #expect(model.outcome == .failed)
-        #expect(model.submission != nil)
+        let failed = TransactionOutcome.Status.failed(slot: 405, .insufficientFunds(payment.account.address))
+
+        #expect(await payment.transactions.settledStatus(of: try #require(model.record)) == failed)
+        #expect(model.outcome?.status == failed)
         await payment.sockets.waitUntilClosed()
     }
 
@@ -454,8 +455,8 @@ struct TransactionReviewModelTests {
         try await model.runReview()
         model.approve()
         await model.run(model.attempt)
-        try #require(await review.transactions.outcome(of: try #require(model.record)) == .dropped)
-        try #require(model.outcome == .dropped)
+        try #require(await review.transactions.settledStatus(of: try #require(model.record)) == .dropped)
+        try #require(model.outcome?.status == .dropped)
         await review.sockets.waitUntilClosed()
 
         model.tryAgain()
@@ -465,7 +466,6 @@ struct TransactionReviewModelTests {
         #expect(attempt.work == .review)
         #expect(model.review == LocalPaymentReview.costs)
         #expect(model.outcome == nil)
-        #expect(model.submission == nil)
         #expect(model.canApprove)
         #expect(model.error == nil)
         #expect(model.proposal.simulations.count == simulationCount)
@@ -473,7 +473,7 @@ struct TransactionReviewModelTests {
     }
 
     @Test
-    func `A stopped watch keeps the review waiting until a later watch settles it`() async throws {
+    func `A stopped watch keeps the outcome pending until a later watch settles it`() async throws {
         let refusal = Self.rateLimit
         let sockets = SocketSequence { $0 == 0 ? SocketSequence.failing(with: refusal) : SocketSequence.watch() }
         let payment = try LocalPaymentReview(statuses: [.status(.finalized)], sockets: sockets)
@@ -484,15 +484,13 @@ struct TransactionReviewModelTests {
         let record = try #require(model.record)
         await #expect(throws: (any Error).self) { try await payment.transactions.watch(record.id, for: record.key) }
 
-        #expect(model.isSending)
-        #expect(model.outcome == nil)
+        #expect(model.outcome?.status == .pending)
         #expect(model.error == nil)
 
         await payment.transactions.resume()
 
-        #expect(await payment.transactions.outcome(of: record) == .succeeded)
-        #expect(model.outcome == .succeeded)
-        #expect(!model.isSending)
+        #expect(await payment.transactions.settledStatus(of: record) == .succeeded(slot: 405))
+        #expect(model.outcome?.status == .succeeded(slot: 405))
         #expect(sockets.sockets.count == 2)
         await sockets.waitUntilClosed()
     }
@@ -509,7 +507,7 @@ struct TransactionReviewModelTests {
 
         #expect(model.review == LocalPaymentReview.costs)
         #expect(model.error == nil)
-        #expect(model.submission == nil)
+        #expect(model.outcome == nil)
         #expect(model.canApprove)
         #expect(await store.reads.count == 1)
         #expect(try await payment.preparation.simulations() == 2)
@@ -524,7 +522,7 @@ struct TransactionReviewModelTests {
         model.approve()
         await model.run(model.attempt)
         try #require(model.error == .notSent)
-        #expect(model.submission == nil)
+        #expect(model.outcome == nil)
         #expect(!model.canApprove)
 
         model.retry()
