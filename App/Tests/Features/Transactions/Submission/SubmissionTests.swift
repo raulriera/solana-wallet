@@ -31,23 +31,20 @@ struct SubmissionTests {
         let signed = try ExternalFixture.signedResult()
         let limited = HTTPResponses([:], error: Self.rateLimit)
 
-        let error = try await #require(throws: DeliveryError.self) {
-            try await Submitter(rpc: limited.client).submit(signed)
-        }
+        let outcome = try await Submitter(rpc: limited.client).submit(signed)
 
-        #expect(error.outcome == Self.pending)
+        #expect(outcome == Self.pending)
         #expect(await limited.requests.count == 1)
     }
 
     @Test
-    func `A mismatched acknowledgment is rejected`() async throws {
+    func `A mismatched acknowledgment keeps the pending outcome`() async throws {
         let signed = try ExternalFixture.signedResult()
         let mismatched = HTTPResponses(["sendTransaction": [#""another-signature""#]])
 
-        await #expect(throws: DeliveryError.self) {
-            try await Submitter(rpc: mismatched.client).submit(signed)
-        }
+        let outcome = try await Submitter(rpc: mismatched.client).submit(signed)
 
+        #expect(outcome == Self.pending)
         #expect(await mismatched.requests.count == 1)
     }
 
@@ -109,9 +106,8 @@ struct SubmissionTests {
 
         let unused = HTTPResponses([:])
 
-        await #expect(throws: DeliveryError.self) {
-            try await Submitter(rpc: unused.client).submit(input)
-        }
+        _ = try await Submitter(rpc: unused.client).submit(input)
+
         #expect(await unused.requests.isEmpty)
     }
 }

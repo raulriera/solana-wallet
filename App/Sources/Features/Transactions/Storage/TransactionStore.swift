@@ -114,12 +114,7 @@ final class TransactionStore: Erasable {
               using coordinator: (any TransactionCoordinating)? = nil) async throws -> TransactionRecord {
         let coordinator = try coordinator ?? self.coordinator(for: simulation.network)
         let delivery = Task { @concurrent in
-            let outcome: TransactionOutcome
-            do {
-                outcome = try await coordinator.submit(simulation)
-            } catch let error as DeliveryError {
-                outcome = error.outcome
-            }
+            let outcome = try await coordinator.submit(simulation)
             return await self.track(TransactionRecord(kind, from: account.id, outcome: outcome), settling: settling)
         }
         return try await delivery.value

@@ -67,10 +67,8 @@ struct ExternalTransactionTests {
 
         let simulation = try await coordinator.simulate(expected.transaction, using: SigningFixture().account)
 
-        let error = try await #require(throws: DeliveryError.self) {
-            try await coordinator.submit(simulation)
-        }
-        #expect(error.outcome.lastValidBlockHeight == 650)
+        let outcome = try await coordinator.submit(simulation)
+        #expect(outcome.lastValidBlockHeight == 650)
         let requests = await preparationHTTP.requests
         #expect(try requests.prefix(2).map { try $0.rpcMethod } == ["isBlockhashValid", "getBlockHeight"])
         let height = try #require(requests.first { try $0.rpcMethod == "getBlockHeight" })
