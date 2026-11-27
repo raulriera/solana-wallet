@@ -54,6 +54,7 @@ struct PortfolioSplitView: View {
                     .animation(.default, value: portfolio?.snapshotRevision)
                     .refreshable { await refresh() }
                     .navigationTitle("Portfolio")
+                    .toolbarTitleDisplayMode(.inline)
                     .navigationSubtitle(Text(portfolio?.error?.staleStatus ?? ""))
                     .sidebarColumn()
                     .toolbar {

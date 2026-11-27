@@ -42,5 +42,6 @@ struct SettingsSidebar: View {
         .labelReservedIconWidth(iconWidth)
         .listStyle(.sidebar)
         .navigationTitle("Settings")
+        .toolbarTitleDisplayMode(.inline)
     }
 }
