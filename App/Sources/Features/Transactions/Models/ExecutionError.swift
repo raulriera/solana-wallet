@@ -42,7 +42,7 @@ nonisolated extension ExecutionError {
         let accounts = transaction.accounts
         switch (error.name, error.details) {
         case ("InsufficientFundsForFee", nil), ("AccountNotFound", nil):
-            return transaction.feePayer.map { .insufficientFunds($0) }
+            return .insufficientFunds(transaction.feePayer)
         case ("InsufficientFundsForRent", .object(let fields)):
             guard let index: Int = fields["account_index"]?.integer(), accounts.indices.contains(index) else {
                 return nil

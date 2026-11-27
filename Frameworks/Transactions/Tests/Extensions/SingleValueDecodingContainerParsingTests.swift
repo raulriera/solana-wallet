@@ -9,8 +9,8 @@ struct SingleValueDecodingContainerParsingTests {
     }
 
     @Test
-    func `Text that doesn't parse throws corrupted data with the description and the parse error`() {
-        let error = #expect(throws: DecodingError.self) {
+    func `Text that doesn't parse throws corrupted data with the description and the parse error`() throws {
+        let error = try #require(throws: DecodingError.self) {
             try JSONDecoder().decode(Number.self, from: Data(#""forty-two""#.utf8))
         }
 

@@ -43,6 +43,8 @@ struct LocalSending {
     }
 
     func settle(_ record: TransactionRecord) async throws -> TransactionOutcome.Status {
-        try await store.watch(record, untilClosed: sockets)
+        let outcome = try await store.watch(record.id, for: record.key)
+        await sockets.waitUntilClosed()
+        return outcome.status
     }
 }

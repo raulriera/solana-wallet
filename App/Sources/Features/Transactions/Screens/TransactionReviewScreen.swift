@@ -12,13 +12,13 @@ struct TransactionReviewScreen<ReviewScreen: TransactionReviewContent, ResultScr
         ZStack {
             if let outcome = shownOutcome {
                 ResultScreen(review: review, outcome: outcome)
+                    .animation(.default, value: review.confirmationError)
                     .transition(.opacity)
             } else {
                 ReviewScreen(review: review)
                     .transition(.opacity)
             }
         }
-        .animation(.default, value: review.confirmationError)
         .navigationBarBackButtonHidden(review.isSent)
         .interactiveDismissDisabled(review.isSent)
         .transactionReviewLifecycle(of: review)

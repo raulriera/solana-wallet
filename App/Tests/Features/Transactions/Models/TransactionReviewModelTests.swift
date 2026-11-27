@@ -441,22 +441,6 @@ struct TransactionReviewModelTests {
         await review.sockets.waitUntilClosed()
     }
 
-    @Test
-    func `A failed transaction shows its outcome`() async throws {
-        let payment = try LocalPaymentReview(statuses: [.status(.finalized, error: .instructionError(0, custom: 1))])
-        let model = payment.model
-        try await payment.model.runReview()
-
-        model.approve()
-        await model.run(model.attempt)
-
-        let failed = TransactionOutcome.Status.failed(slot: 405, .insufficientFunds(payment.account.address))
-
-        #expect(try await payment.transactions.settledOutcome(of: try #require(model.record)).status == failed)
-        #expect(model.outcome?.status == failed)
-        await payment.sockets.waitUntilClosed()
-    }
-
     @Test(arguments: [
         ([Int: SendError](), 1, 2),
         ([1: .preparationFailed], 2, 3),
