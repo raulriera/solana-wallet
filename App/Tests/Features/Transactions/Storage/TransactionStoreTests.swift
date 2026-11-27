@@ -151,12 +151,14 @@ struct TransactionStoreTests {
         let record = try await sending.send()
         for await _ in sockets.openings { break }
 
-        await #expect(throws: refusal) { try await sending.store.watch(record.id, for: sending.key) }
+        await #expect(throws: ConfirmationError.rateLimited) { try await sending.store.watch(record.id, for: sending.key) }
         let saved = await sending.pending.value
         #expect(saved == [record])
         #expect(sending.store.settledCount(for: sending.key) == 0)
+        #expect(sending.store.confirmationError(of: record.id, for: sending.key) == .rateLimited)
 
         #expect(try await sending.settle(record) == .succeeded(slot: 405))
+        #expect(sending.store.confirmationError(of: record.id, for: sending.key) == nil)
         #expect(sockets.sockets.count == 2)
     }
 

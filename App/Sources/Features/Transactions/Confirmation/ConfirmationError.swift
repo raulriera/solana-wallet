@@ -15,7 +15,7 @@ nonisolated enum ConfirmationError: LocalizedError {
     init(_ error: any Error) {
         switch error {
         case let error as RPCError where error.isRateLimited: self = .rateLimited
-        case let error as RPCError where error.rejectsKey: self = .invalidKey
+        case RPCProviderError.invalidKey: self = .invalidKey
         default: self = .unavailable
         }
     }

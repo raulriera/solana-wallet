@@ -10,7 +10,6 @@ private struct TransactionReviewLifecycle<Proposal: TransactionProposal>: ViewMo
         let attempt = review.attempt
         content
             .task(id: attempt) { await review.run(attempt) }
-            .task(id: review.record?.id) { await review.watchOutcome() }
             .task {
                 while (try? await Task.sleep(for: review.proposal.refreshInterval)) != nil {
                     await review.refreshReview()

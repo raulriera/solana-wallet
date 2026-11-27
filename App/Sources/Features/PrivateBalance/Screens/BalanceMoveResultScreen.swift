@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Shows a sent balance move's outcome, with its explorer link, a retry for a dropped move, and, once the move settles,
-/// a way to close it.
+/// Shows a sent balance move's outcome, with its explorer link, a retry for a dropped move, and, once the move settles
+/// or its check stops, a way to close it.
 struct BalanceMoveResultScreen: TransactionResultContent {
     @Environment(\.dismissParentContainer) private var dismissParentContainer
     @AccessibilityFocusState private var isFocused: Bool
@@ -23,7 +23,7 @@ struct BalanceMoveResultScreen: TransactionResultContent {
                     Button("Try Again", action: review.tryAgain)
                 }
                 Link("View in Explorer", destination: outcome.explorerURL)
-                if let dismissParentContainer, !outcome.isPending {
+                if let dismissParentContainer, !review.isSending {
                     Button("Done") { dismissParentContainer() }
                 }
             }

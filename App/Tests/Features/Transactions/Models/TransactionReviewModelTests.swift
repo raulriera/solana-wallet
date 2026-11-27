@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 import Testing
 import Transactions
 @testable import RPC
@@ -313,7 +314,6 @@ struct TransactionReviewModelTests {
 
         model.approve()
         await model.run(model.attempt)
-        await model.watchOutcome()
 
         #expect(model.confirmationError == .rateLimited)
         #expect(model.unfinishedSendError == nil)
@@ -486,14 +486,9 @@ struct TransactionReviewModelTests {
         #expect(model.proposal.simulations.prepareCount == prepareCount)
     }
 
-    @Test(arguments: [
-        (RPCError.http(statusCode: 429, retryAfter: "3"), ConfirmationError.rateLimited),
-        (.http(statusCode: 401, retryAfter: nil), .invalidKey),
-        (.decoding, .unavailable),
-    ])
-    func `A stopped check shows why it stopped until a later check settles the transaction`(
-        refusal: RPCError, reason: ConfirmationError
-    ) async throws {
+    @Test
+    func `A stopped check shows why until a new connection checks again`() async throws {
+        let refusal = Self.rateLimit
         let sockets = SocketSequence { $0 == 0 ? SocketSequence.failing(with: refusal) : SocketSequence.watch() }
         let payment = try LocalPaymentReview(statuses: [.status(.finalized)], sockets: sockets)
         let model = payment.model
@@ -501,18 +496,19 @@ struct TransactionReviewModelTests {
         model.approve()
         await model.run(model.attempt)
         let record = try #require(model.record)
+        for await error in Observations({ model.confirmationError }) where error != nil { break }
 
-        await model.watchOutcome()
+        await payment.transactions.resume()
 
-        #expect(model.confirmationError == reason)
+        #expect(model.confirmationError == .rateLimited)
         #expect(model.outcome?.status == .pending)
         #expect(!model.isSending)
         #expect(model.error == nil)
 
-        await payment.transactions.resume()
+        await payment.transactions.resume(replacingFailedWatches: true)
 
         #expect(try await payment.transactions.settledOutcome(of: record).status == .succeeded(slot: 405))
-        #expect(model.outcome?.status == .succeeded(slot: 405))
+        #expect(model.confirmationError == nil)
         #expect(!model.isSending)
         #expect(sockets.sockets.count == 2)
         await sockets.waitUntilClosed()

@@ -66,7 +66,7 @@ struct TransactionStoreResumptionTests {
         _ = await attemptsMade.next()
         await store.resume()
 
-        await #expect(throws: TransactionCoordinatorError.unsupportedNetwork) { try await store.watch(record.id, for: record.key) }
+        await #expect(throws: ConfirmationError.unavailable) { try await store.watch(record.id, for: record.key) }
         await store.resume()
         _ = await attemptsMade.next()
         await store.resume(replacingFailedWatches: true)
