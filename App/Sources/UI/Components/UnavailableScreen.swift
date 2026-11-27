@@ -5,7 +5,7 @@ struct UnavailableScreen<Action: View>: View {
     @Environment(\.palette) private var palette
     private let title: LocalizedStringResource
     private let message: LocalizedStringResource
-    private let systemImage: String
+    private let systemImage: String?
     private let action: Action?
 
     /// Creates an unavailable screen.
@@ -13,9 +13,9 @@ struct UnavailableScreen<Action: View>: View {
     /// - Parameters:
     ///   - title: What is unavailable.
     ///   - message: Why it's unavailable and what the action does.
-    ///   - systemImage: The name of the SF Symbol that shows the cause.
+    ///   - systemImage: The name of the SF Symbol that shows the cause, or `nil` for none.
     ///   - action: The one action that can fix it, or `nil` for none.
-    init(title: LocalizedStringResource, message: LocalizedStringResource, systemImage: String,
+    init(title: LocalizedStringResource, message: LocalizedStringResource, systemImage: String?,
          @ViewBuilder action: () -> Action?) {
         self.title = title
         self.message = message
@@ -26,7 +26,11 @@ struct UnavailableScreen<Action: View>: View {
     var body: some View {
         ScrollView {
             ContentUnavailableView {
-                Label(title, systemImage: systemImage)
+                Label {
+                    Text(title)
+                } icon: {
+                    if let systemImage { Image(systemName: systemImage) }
+                }
             } description: {
                 Text(message)
             } actions: {

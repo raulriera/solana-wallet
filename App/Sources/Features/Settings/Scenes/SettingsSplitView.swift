@@ -3,7 +3,6 @@ import SwiftUI
 
 /// Shows the Settings destinations in a sidebar and the selected one's screens.
 struct SettingsSplitView: View {
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var selection: SettingsDestination?
     @Binding var network: Network
     let settings: AppearanceSettingsModel
@@ -39,7 +38,12 @@ struct SettingsSplitView: View {
             SettingsSidebar(selection: $selection)
                 .sidebarColumn()
         } detail: {
-            switch selection ?? .accounts {
+            switch selection {
+            case nil:
+                UnavailableScreen(title: "No Setting Selected",
+                                  message: "Select a setting to change it.",
+                                  systemImage: nil) {}
+                    .toolbarTitleDisplayMode(.inline)
             case .accounts:
                 AccountsScene(account: $account)
             case .security:
@@ -65,9 +69,6 @@ struct SettingsSplitView: View {
             if selection != .security { security.close() }
             if selection != .rpc { rpcCoordinator.leave() }
             if selection != .prices { pricesCoordinator.leave() }
-        }
-        .onChange(of: horizontalSizeClass, initial: true) { _, sizeClass in
-            if sizeClass == .regular, selection == nil { selection = .accounts }
         }
         .alert(error: $settings.error)
     }
