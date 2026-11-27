@@ -7,10 +7,6 @@ nonisolated enum ExecutionError: Error, Equatable, Sendable {
     case insufficientFunds(Address)
     /// The transaction would leave the account with less than its rent-exempt minimum.
     case insufficientFundsForRent(Address)
-    /// An instruction failed, with the program's error code if the program returned its own error.
-    case program(instruction: Int, code: UInt32?)
-    /// The transaction's blockhash is no longer valid.
-    case expired
     /// A failure that no other case describes, as Solana reports it.
     case other(TransactionError)
 }
@@ -23,7 +19,7 @@ nonisolated extension ExecutionError {
     /// Creates an execution error from the error that Solana reports for a transaction.
     ///
     /// A funds program's error names the account only when the program runs as one of the transaction's own
-    /// instructions; when another program invokes it, the error stays a program error.
+    /// instructions; when another program invokes it, the error stays as Solana reports it.
     ///
     /// - Parameters:
     ///   - error: The error of a simulation or of a signature status.
@@ -44,26 +40,17 @@ nonisolated extension ExecutionError {
         case ("InsufficientFundsForFee", nil), ("AccountNotFound", nil):
             return .insufficientFunds(transaction.feePayer)
         case ("InsufficientFundsForRent", .object(let fields)):
-            guard let index: Int = fields["account_index"]?.integer(), accounts.indices.contains(index) else {
+            guard let index = fields["account_index"]?.integer, accounts.indices.contains(index) else {
                 return nil
             }
             return .insufficientFundsForRent(accounts[index].address)
         case ("InstructionError", .array(let values)) where values.count == 2:
-            guard let index: Int = values[0].integer(), transaction.instructions.indices.contains(index) else {
-                return nil
-            }
-            guard case .object(let fields) = values[1], let custom = fields["Custom"] else {
-                return .program(instruction: index, code: nil)
-            }
-            guard let code: UInt32 = custom.integer() else { return nil }
+            guard let index = values[0].integer, transaction.instructions.indices.contains(index),
+                  case .object(let fields) = values[1], fields["Custom"] == .integer(1) else { return nil }
             let instruction = transaction.instructions[index]
-            guard code == 1, fundsPrograms.contains(accounts[instruction.programIndex].address.value),
-                  let source = instruction.accountIndices.first else {
-                return .program(instruction: index, code: code)
-            }
+            guard fundsPrograms.contains(accounts[instruction.programIndex].address.value),
+                  let source = instruction.accountIndices.first else { return nil }
             return .insufficientFunds(accounts[source].address)
-        case ("BlockhashNotFound", nil):
-            return .expired
         default:
             return nil
         }
@@ -71,11 +58,9 @@ nonisolated extension ExecutionError {
 }
 
 private nonisolated extension TransactionError.Detail {
-    /// Returns the detail's integer as another integer type.
-    ///
-    /// - Returns: The integer, or `nil` if the detail isn't an integer or the type can't hold it.
-    func integer<Integer: BinaryInteger>() -> Integer? {
+    /// The detail's integer, or `nil` if the detail isn't an integer or `Int` can't hold it.
+    var integer: Int? {
         guard case .integer(let value) = self else { return nil }
-        return Integer(exactly: value)
+        return Int(exactly: value)
     }
 }

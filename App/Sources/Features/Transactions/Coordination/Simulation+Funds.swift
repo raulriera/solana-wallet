@@ -10,7 +10,7 @@ nonisolated extension Simulation {
         case nil: false
         case .insufficientFunds(let account)? where account == transaction.feePayer: true
         case .insufficientFundsForRent(let account)?: account == transaction.feePayer
-        case .insufficientFunds?, .program?, .expired?, .other?:
+        case .insufficientFunds?, .other?:
             diagnostics.value.logs?.contains { $0.contains("Transfer: insufficient lamports") } == true
         }
     }

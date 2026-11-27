@@ -30,10 +30,6 @@ struct ExecutionErrorTests {
         (#"{"InstructionError":[1,{"Custom":1}]}"#, .insufficientFunds(ExecutionErrorTests.payer)),
         (#"{"InstructionError":[2,{"Custom":1}]}"#, .insufficientFunds(ExecutionErrorTests.tokenAccount)),
         (#"{"InstructionError":[3,{"Custom":1}]}"#, .insufficientFunds(ExecutionErrorTests.tokenAccount)),
-        (#"{"InstructionError":[0,{"Custom":1}]}"#, .program(instruction: 0, code: 1)),
-        (#"{"InstructionError":[1,{"Custom":0}]}"#, .program(instruction: 1, code: 0)),
-        (#"{"InstructionError":[0,"InvalidArgument"]}"#, .program(instruction: 0, code: nil)),
-        (#""BlockhashNotFound""#, .expired),
     ])
     func `A reported error names its cause`(json: String, expected: ExecutionError) throws {
         let error = try Self.error(json)
@@ -46,9 +42,9 @@ struct ExecutionErrorTests {
         #"{"InsufficientFundsForRent":{"account_index":7}}"#,
         #"{"InstructionError":[4,{"Custom":1}]}"#,
         #"{"InstructionError":["first",{"Custom":1}]}"#,
-        #"{"InstructionError":[0,{"Custom":4294967296}]}"#,
-        #"{"InstructionError":[0,{"Custom":"one"}]}"#,
         #"{"InstructionError":[0]}"#,
+        #"{"InstructionError":[0,{"Custom":1}]}"#,
+        #"{"InstructionError":[1,{"Custom":0}]}"#,
     ])
     func `An error without a known cause stays as Solana reports it`(json: String) throws {
         let error = try Self.error(json)
