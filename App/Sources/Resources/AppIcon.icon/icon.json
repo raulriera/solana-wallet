@@ -5,7 +5,7 @@
   "fill-specializations" : [
     {
       "value" : {
-        "automatic-gradient" : "display-p3:0.95018,0.93778,0.98048,1.00000"
+        "automatic-gradient" : "display-p3:0.94118,0.94118,0.94118,1.00000"
       }
     },
     {
@@ -46,7 +46,7 @@
           "position" : {
             "scale" : 1,
             "translation-in-points" : [
-              205,
+              200,
               0
             ]
           }
@@ -100,7 +100,7 @@
           "position" : {
             "scale" : 1,
             "translation-in-points" : [
-              -205,
+              -220,
               0
             ]
           }
