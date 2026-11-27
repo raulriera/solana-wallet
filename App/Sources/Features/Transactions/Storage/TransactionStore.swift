@@ -103,7 +103,7 @@ final class TransactionStore: Erasable {
     ///   - simulation: The approved simulation from this store's coordinator for its network.
     ///   - kind: What the transaction does.
     ///   - account: The account that signs and pays.
-    ///   - settling: What finishes the transaction's work once its outcome is found, or `nil` for nothing.
+    ///   - settling: What runs the transaction's remaining work once it settles, or `nil` for nothing.
     ///   - coordinator: The coordinator that signs and sends, which accepts the simulation, or `nil` for this
     ///     store's coordinator for the simulation's network.
     /// - Returns: The pending record.
@@ -114,24 +114,18 @@ final class TransactionStore: Erasable {
               using coordinator: (any TransactionCoordinating)? = nil) async throws -> TransactionRecord {
         let coordinator = try coordinator ?? self.coordinator(for: simulation.network)
         let delivery = Task { @concurrent in
-            let submission: Submission
-            do {
-                submission = try await coordinator.submit(simulation)
-            } catch let error as DeliveryError {
-                submission = error.submission
-            }
-            return await self.track(TransactionRecord(kind, from: account.id, submission: submission),
-                                    settling: settling)
+            let outcome = try await coordinator.submit(simulation)
+            return await self.track(TransactionRecord(kind, from: account.id, outcome: outcome), settling: settling)
         }
         return try await delivery.value
     }
 
-    /// Waits for a pending record's outcome, joining its watch or starting one.
+    /// Waits for a record to settle, joining its watch or starting one; a settled record returns at once.
     ///
     /// - Parameters:
     ///   - id: The record's signature.
     ///   - key: The account and network.
-    /// - Returns: The transaction's outcome.
+    /// - Returns: The transaction's settled outcome.
     /// - Throws: ``TransactionStoreError/missingRecord`` if the record isn't kept, `CancellationError` if the caller
     ///   is cancelled, or the watch's error.
     func watch(_ id: TransactionRecord.ID, for key: TransactionRecord.Key) async throws -> TransactionOutcome {
@@ -139,7 +133,7 @@ final class TransactionStore: Erasable {
         if let watch = entry.watches[id] { return try await result(of: watch, for: id, in: entry) }
         await load()
         guard let record = record(id, for: key) else { throw TransactionStoreError.missingRecord }
-        if let outcome = record.outcome { return outcome }
+        guard record.outcome.isPending else { return record.outcome }
         return try await result(of: startWatch(of: record, in: entry), for: id, in: entry)
     }
 
@@ -149,7 +143,7 @@ final class TransactionStore: Erasable {
     func resume(replacingFailedWatches: Bool = false) async {
         await load()
         for entry in entries.values {
-            for record in entry.records where record.isPending {
+            for record in entry.records where record.outcome.isPending {
                 if let watch = entry.watches[record.id], !(replacingFailedWatches && watch.isFinished) { continue }
                 startWatch(of: record, in: entry)
             }
@@ -180,7 +174,7 @@ final class TransactionStore: Erasable {
 
     /// The records that haven't settled, across every account and network.
     private var pending: [TransactionRecord] {
-        entries.values.flatMap(\.records).filter(\.isPending)
+        entries.values.flatMap(\.records).filter(\.outcome.isPending)
     }
 
     /// Returns a key's entry, creating it on first use.
@@ -207,7 +201,7 @@ final class TransactionStore: Erasable {
     ///
     /// - Parameters:
     ///   - record: The pending record.
-    ///   - settling: What finishes the transaction's work once its outcome is found, or `nil` for nothing.
+    ///   - settling: What runs the transaction's remaining work once it settles, or `nil` for nothing.
     /// - Returns: The record.
     private func track(_ record: TransactionRecord, settling: (any TransactionSettling)?) async -> TransactionRecord {
         let entry = entry(for: record.key)
@@ -243,7 +237,7 @@ final class TransactionStore: Erasable {
     ///   - watch: The record's watch.
     ///   - id: The record's signature.
     ///   - entry: The record's key's entry.
-    /// - Returns: The transaction's outcome.
+    /// - Returns: The transaction's settled outcome.
     /// - Throws: `CancellationError` if the caller is cancelled, or the watch's error.
     private func result(of watch: TransactionWatch, for id: TransactionRecord.ID, in entry: Entry) async throws
         -> TransactionOutcome {
@@ -256,22 +250,22 @@ final class TransactionStore: Erasable {
     /// - Parameters:
     ///   - record: The pending record.
     ///   - entry: The record's key's entry.
-    /// - Returns: The transaction's outcome.
+    /// - Returns: The transaction's settled outcome.
     /// - Throws: The coordinator's creation or watch error, or `CancellationError`.
     private func settle(_ record: TransactionRecord, in entry: Entry) async throws -> TransactionOutcome {
-        let confirmation = try await coordinator(for: record.network).confirm(record.submission)
+        let outcome = try await coordinator(for: record.outcome.network).confirm(record.outcome)
         try Task.checkCancellation()
         if let index = entry.records.firstIndex(where: { $0.id == record.id }) {
-            entry.records[index].settle(confirmation.outcome, at: .now)
+            entry.records[index].settle(outcome.status, at: .now)
         }
         await save()
         try Task.checkCancellation()
-        if let settling = entry.settlings.removeValue(forKey: record.id) { await settling.settle(confirmation) }
+        if let settling = entry.settlings.removeValue(forKey: record.id) { await settling.settle(outcome) }
         entry.settledCount += 1
-        return confirmation.outcome
+        return outcome
     }
 
-    /// One account's records on one network, its settled count, and the watches and settlings of its pending records.
+    /// What the store keeps for one account on one network.
     @MainActor
     @Observable
     fileprivate final class Entry {

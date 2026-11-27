@@ -45,9 +45,8 @@ enum PrivateBalanceFixtures {
                             viewingKey: Curve25519.KeyAgreement.PrivateKey())
     }
 
-    static func confirmation(_ outcome: TransactionOutcome, signature: String = "private") -> widgets.Confirmation {
-        widgets.Confirmation(submission: Submission(signature: signature, network: .devnet, lastValidBlockHeight: 1), slot: 5,
-                             outcome: outcome)
+    static func outcome(_ status: TransactionOutcome.Status, signature: String = "private") -> TransactionOutcome {
+        TransactionOutcome(signature: signature, network: .devnet, lastValidBlockHeight: 1, status: status)
     }
 
     static func preparedDeposit(_ amount: UInt64, of asset: PrivateAsset,
@@ -64,7 +63,7 @@ enum PrivateBalanceFixtures {
         let notes = StoredValue<PrivateBalances.Notes>([PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()])
         let balances = PrivateBalances.inMemory(keys: keys, notes: notes, recovery: try recoveryStore(),
                                                 responses: HTTPResponses.privateNotes())
-        _ = try await balances.complete(preparedDeposit(1_000_000, of: .nativeSOL, from: account), with: confirmation(.succeeded))
+        _ = try await balances.complete(preparedDeposit(1_000_000, of: .nativeSOL, from: account), with: outcome(.succeeded))
         let store = try PrivateBalanceStore.fixture(responses, keys: keys, notes: notes,
                                                     transactions: transactions, clock: clock)
         return (store, notes)

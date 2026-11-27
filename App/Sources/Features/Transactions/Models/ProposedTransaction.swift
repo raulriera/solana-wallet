@@ -21,7 +21,7 @@ nonisolated struct ProposedTransaction<Review: Equatable & Sendable>: Sendable {
     ///   - simulation: The simulation that the person approves.
     ///   - review: What the review shows about the transaction.
     ///   - kind: What the record says that the transaction does.
-    ///   - settling: What finishes the transaction's work once its outcome is found, or `nil` for nothing.
+    ///   - settling: What runs the transaction's remaining work once it settles, or `nil` for nothing.
     ///   - followingTransactions: The number of transactions that the proposal still needs after this one succeeds.
     init(simulation: Simulation, review: Review, kind: TransactionRecord.Kind,
          settling: (any TransactionSettling)? = nil, followingTransactions: Int = 0) {

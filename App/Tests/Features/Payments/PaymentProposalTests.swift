@@ -35,28 +35,37 @@ struct PaymentProposalTests {
     }
 
     @Test(arguments: [
-        (TransactionError(name: "InsufficientFundsForFee", details: nil), SendError.notEnoughSOL),
-        (TransactionError(name: "InsufficientFundsForRent", details: .object(["account_index": .integer(1)])),
-         .amountTooSmall),
-        (TransactionError(name: "InstructionError", details: .array([.integer(0), .object(["Custom": .integer(6001)])])),
-         .preparationFailed),
+        (TransactionError.insufficientFundsForFee, [String](), SendError.notEnoughSOL),
+        (TransactionError(name: "AccountNotFound", details: nil), [], .notEnoughSOL),
+        (TransactionError.instructionError(0, custom: 1), [], .notEnoughSOL),
+        (TransactionError.insufficientFundsForRent(accountIndex: 0), [], .notEnoughSOL),
+        (TransactionError.instructionError(0, custom: 6001), ["Transfer: insufficient lamports 0, need 1000"],
+         .notEnoughSOL),
+        (TransactionError.insufficientFundsForRent(accountIndex: 1), [], .amountTooSmall),
+        (TransactionError.instructionError(0, custom: 6001), [], .preparationFailed),
     ])
-    func `A failed simulation throws the payment's error`(error: TransactionError, expected: SendError) async throws {
-        let payment = try LocalPaymentReview(simulation: .failure(error, fee: LocalPaymentReview.networkFee))
+    func `A failed simulation throws the payment's error`(error: TransactionError, logs: [String], expected: SendError)
+        async throws {
+        let payment = try LocalPaymentReview(simulation: .failure(error, logs: logs,
+                                                                  fee: LocalPaymentReview.networkFee))
 
         await #expect(throws: expected) { try await Self.simulate(payment.model.proposal, in: payment) }
     }
 
-    @Test(arguments: [(TransactionOutcome.succeeded, true), (.dropped, false)])
+    @Test(arguments: [
+        (TransactionOutcome.Status.succeeded, true),
+        (.failed, false),
+        (.dropped, false),
+    ])
     func `A payment's recipient becomes a recent payment only when the payment succeeds`(
-        outcome: TransactionOutcome, isRecent: Bool
+        status: TransactionOutcome.Status, isRecent: Bool
     ) async throws {
         let payment = try LocalPaymentReview()
         let proposal = payment.model.proposal
         let settling = try #require(try await Self.simulate(proposal, in: payment).settling)
-        let submission = Submission(signature: "signature", network: .devnet, lastValidBlockHeight: 550)
 
-        await settling.settle(widgets.Confirmation(submission: submission, slot: nil, outcome: outcome))
+        await settling.settle(TransactionOutcome(signature: "signature", network: .devnet, lastValidBlockHeight: 550,
+                                                 status: status))
 
         #expect(proposal.recents.payments(on: .devnet).map(\.address) == (isRecent ? [proposal.recipient.address] : []))
     }

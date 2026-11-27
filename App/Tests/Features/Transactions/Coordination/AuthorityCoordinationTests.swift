@@ -42,10 +42,9 @@ struct AuthorityCoordinationTests {
         let review = try await coordinator.simulate(instructions(fixture),
                                                     using: [.oneTime(fixture.oneTime), .account(fixture.account)])
 
-        let error = try await #require(throws: DeliveryError.self) { try await coordinator.submit(review) }
+        let outcome = try await coordinator.submit(review)
 
-        #expect((error.cause as? RPCError) == Self.rateLimit)
-        #expect(!error.submission.signature.isEmpty)
+        #expect(!outcome.signature.isEmpty)
         #expect(await store.reads.count == 1)
     }
 

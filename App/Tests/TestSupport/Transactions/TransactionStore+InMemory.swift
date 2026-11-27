@@ -12,11 +12,11 @@ extension TransactionStore {
 
     static var unused: TransactionStore { inMemory() }
 
-    func outcome(of record: TransactionRecord) async -> TransactionOutcome? {
-        for await outcome in Observations({ self.record(record.id, for: record.key)?.outcome }) {
-            if let outcome { return outcome }
+    func settledOutcome(of record: TransactionRecord) async throws -> TransactionOutcome {
+        for await kept in Observations({ self.record(record.id, for: record.key) }) {
+            if let kept, !kept.outcome.isPending { return kept.outcome }
         }
-        return nil
+        throw CancellationError()
     }
 }
 

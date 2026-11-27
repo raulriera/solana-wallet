@@ -169,7 +169,7 @@ actor PrivateBalances: PrivateBalancing {
         }
     }
 
-    func complete(_ transaction: PreparedPrivateTransaction, with confirmation: Confirmation) async throws
+    func complete(_ transaction: PreparedPrivateTransaction, with outcome: TransactionOutcome) async throws
         -> PrivateBalanceStatus {
         let generation = generation
         let id = Self.noteID(of: transaction.account, on: transaction.network)
@@ -177,8 +177,8 @@ actor PrivateBalances: PrivateBalancing {
         let previous = completions[id]
         let completion = Task {
             _ = await previous?.result
-            return try await record(transaction, outcome: confirmation.outcome,
-                                    signature: confirmation.submission.signature, id: id, from: generation)
+            return try await record(transaction, outcome: outcome.status, signature: outcome.signature, id: id,
+                                    from: generation)
         }
         completions[id] = completion
         let result = await completion.result
@@ -366,10 +366,10 @@ actor PrivateBalances: PrivateBalancing {
     ///   - generation: The ``generation`` when the completion started.
     /// - Returns: The balance afterward, or why it has none.
     /// - Throws: `CancellationError` if ``removeAll()`` ran after `generation`, or a storage error.
-    private func record(_ transaction: PreparedPrivateTransaction, outcome: TransactionOutcome, signature: String,
-                        id: String, from generation: Int) async throws -> PrivateBalanceStatus {
+    private func record(_ transaction: PreparedPrivateTransaction, outcome: TransactionOutcome.Status,
+                        signature: String, id: String, from generation: Int) async throws -> PrivateBalanceStatus {
         guard generation == self.generation else { throw CancellationError() }
-        guard outcome == .succeeded else {
+        guard case .succeeded = outcome else {
             async let savedKeys = keyRecord(of: transaction.account, from: generation)
             async let savedNotes = rebuilding(\.notes, from: generation) { try await $0.load() }
             async let releasedCode: Void = recordCode(of: transaction.effect, outcome: outcome, signature: signature,

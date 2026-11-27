@@ -47,10 +47,10 @@ nonisolated protocol PrivateBalancing: Sendable {
     ///
     /// - Parameters:
     ///   - transaction: The prepared transaction.
-    ///   - confirmation: The transaction's settled outcome on the same network.
+    ///   - outcome: The transaction's settled outcome on the same network.
     /// - Returns: The account's balance afterward, or why it has none.
     /// - Throws: A storage or cancellation error.
-    func complete(_ transaction: PreparedPrivateTransaction, with confirmation: Confirmation) async throws
+    func complete(_ transaction: PreparedPrivateTransaction, with outcome: TransactionOutcome) async throws
         -> PrivateBalanceStatus
 
     /// Lists the account's redeem codes that the indexer doesn't show as spent.

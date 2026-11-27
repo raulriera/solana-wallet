@@ -11,5 +11,5 @@
 
 - Each transaction is sent once. `standard` and `premium` send through Helius Sender only, mainnet only, with no fallback. Changing strategy needs a new coordinator and review.
 - Sender tips are ordinary instructions added before estimation and review, ahead of the caller's instructions.
-- Preflight runs at `finalized` with zero node retries. Nothing rebuilds, signs again, or resubmits, except a send with preliminary transactions, which sends a dropped transaction again at most 2 times. An error after signing keeps the transaction's receipt.
+- Preflight runs at `finalized` with zero node retries. Nothing rebuilds, signs again, or resubmits, except a send with preliminary transactions, which sends a dropped transaction again at most 2 times. An error after signing keeps the transaction's pending outcome.
 - Confirmation has no timeout and no unknown result: a transaction is dropped only after a finalized block height passes its blockhash's last valid height.

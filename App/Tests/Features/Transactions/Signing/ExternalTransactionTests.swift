@@ -27,7 +27,6 @@ struct ExternalTransactionTests {
         let signed = try await coordinator.sign(preparation)
 
         #expect(preparation.transaction == expected.transaction)
-        #expect(preparation.lastValidBlockHeight == nil)
         #expect(preparation.transaction.serializedRepresentation == input)
         let reference = try ExternalFixture.signed(hasPayerSignature: hasPayerSignature)
         #expect(signed.serializedRepresentation.dropLast(64) == reference.dropLast(64))
@@ -57,7 +56,7 @@ struct ExternalTransactionTests {
     }
 
     @Test
-    func `An imported receipt expires 150 blocks after the finalized block height`() async throws {
+    func `An imported transaction expires 150 blocks after the finalized block height`() async throws {
         let expected = try ExternalFixture.preparation()
         let preparationHTTP = try HTTPResponses.preparation(fixture: expected)
         let signingHTTP = try HTTPResponses.signing(fee: 15_000)
@@ -68,11 +67,8 @@ struct ExternalTransactionTests {
 
         let simulation = try await coordinator.simulate(expected.transaction, using: SigningFixture().account)
 
-        #expect(simulation.lastValidBlockHeight == nil)
-        let error = try await #require(throws: DeliveryError.self) {
-            try await coordinator.submit(simulation)
-        }
-        #expect(error.submission.lastValidBlockHeight == 650)
+        let outcome = try await coordinator.submit(simulation)
+        #expect(outcome.lastValidBlockHeight == 650)
         let requests = await preparationHTTP.requests
         #expect(try requests.prefix(2).map { try $0.rpcMethod } == ["isBlockhashValid", "getBlockHeight"])
         let height = try #require(requests.first { try $0.rpcMethod == "getBlockHeight" })

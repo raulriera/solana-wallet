@@ -34,10 +34,9 @@ struct PaymentProposal: TransactionProposal {
     func simulate(_ preparation: Void, with coordinator: any TransactionCoordinating, from account: Account)
         async throws -> ProposedTransaction<Review> {
         let simulation = try await coordinator.transfer(sent.amount, of: asset, using: account, to: recipient.address)
-        let execution = simulation.diagnostics.value
-        guard execution.error == nil else {
-            if execution.lacksFunds { throw SendError.notEnoughSOL }
-            if execution.opensAccountBelowRent { throw SendError.amountTooSmall }
+        guard simulation.executionError == nil else {
+            if simulation.lacksFunds { throw SendError.notEnoughSOL }
+            if simulation.opensAccountBelowRent { throw SendError.amountTooSmall }
             throw SendError.preparationFailed
         }
         guard let networkFee = simulation.networkFee else { throw SendError.preparationFailed }

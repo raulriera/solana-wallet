@@ -113,7 +113,7 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
         try await signed(simulation).transaction
     }
 
-    func submit(_ simulation: Simulation) async throws -> Submission {
+    func submit(_ simulation: Simulation) async throws -> TransactionOutcome {
         try validateOrigin(simulation)
         let local = Set(try simulation.authorities.map { try $0.address })
         for (account, signature) in zip(simulation.transaction.accounts, simulation.transaction.signatures)
@@ -133,12 +133,8 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
         }
     }
 
-    func confirm(_ submission: Submission) async throws -> Confirmation {
-        do {
-            return try await confirmer.confirm(submission)
-        } catch {
-            throw DeliveryError(submission: submission, cause: error)
-        }
+    func confirm(_ pending: TransactionOutcome) async throws -> TransactionOutcome {
+        try await confirmer.confirm(pending)
     }
 
     /// Signs an approved simulation with each of its authorities in order.
@@ -216,15 +212,12 @@ nonisolated struct Simulation: Sendable {
     let tokenTransfer: TokenTransfer?
     /// The new destination account's rent in lamports, or `nil` if not estimated.
     let destinationAccountRent: UInt64?
+    /// Why the simulated transaction can't run, or `nil` if it ran.
+    let executionError: ExecutionError?
     var transaction: Transaction { preparation.transaction }
     var network: Network { preparation.network }
     /// The network fee in lamports, including its priority fee, or `nil` if unknown.
     var fee: UInt64? { preparation.fee.value }
-    /// The blockhash's last valid block height, or `nil` for an imported transaction.
-    var lastValidBlockHeight: UInt64? {
-        guard case .local = preparation.source else { return nil }
-        return preparation.source.lastValidBlockHeight
-    }
     /// The simulation's response, including any execution error.
     var diagnostics: SimulateTransaction.Response { preparation.simulation }
     /// The balances that the simulation changed, or `nil` if unknown.
@@ -247,6 +240,7 @@ nonisolated struct Simulation: Sendable {
         self.coordinator = coordinator
         self.tokenTransfer = tokenTransfer
         self.destinationAccountRent = destinationAccountRent
+        executionError = preparation.simulation.value.error.map { ExecutionError($0, in: preparation.transaction) }
     }
 }
 

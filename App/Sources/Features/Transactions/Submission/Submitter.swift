@@ -14,15 +14,12 @@ nonisolated struct Submitter: TransactionSubmitting {
     }
 
     @concurrent
-    func submit(_ signed: SignedTransaction) async throws -> Submission {
+    func submit(_ signed: SignedTransaction) async throws -> TransactionOutcome {
         guard let signature = signed.signature else { throw SubmitterError.missingSignatures }
-        let receipt = Submission(signature: signature, preparation: signed.preparation)
-        do {
-            try await send(signed, signature: signature)
-            return receipt
-        } catch {
-            throw DeliveryError(submission: receipt, cause: error)
-        }
+        try? await send(signed, signature: signature)
+        return TransactionOutcome(signature: signature, network: signed.preparation.network,
+                                  lastValidBlockHeight: signed.preparation.source.lastValidBlockHeight,
+                                  status: .pending)
     }
 
     /// Checks a signed transaction against its review, then sends it through the RPC.

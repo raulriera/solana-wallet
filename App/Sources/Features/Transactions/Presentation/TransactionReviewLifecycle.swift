@@ -15,17 +15,17 @@ private struct TransactionReviewLifecycle<Proposal: TransactionProposal>: ViewMo
                     await review.refreshReview()
                 }
             }
-            .sensoryFeedback(trigger: review.outcome) { _, outcome in
-                switch outcome {
+            .sensoryFeedback(trigger: review.outcome?.status) { _, status in
+                switch status {
                 case .succeeded?: .success
                 case .failed?, .dropped?: .error
-                case nil: nil
+                case .pending?, nil: nil
                 }
             }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .background { review.stopSending() }
             }
-            .alert(error: $review.error, retry: review.retry)
+            .alert(error: $review.error, retry: review.prepareReview)
     }
 }
 

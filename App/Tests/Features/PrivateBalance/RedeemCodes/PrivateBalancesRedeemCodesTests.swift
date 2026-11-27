@@ -36,7 +36,7 @@ struct PrivateBalancesRedeemCodesTests {
         #expect(await codes.value?[sender.id]?.pending.map(\.index) == [1])
         #expect(await codes.value?[sender.id]?.nextIndex == 2)
 
-        _ = try await balances.complete(prepared, with: PrivateBalanceFixtures.confirmation(.succeeded, signature: "funding"))
+        _ = try await balances.complete(prepared, with: PrivateBalanceFixtures.outcome(.succeeded, signature: "funding"))
 
         let ledger = try #require(await codes.value?[sender.id])
         #expect(ledger.pending.isEmpty)
@@ -60,7 +60,7 @@ struct PrivateBalancesRedeemCodesTests {
         let (first, second) = try await (preparedFirst, preparedSecond)
         try #require(Set([first, second].compactMap(Self.index(of:))) == [0, 1])
         let dropped = Self.index(of: first) == 0 ? first : second
-        _ = try await balances.complete(dropped, with: PrivateBalanceFixtures.confirmation(.dropped))
+        _ = try await balances.complete(dropped, with: PrivateBalanceFixtures.outcome(.dropped))
         let third = try await balances.prepare(.createCode(3_000), from: sender.account, on: .devnet)
 
         #expect(Self.index(of: third) == 2)
@@ -92,7 +92,7 @@ struct PrivateBalancesRedeemCodesTests {
         await codes.failSaving()
 
         await #expect(throws: CocoaError.self) {
-            try await balances.complete(prepared, with: PrivateBalanceFixtures.confirmation(.succeeded, signature: "funding"))
+            try await balances.complete(prepared, with: PrivateBalanceFixtures.outcome(.succeeded, signature: "funding"))
         }
         #expect(await codes.value?[sender.id]?.pending.map(\.index) == [0])
     }
@@ -155,7 +155,7 @@ struct PrivateBalancesRedeemCodesTests {
         )))
 
         let charged = try prepared.withNetworkFee(5_000)
-        let status = try await balances.complete(charged, with: PrivateBalanceFixtures.confirmation(.succeeded))
+        let status = try await balances.complete(charged, with: PrivateBalanceFixtures.outcome(.succeeded))
 
         let deposited = 1_000_000 + RedeemCodeFixtures.reserve - RedeemCodeFixtures.treeFee - 5_000
         #expect(status == .balance(available: 0, pending: deposited, of: .nativeSOL))
@@ -180,7 +180,7 @@ struct PrivateBalancesRedeemCodesTests {
         #expect(try prepared.authorities.map { try $0.address } == [Address(oneTime.address), recipient.account.address])
         #expect(prepared.instructions.first == (try recipient.shielded.register(paidBy: Address(oneTime.address))))
         #expect(prepared.instructions.count == 3)
-        #expect(try await balances.complete(charged, with: PrivateBalanceFixtures.confirmation(.succeeded)) == .balance(available: 0, pending: deposited, of: .nativeSOL))
+        #expect(try await balances.complete(charged, with: PrivateBalanceFixtures.outcome(.succeeded)) == .balance(available: 0, pending: deposited, of: .nativeSOL))
         #expect(await recipient.notes.value?[recipient.id]?.pendingAmount(of: .nativeSOL) == deposited)
     }
 
@@ -268,7 +268,7 @@ struct PrivateBalancesRedeemCodesTests {
             return
         }
         let charged = try prepared.withNetworkFee(5_000)
-        _ = try await balances.complete(charged, with: PrivateBalanceFixtures.confirmation(.succeeded))
+        _ = try await balances.complete(charged, with: PrivateBalanceFixtures.outcome(.succeeded))
 
         #expect(redemption.takenBackIndex == 1)
         #expect(await sender.storedKeys.loads == 2)

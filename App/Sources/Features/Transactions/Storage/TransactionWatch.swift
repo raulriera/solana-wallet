@@ -28,7 +28,7 @@ final class TransactionWatch {
 
     /// Waits for the watch's result.
     ///
-    /// - Returns: The transaction's outcome.
+    /// - Returns: The transaction's settled outcome.
     /// - Throws: `CancellationError` if the caller is cancelled, or the watch's error.
     func value() async throws -> TransactionOutcome {
         let id = UUID()
@@ -47,14 +47,14 @@ final class TransactionWatch {
         }
     }
 
-    /// Cancels the watch.
+    /// Cancels the operation; the watch then ends with what the operation returns or throws.
     func cancel() {
         task?.cancel()
     }
 
     /// Keeps the watch's result and hands it to every caller that waits.
     ///
-    /// - Parameter result: The transaction's outcome, or the watch's error.
+    /// - Parameter result: The transaction's settled outcome, or the watch's error.
     private func finish(with result: Result<TransactionOutcome, any Error>) {
         self.result = result
         let waiters = waiters

@@ -3,7 +3,7 @@ nonisolated struct PrivateBalanceSettlement: TransactionSettling {
     let balances: any PrivateBalancing
     let transaction: PreparedPrivateTransaction
 
-    func settle(_ confirmation: Confirmation) async {
-        _ = try? await balances.complete(transaction, with: confirmation)
+    func settle(_ outcome: TransactionOutcome) async {
+        _ = try? await balances.complete(transaction, with: outcome)
     }
 }

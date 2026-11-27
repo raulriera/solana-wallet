@@ -1,7 +1,7 @@
-/// A type that finishes a transaction's work once its outcome is found.
+/// A type that runs a transaction's remaining work once the transaction settles.
 nonisolated protocol TransactionSettling: Sendable {
-    /// Finishes the transaction's work.
+    /// Runs the work that depends on how the transaction settled.
     ///
-    /// - Parameter confirmation: The transaction's settled outcome.
-    func settle(_ confirmation: Confirmation) async
+    /// - Parameter outcome: The transaction's settled outcome.
+    func settle(_ outcome: TransactionOutcome) async
 }

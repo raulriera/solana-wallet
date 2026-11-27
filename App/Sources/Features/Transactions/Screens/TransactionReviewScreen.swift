@@ -9,7 +9,6 @@ struct TransactionReviewScreen<ReviewScreen: TransactionReviewContent, ResultScr
     @State private var shownOutcome: TransactionOutcome?
 
     var body: some View {
-        let isSent = review.isSending || review.outcome != nil
         ZStack {
             if let outcome = shownOutcome {
                 ResultScreen(review: review, outcome: outcome)
@@ -19,8 +18,8 @@ struct TransactionReviewScreen<ReviewScreen: TransactionReviewContent, ResultScr
                     .transition(.opacity)
             }
         }
-        .navigationBarBackButtonHidden(isSent)
-        .interactiveDismissDisabled(isSent)
+        .navigationBarBackButtonHidden(review.isSent)
+        .interactiveDismissDisabled(review.isSent)
         .transactionReviewLifecycle(of: review)
         .onChange(of: review.outcome, initial: true) { _, outcome in
             withAnimation { shownOutcome = outcome }

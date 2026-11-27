@@ -13,7 +13,7 @@ struct PrivateBalanceSettlementTests {
         let settlement = try await Self.settlement(of: PrivateBalanceFixtures.preparedDeposit(5_000, of: .nativeSOL, from: account),
                                                    notes: notes)
 
-        await settlement.settle(PrivateBalanceFixtures.confirmation(.succeeded))
+        await settlement.settle(PrivateBalanceFixtures.outcome(.succeeded))
 
         #expect(await notes.value == [id: NoteSyncState()])
     }

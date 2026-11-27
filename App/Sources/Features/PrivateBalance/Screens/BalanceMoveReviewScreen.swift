@@ -57,7 +57,7 @@ struct BalanceMoveReviewScreen: TransactionReviewContent {
 
             Section {
                 Button(action: review.approve) {
-                    PendingLabel(title: move.title, isPending: review.attempt != nil || review.isSending)
+                    PendingLabel(title: move.title, isPending: review.isSending)
                 }
                 .lineLimit(1)
                 .disabled(!review.canApprove)

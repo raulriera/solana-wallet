@@ -17,6 +17,9 @@ public struct Transaction: Sendable, Equatable {
     /// The message bytes followed by the signature slots.
     public var serializedRepresentation: Data { signatures.reduce(message, +) }
 
+    /// The fee payer's address, which is the first account's.
+    public var feePayer: Address { accounts[0].address }
+
     /// The first signature as Base58 text, or `nil` while the fee payer's slot is empty.
     public var signature: String? {
         guard let first = signatures.first, first.count == 64, first.contains(where: { $0 != 0 }) else { return nil }
@@ -28,7 +31,7 @@ public struct Transaction: Sendable, Equatable {
     /// - Parameters:
     ///   - message: The message bytes.
     ///   - lifetimeSpecifier: The Base58 blockhash or durable nonce value.
-    ///   - accounts: The accounts in wire order.
+    ///   - accounts: The accounts in wire order, starting with the fee payer.
     ///   - requests: The fee and resource requests.
     ///   - instructions: The instructions in execution order.
     ///   - signatures: The signature slots in signer order.

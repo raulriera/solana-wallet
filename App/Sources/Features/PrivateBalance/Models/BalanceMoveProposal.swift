@@ -99,9 +99,8 @@ struct BalanceMoveProposal: TransactionProposal {
     func simulate(_ preparation: PreparedPrivateTransaction, with coordinator: any TransactionCoordinating,
                   from account: Account) async throws -> ProposedTransaction<Review> {
         let (simulation, transaction) = try await coordinator.simulate(preparation)
-        let execution = simulation.diagnostics.value
-        guard execution.error == nil else {
-            guard execution.lacksFunds else { throw PrivateBalanceError.preparationFailed }
+        guard simulation.executionError == nil else {
+            guard simulation.lacksFunds else { throw PrivateBalanceError.preparationFailed }
             throw switch direction {
             case .toPrivate where privateAsset == .nativeSOL: PrivateBalanceError.insufficientPublicBalance
             case .toPrivate, .toPublic, .toRecipient: PrivateBalanceError.insufficientPublicBalanceForFees

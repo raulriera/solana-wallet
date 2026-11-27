@@ -18,12 +18,10 @@ struct PaymentResultScreen: TransactionResultContent {
             }
 
             Section {
-                if let submission = review.submission {
-                    if outcome == .dropped {
-                        Button("Try Again", action: review.tryAgain)
-                    }
-                    Link("View in Explorer", destination: submission.explorerURL)
+                if outcome.status == .dropped {
+                    Button("Try Again", action: review.tryAgain)
                 }
+                Link("View in Explorer", destination: outcome.explorerURL)
                 if let newPayment {
                     Button("New Payment") { newPayment() }
                 }
@@ -38,7 +36,9 @@ struct PaymentResultScreen: TransactionResultContent {
     /// The result's symbol, title, and explanation.
     private var card: (title: LocalizedStringResource, message: LocalizedStringResource, systemImage: String) {
         let payment = review.proposal
-        return switch outcome {
+        return switch outcome.status {
+        case .pending:
+            preconditionFailure("A result screen shows only a settled transaction.")
         case .succeeded:
             ("Sent",
              LocalizedStringResource("You sent \(payment.sent, format: .amount(of: payment.asset)) to \(payment.recipient.title).",

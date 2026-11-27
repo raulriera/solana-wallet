@@ -1,5 +1,4 @@
 import Foundation
-import Observation
 import SwiftUI
 import Testing
 import Transactions
@@ -11,16 +10,17 @@ import Transactions
 struct TransactionResumptionTests {
     @Test
     func `A window that becomes active resumes the pending watches`() async throws {
-        let sent = try PendingPayment(from: UUID())
+        let record = TransactionRecord.fixture(.payment, account: UUID())
+        let sending = try LocalSending(pending: StoredValue([record]))
         let scene = ResumingScene(.background)
-        let hosted = try HostedWindow(TransactionResumptionRoot(scene: scene, transactions: sent.transactions))
+        let hosted = try HostedWindow(TransactionResumptionRoot(scene: scene, transactions: sending.store))
         defer { hosted.close() }
         try #require(try await hosted.appears())
 
         scene.phase = .active
 
-        #expect(await sent.transactions.outcome(of: sent.record) == .succeeded)
-        await sent.sockets.waitUntilClosed()
+        #expect(try await sending.store.settledOutcome(of: record).status == .succeeded)
+        await sending.sockets.waitUntilClosed()
     }
 
     @Test
@@ -49,7 +49,7 @@ struct TransactionResumptionTests {
 
         try await scene.rpcStore.select(.helius)
 
-        #expect(await transactions.outcome(of: record) == .succeeded)
+        #expect(try await transactions.settledOutcome(of: record).status == .succeeded)
         await sockets.waitUntilClosed()
     }
 }

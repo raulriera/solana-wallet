@@ -17,12 +17,10 @@ struct BalanceMoveResultScreen: TransactionResultContent {
             }
 
             Section {
-                if let submission = review.submission {
-                    if outcome == .dropped {
-                        Button("Try Again", action: review.tryAgain)
-                    }
-                    Link("View in Explorer", destination: submission.explorerURL)
+                if outcome.status == .dropped {
+                    Button("Try Again", action: review.tryAgain)
                 }
+                Link("View in Explorer", destination: outcome.explorerURL)
                 if let dismissParentContainer {
                     Button("Done") { dismissParentContainer() }
                 }
@@ -39,7 +37,9 @@ struct BalanceMoveResultScreen: TransactionResultContent {
         let move = review.proposal
         let sent = move.sent
         let asset = move.asset
-        switch (move.direction, outcome) {
+        switch (move.direction, outcome.status) {
+        case (_, .pending):
+            preconditionFailure("A result screen shows only a settled transaction.")
         case (.toPrivate, .succeeded):
             let title = LocalizedStringResource(
                 "\(asset.displaySymbol) Is Private",

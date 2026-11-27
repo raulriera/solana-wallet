@@ -20,7 +20,6 @@ struct SigningTests {
         )
 
         let preparation = try await coordinator.simulate([fixture.transfer], using: fixture.account)
-        #expect(preparation.lastValidBlockHeight == 550)
         #expect(await store.reads.isEmpty)
         let signed = try await coordinator.sign(preparation)
 
@@ -80,7 +79,7 @@ struct SigningTests {
         var simulationFee: UInt64? = 10_000
         switch condition {
         case "failed simulation":
-            error = TransactionError(name: "InsufficientFundsForFee", details: nil)
+            error = .insufficientFundsForFee
             expected = .simulationFailed
         case "unknown fee":
             fixture.fee = .init(context: Context(slot: 401), value: nil)
