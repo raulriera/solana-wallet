@@ -144,18 +144,6 @@ final class TransactionStore: Erasable {
         return try await result(of: startWatch(of: record, in: entry), for: id, in: entry)
     }
 
-    /// Waits until the store keeps the record as settled, without starting a watch.
-    ///
-    /// - Parameter record: The record.
-    /// - Returns: The transaction's settled outcome.
-    /// - Throws: `CancellationError` if the caller is cancelled first.
-    func settledOutcome(of record: TransactionRecord) async throws -> TransactionOutcome {
-        for await kept in Observations({ self.record(record.id, for: record.key) }) {
-            if let kept, !kept.outcome.isPending { return kept.outcome }
-        }
-        throw CancellationError()
-    }
-
     /// Starts watching every pending record that has no watch.
     ///
     /// - Parameter replacingFailedWatches: Whether to restart watches that ended with an error that no caller read.
