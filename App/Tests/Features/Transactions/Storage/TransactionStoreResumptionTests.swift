@@ -44,31 +44,26 @@ struct TransactionStoreResumptionTests {
     }
 
     @Test
-    func `Resuming retries a failed watch only after its error is read or on a new connection`() async throws {
+    func `Resuming retries a failed watch only on a new connection`() async throws {
         let fixture = try SigningFixture()
         let record = TransactionRecord.fixture(.payment, signature: "pending", account: fixture.account.id)
         let sockets = SocketSequence()
         let coordinator = try LocalTransactions(fixture: fixture, statuses: [.status(.finalized)],
                                                 sockets: sockets).coordinator
-        let (attempts, attempted) = AsyncStream.makeStream(of: Void.self)
-        var failures = 2
+        var fails = true
         let store = TransactionStore.inMemory(StoredValue([record])) { _ in
-            attempted.yield()
-            guard failures == 0 else {
-                failures -= 1
+            guard !fails else {
+                fails = false
                 throw TransactionCoordinatorError.unsupportedNetwork
             }
             return coordinator
         }
-        var attemptsMade = attempts.makeAsyncIterator()
 
         await store.resume()
-        _ = await attemptsMade.next()
+        await #expect(throws: ConfirmationError.unavailable) { try await store.watch(record.id, for: record.key) }
         await store.resume()
 
         await #expect(throws: ConfirmationError.unavailable) { try await store.watch(record.id, for: record.key) }
-        await store.resume()
-        _ = await attemptsMade.next()
         await store.resume(replacingFailedWatches: true)
         #expect(try await store.settledOutcome(of: record).status == .succeeded(slot: 405))
         await sockets.waitUntilClosed()

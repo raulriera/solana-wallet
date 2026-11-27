@@ -144,22 +144,17 @@ struct TransactionStoreTests {
     }
 
     @Test
-    func `A stopped watch reports its error once and can watch again`() async throws {
+    func `A stopped watch reports its error and keeps the record pending`() async throws {
         let refusal = Self.rateLimit
-        let sockets = SocketSequence { $0 == 0 ? SocketSequence.failing(with: refusal) : SocketSequence.watch() }
-        let sending = try LocalSending(sockets: sockets)
+        let sending = try LocalSending(sockets: SocketSequence { _ in SocketSequence.failing(with: refusal) })
         let record = try await sending.send()
-        for await _ in sockets.openings { break }
 
         await #expect(throws: ConfirmationError.rateLimited) { try await sending.store.watch(record.id, for: sending.key) }
         let saved = await sending.pending.value
         #expect(saved == [record])
         #expect(sending.store.settledCount(for: sending.key) == 0)
         #expect(sending.store.confirmationError(of: record.id, for: sending.key) == .rateLimited)
-
-        #expect(try await sending.settle(record) == .succeeded(slot: 405))
-        #expect(sending.store.confirmationError(of: record.id, for: sending.key) == nil)
-        #expect(sockets.sockets.count == 2)
+        await sending.sockets.waitUntilClosed()
     }
 
     @Test

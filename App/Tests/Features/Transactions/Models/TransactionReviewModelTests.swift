@@ -314,6 +314,7 @@ struct TransactionReviewModelTests {
 
         model.approve()
         await model.run(model.attempt)
+        await review.transactions.resume()
 
         #expect(model.confirmationError == .rateLimited)
         #expect(model.unfinishedSendError == nil)
