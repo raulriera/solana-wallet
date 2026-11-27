@@ -1,6 +1,6 @@
 # RPC
 
-Typed Solana RPC, DAS asset queries, prices, exchange rates, and account and signature subscriptions. Clients connect directly to providers.
+Typed Solana RPC, DAS asset queries, prices, exchange rates, account and signature subscriptions, and the preparation, submission, and confirmation of transactions. Clients connect directly to providers.
 
 ## Subscription connection
 

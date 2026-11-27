@@ -6,7 +6,7 @@ import Wallet
 
 /// A signer that validates, unlocks, and signs reviewed transactions.
 nonisolated struct Signer: TransactionSigning {
-    private let validator: any PreparationValidating
+    private let validator: PreparationValidator
     private let store: any RecoveryStoring
     private let wallet: any MessageSigning
     private let transactionBuilder = TransactionBuilder()
@@ -17,7 +17,7 @@ nonisolated struct Signer: TransactionSigning {
     ///   - validator: The validator that checks the preparation's fee and lifetime.
     ///   - store: The recovery store that authenticates access to saved accounts.
     ///   - wallet: The message signer.
-    init(validator: any PreparationValidating, store: any RecoveryStoring, wallet: any MessageSigning = Wallet()) {
+    init(validator: PreparationValidator, store: any RecoveryStoring, wallet: any MessageSigning = Wallet()) {
         self.validator = validator
         self.store = store
         self.wallet = wallet

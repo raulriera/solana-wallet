@@ -36,9 +36,9 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
     private let id = UUID()
     private let tokens: TokenTransfers
     private let configuration: Configuration?
-    private let preparer: any TransactionPreparing
+    private let preparer: Preparer
     private var signer: any TransactionSigning
-    private let submitter: any TransactionSubmitting
+    private let submitter: Submitter
     private let confirmer: any TransactionConfirming
 
     /// Creates a coordinator with a provider and a recovery store.
@@ -68,8 +68,8 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
     ///   - signer: The service that signs approved preparations.
     ///   - submitter: The service that sends signed transactions.
     ///   - confirmer: The service that watches sent transactions.
-    init(rpc: any RPC, configuration: Configuration? = nil, preparer: any TransactionPreparing, signer: any TransactionSigning,
-         submitter: any TransactionSubmitting, confirmer: any TransactionConfirming) {
+    init(rpc: any RPC, configuration: Configuration? = nil, preparer: Preparer, signer: any TransactionSigning,
+         submitter: Submitter, confirmer: any TransactionConfirming) {
         tokens = TokenTransfers(rpc: rpc)
         self.configuration = configuration
         self.preparer = preparer

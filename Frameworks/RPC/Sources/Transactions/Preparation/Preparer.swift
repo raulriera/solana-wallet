@@ -1,9 +1,7 @@
-import Foundation
-import RPC
-import Transactions
+public import Transactions
 
 /// A preparer that compiles and simulates transactions through a provider.
-nonisolated struct Preparer: TransactionPreparing {
+public struct Preparer: Sendable {
     private let rpc: any RPC
     private let messageBuilder = MessageBuilder()
     private let transactionBuilder = TransactionBuilder()
@@ -14,13 +12,23 @@ nonisolated struct Preparer: TransactionPreparing {
     /// - Parameters:
     ///   - rpc: The provider that reads the blockhash, fee, and simulation.
     ///   - requirements: The submitting service's requirements, whose tip the transaction pays, or `nil` for none.
-    init(rpc: any RPC, requirements: SubmissionRequirements? = nil) {
+    public init(rpc: any RPC, requirements: SubmissionRequirements? = nil) {
         self.rpc = rpc
         self.requirements = requirements
     }
 
+    /// Compiles and simulates instructions for review.
+    ///
+    /// - Parameters:
+    ///   - instructions: The instructions, in order.
+    ///   - payer: The account that pays the fees.
+    ///   - signer: The account that signs.
+    ///   - configuration: The priority fee and resource limits, or `nil` to estimate them.
+    ///   - minimumSlot: The earliest slot for the provider's reads, or `nil` for any.
+    /// - Returns: The transaction with its fee and simulation.
+    /// - Throws: A validation, RPC, or cancellation error.
     @concurrent
-    func prepare(_ instructions: [Instruction], payer: Address, signer: Address,
+    public func prepare(_ instructions: [Instruction], payer: Address, signer: Address,
                  configuration: Configuration? = nil, minimumSlot: UInt64? = nil) async throws -> Preparation {
         try Task.checkCancellation()
         let minimumFee = requirements?.minimumPriorityFeeLamports ?? 0
@@ -97,8 +105,15 @@ nonisolated struct Preparer: TransactionPreparing {
                                                          for: signer)
     }
 
+    /// Simulates an imported transaction without changing its message or signatures.
+    ///
+    /// - Parameters:
+    ///   - imported: The imported transaction.
+    ///   - signer: The account whose empty signature slot gets filled.
+    /// - Returns: The unchanged transaction with its fee and simulation.
+    /// - Throws: A validation, RPC, or cancellation error.
     @concurrent
-    func prepare(_ imported: Transaction, for signer: Address) async throws -> Preparation {
+    public func prepare(_ imported: Transaction, for signer: Address) async throws -> Preparation {
         try Task.checkCancellation()
         let network = rpc.network
         let transaction = try transactionBuilder.validateSignatures(in: imported.serializedRepresentation, for: signer)

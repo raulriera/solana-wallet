@@ -4,7 +4,7 @@ Builds Solana instructions, compiles them into V1 messages, decodes transactions
 
 ## Transaction workflow
 
-One send goes from instructions to one of three outcomes. This framework compiles the message and assembles the signatures; the app does the other steps.
+One send goes from instructions to one of three outcomes. This framework compiles the message and assembles the signatures. The RPC framework simulates, sends, and watches. The app gets the approval and signs.
 
 ```mermaid
 flowchart TD

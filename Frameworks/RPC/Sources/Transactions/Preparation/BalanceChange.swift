@@ -1,16 +1,15 @@
-import RPC
-import Transactions
+public import Transactions
 
 /// A balance change that a simulation shows for one owner and asset.
-nonisolated struct BalanceChange: Sendable, Equatable {
+public struct BalanceChange: Sendable, Equatable {
     /// The account that holds the SOL, or the owner of the token accounts.
-    let owner: Address
+    public let owner: Address
     /// SOL in the owner's own account, or one mint's tokens across the owner's token accounts.
-    let asset: Asset.ID
+    public let asset: Asset.ID
     /// The balance before execution, in lamports or raw token units.
-    let before: UInt64
+    public let before: UInt64
     /// The balance after execution, in lamports or raw token units.
-    let after: UInt64
+    public let after: UInt64
 
     /// Returns the balances that a simulation changed.
     ///
@@ -18,7 +17,7 @@ nonisolated struct BalanceChange: Sendable, Equatable {
     ///   - transaction: The simulated transaction, whose accounts index the balances.
     ///   - simulation: The simulation with balances before and after execution.
     /// - Returns: The changed balances, SOL first in account order, or `nil` if balances are missing or invalid.
-    static func changes(in transaction: Transaction, from simulation: SimulateTransaction.Value) -> [BalanceChange]? {
+    public static func changes(in transaction: Transaction, from simulation: SimulateTransaction.Value) -> [BalanceChange]? {
         guard let lamportsBefore = simulation.preBalances, let lamportsAfter = simulation.postBalances,
               let tokensBefore = simulation.preTokenBalances, let tokensAfter = simulation.postTokenBalances,
               lamportsBefore.count == transaction.accounts.count, lamportsAfter.count == transaction.accounts.count else {

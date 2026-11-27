@@ -1,4 +1,5 @@
 import Foundation
+import RPC
 import Transactions
 
 /// Saves a payment's recipient as a recent payment once the payment succeeds.

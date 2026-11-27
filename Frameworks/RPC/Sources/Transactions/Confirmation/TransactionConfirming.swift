@@ -1,5 +1,5 @@
 /// A type that waits for a sent transaction's outcome.
-nonisolated protocol TransactionConfirming: Sendable {
+public protocol TransactionConfirming: Sendable {
     /// Waits until the transaction's execution is finalized, or it can never land.
     ///
     /// - Parameter pending: The transaction's pending outcome.

@@ -1,5 +1,5 @@
 import Foundation
-import RPC
+@testable import RPC
 @testable import widgets
 
 extension TransactionRecord {

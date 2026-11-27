@@ -1,23 +1,7 @@
-import RPC
 import Transactions
 
-/// A type that checks a reviewed preparation.
-nonisolated protocol PreparationValidating: Sendable {
-    /// Checks a preparation's consistency, blockhash lifetime, and current fee.
-    ///
-    /// - Parameter preparation: The approved preparation.
-    /// - Throws: A validation, RPC, or cancellation error.
-    func validate(_ preparation: Preparation) async throws
-
-    /// Checks that a preparation's blockhash hasn't expired.
-    ///
-    /// - Parameter preparation: The approved preparation.
-    /// - Throws: An expiry, RPC, or cancellation error.
-    func validateLifetime(_ preparation: Preparation) async throws
-}
-
-/// A validator that checks a preparation against a provider.
-nonisolated struct PreparationValidator: PreparationValidating {
+/// A validator that checks a reviewed preparation against a provider.
+public struct PreparationValidator: Sendable {
     private let rpc: any RPC
     private let messageBuilder = MessageBuilder()
     private let transactionBuilder = TransactionBuilder()
@@ -25,12 +9,16 @@ nonisolated struct PreparationValidator: PreparationValidating {
     /// Creates a validator.
     ///
     /// - Parameter rpc: The provider that reads the current fee and block height.
-    init(rpc: any RPC) {
+    public init(rpc: any RPC) {
         self.rpc = rpc
     }
 
+    /// Checks a preparation's consistency, blockhash lifetime, and current fee.
+    ///
+    /// - Parameter preparation: The approved preparation.
+    /// - Throws: A validation, RPC, or cancellation error.
     @concurrent
-    func validate(_ preparation: Preparation) async throws {
+    public func validate(_ preparation: Preparation) async throws {
         try Task.checkCancellation()
         try validateReview(preparation)
         async let lifetime: Void = validateLifetime(preparation)
@@ -63,7 +51,11 @@ nonisolated struct PreparationValidator: PreparationValidating {
         guard decoded == preparation.transaction else { throw PreparationValidatorError.messageMismatch }
     }
 
-    func validateLifetime(_ preparation: Preparation) async throws {
+    /// Checks that a preparation's blockhash hasn't expired.
+    ///
+    /// - Parameter preparation: The approved preparation.
+    /// - Throws: An expiry, RPC, or cancellation error.
+    public func validateLifetime(_ preparation: Preparation) async throws {
         try Task.checkCancellation()
         switch preparation.source {
         case .local(_, _, _, let blockhash):

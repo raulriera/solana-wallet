@@ -74,7 +74,7 @@ struct PreparationTests {
         let expected = try PreparationFixture.preparation()
         let expectedSource = try PreparationFixture.source(expected)
         let http = try HTTPResponses.preparation(fixture: expected)
-        let service: any TransactionPreparing = Preparer(rpc: http.client)
+        let service = Preparer(rpc: http.client)
 
         let result = try await service.prepare([expectedSource.instruction], payer: expectedSource.payer, signer: expected.signer, configuration: PreparationFixture.configuration(), minimumSlot: nil)
         let resultSource = try PreparationFixture.source(result)

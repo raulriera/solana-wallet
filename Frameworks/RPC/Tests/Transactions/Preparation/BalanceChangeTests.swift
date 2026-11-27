@@ -1,8 +1,7 @@
 import Foundation
-import RPC
 import Testing
 import Transactions
-@testable import widgets
+@testable import RPC
 
 struct BalanceChangeTests {
     private static let mint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"

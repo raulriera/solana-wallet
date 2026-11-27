@@ -1,6 +1,6 @@
 import Foundation
-import RPC
 import Testing
+@testable import RPC
 @testable import widgets
 
 struct TransactionOutcomeExplorerTests {
