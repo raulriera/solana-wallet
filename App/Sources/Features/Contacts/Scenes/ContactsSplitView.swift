@@ -31,7 +31,6 @@ struct ContactsSplitView: View {
             NavigationSplitView(columnVisibility: $columnVisibility, preferredCompactColumn: $preferredColumn) {
                 RecipientList(selection: $selection, lists: lists)
                 .navigationTitle("Contacts")
-                .toolbarTitleDisplayMode(.inline)
                 .sidebarColumn()
                 .toolbar {
                     ToolbarItem(placement: .primaryAction) {
