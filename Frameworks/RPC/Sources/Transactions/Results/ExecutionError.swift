@@ -1,8 +1,7 @@
-import RPC
-import Transactions
+public import Transactions
 
 /// Why a simulated transaction can't run.
-nonisolated enum ExecutionError: Error, Equatable, Sendable {
+public enum ExecutionError: Error, Equatable, Sendable {
     /// The account doesn't hold the SOL or tokens that the transaction takes from it, its fee included.
     case insufficientFunds(Address)
     /// The transaction would leave the account with less than its rent-exempt minimum.
@@ -11,7 +10,7 @@ nonisolated enum ExecutionError: Error, Equatable, Sendable {
     case other(TransactionError)
 }
 
-nonisolated extension ExecutionError {
+extension ExecutionError {
     /// The programs whose error code 1 means that the instruction's first account lacks the lamports or tokens it
     /// sends.
     private static let fundsPrograms = Set([SystemProgram.id] + TokenProgram.allCases.map(\.rawValue))
@@ -24,7 +23,7 @@ nonisolated extension ExecutionError {
     /// - Parameters:
     ///   - error: The simulation's error.
     ///   - transaction: The transaction that the error is about.
-    init(_ error: TransactionError, in transaction: Transaction) {
+    public init(_ error: TransactionError, in transaction: Transaction) {
         self = Self.cause(of: error, in: transaction) ?? .other(error)
     }
 
@@ -57,7 +56,7 @@ nonisolated extension ExecutionError {
     }
 }
 
-private nonisolated extension TransactionError.Detail {
+private extension TransactionError.Detail {
     /// The detail's integer, or `nil` if the detail isn't an integer or `Int` can't hold it.
     var integer: Int? {
         guard case .integer(let value) = self else { return nil }
