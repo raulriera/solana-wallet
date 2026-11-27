@@ -1,3 +1,5 @@
+import RPC
+
 /// Records a settled private move's outcome in the account's private balance.
 nonisolated struct PrivateBalanceSettlement: TransactionSettling {
     let balances: any PrivateBalancing

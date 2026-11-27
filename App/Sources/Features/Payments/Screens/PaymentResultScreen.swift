@@ -1,3 +1,4 @@
+import RPC
 import SwiftUI
 
 /// Shows how a sent payment settled, with a link to its explorer page, a way to retry a dropped payment, and a way to

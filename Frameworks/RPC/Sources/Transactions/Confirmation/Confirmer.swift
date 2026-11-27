@@ -1,8 +1,7 @@
 import Foundation
-import RPC
 
 /// A confirmer that watches one sent transaction until it lands or can never land.
-nonisolated struct Confirmer: TransactionConfirming {
+public struct Confirmer: TransactionConfirming {
     /// How long a connection may go without a root before it counts as lost.
     private static let stallTimeout = Duration.seconds(30)
 
@@ -14,13 +13,13 @@ nonisolated struct Confirmer: TransactionConfirming {
     /// - Parameters:
     ///   - rpc: The provider that reads statuses and subscribes on the transaction's network.
     ///   - clock: The clock that times stalls and reconnection waits.
-    init(rpc: any RPC & SignatureEventProviding, clock: any Clock<Duration> = ContinuousClock()) {
+    public init(rpc: any RPC & SignatureEventProviding, clock: any Clock<Duration> = ContinuousClock()) {
         self.rpc = rpc
         self.clock = clock
     }
 
     @concurrent
-    func confirm(_ pending: TransactionOutcome) async throws -> TransactionOutcome {
+    public func confirm(_ pending: TransactionOutcome) async throws -> TransactionOutcome {
         try Task.checkCancellation()
         var schedule = Schedule()
         while true {
@@ -191,7 +190,7 @@ nonisolated struct Confirmer: TransactionConfirming {
     }
 }
 
-private nonisolated extension TransactionOutcome {
+private extension TransactionOutcome {
     /// Returns the succeeded or failed outcome of a landing.
     ///
     /// - Parameter error: The transaction's error, or `nil` if it ran.

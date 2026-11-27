@@ -1,15 +1,14 @@
-import RPC
 import Transactions
 
 /// A submitter that sends a reviewed transaction once through one RPC, without retrying.
-nonisolated struct Submitter: Sendable {
+public struct Submitter: Sendable {
     private let rpc: any RPC
     private let transactionBuilder = TransactionBuilder()
 
     /// Creates a submitter.
     ///
     /// - Parameter rpc: The RPC to submit through.
-    init(rpc: any RPC) {
+    public init(rpc: any RPC) {
         self.rpc = rpc
     }
 
@@ -19,7 +18,7 @@ nonisolated struct Submitter: Sendable {
     /// - Returns: The transaction's pending outcome, whether or not the RPC accepted it.
     /// - Throws: A missing-signature error.
     @concurrent
-    func submit(_ signed: SignedTransaction) async throws -> TransactionOutcome {
+    public func submit(_ signed: SignedTransaction) async throws -> TransactionOutcome {
         guard let signature = signed.signature else { throw SubmitterError.missingSignatures }
         try? await send(signed, signature: signature)
         return TransactionOutcome(signature: signature, network: signed.preparation.network,

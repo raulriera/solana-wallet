@@ -1,3 +1,4 @@
+import RPC
 import SwiftUI
 
 /// Runs a transaction review's steps and refreshes, signals how the transaction settled, presents errors, and stops

@@ -1,3 +1,4 @@
+import RPC
 import SwiftUI
 
 /// A modifier that clears the keypad's amount once the payment sent with it succeeds.

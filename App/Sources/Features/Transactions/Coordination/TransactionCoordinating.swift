@@ -1,3 +1,4 @@
+import RPC
 import Transactions
 
 /// A type that simulates, signs, sends, and watches transactions.

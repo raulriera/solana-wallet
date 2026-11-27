@@ -1,14 +1,13 @@
-import RPC
-import Transactions
+public import Transactions
 
 /// A resolver that builds token transfers for either token program.
-nonisolated struct TokenTransfers {
+public struct TokenTransfers: Sendable {
     private let rpc: any RPC
 
     /// Creates a token transfer resolver.
     ///
     /// - Parameter rpc: The provider that reads token accounts.
-    init(rpc: any RPC) { self.rpc = rpc }
+    public init(rpc: any RPC) { self.rpc = rpc }
 
     /// Reads a token transfer's accounts and builds the transfer.
     ///
@@ -23,7 +22,7 @@ nonisolated struct TokenTransfers {
     /// - Throws: ``Transactions/TokenError/accountMismatch`` if the mint account's program or decimals differ from the
     ///   reviewed mint, or an account, token validation, construction, RPC, or cancellation error.
     @concurrent
-    func transfer(mint reviewed: Mint, amount: UInt64, from sender: Address, to recipient: Address,
+    public func transfer(mint reviewed: Mint, amount: UInt64, from sender: Address, to recipient: Address,
                   source: Address?, memo: String? = nil) async throws -> (transfer: TokenTransfer, slot: UInt64, rent: UInt64) {
         try Task.checkCancellation()
         guard amount > 0 else { throw ValidationError.invalidAmount }

@@ -1,4 +1,5 @@
 import Foundation
+import RPC
 
 /// One watch of a pending transaction, which callers can join and which keeps its result after it ends.
 ///

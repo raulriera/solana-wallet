@@ -1,3 +1,4 @@
+import RPC
 import SwiftUI
 
 /// A screen that shows how a sent transaction settled.

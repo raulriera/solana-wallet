@@ -1,3 +1,4 @@
+import RPC
 import SwiftUI
 
 /// Shows how a sent balance move settled, with its explorer link, a retry for a dropped move, and a way to close it.

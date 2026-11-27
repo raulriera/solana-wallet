@@ -1,8 +1,8 @@
 import Foundation
-import RPC
 import Synchronization
 import Testing
 import Transactions
+@testable import RPC
 @testable import widgets
 
 struct ConfirmationTests {

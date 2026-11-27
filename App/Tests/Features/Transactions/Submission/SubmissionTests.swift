@@ -1,8 +1,8 @@
 import Foundation
-import RPC
 import Testing
 import Transactions
 import Wallet
+@testable import RPC
 @testable import widgets
 
 @Suite(.serialized)
