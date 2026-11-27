@@ -54,7 +54,7 @@ struct ContactsSplitView: View {
                     } else {
                         UnavailableScreen(title: "No Recipient Selected",
                                           message: "Choose who to pay, or paste an address for a new payment.",
-                                          systemImage: "person.crop.circle") {}
+                                          systemImage: nil) {}
                         .toolbarTitleDisplayMode(.inline)
                     }
                 }

@@ -77,7 +77,7 @@ struct PortfolioSplitView: View {
                     } else {
                         UnavailableScreen(title: "No Token Selected",
                                           message: "Select a token to see its balance and value.",
-                                          systemImage: "wallet.bifold") {}
+                                          systemImage: nil) {}
                             .toolbarTitleDisplayMode(.inline)
                     }
                 }
