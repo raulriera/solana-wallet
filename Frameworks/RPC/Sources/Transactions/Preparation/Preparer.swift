@@ -1,9 +1,8 @@
 import Foundation
-import RPC
-import Transactions
+public import Transactions
 
 /// A preparer that compiles and simulates transactions through a provider.
-nonisolated struct Preparer: Sendable {
+public struct Preparer: Sendable {
     private let rpc: any RPC
     private let messageBuilder = MessageBuilder()
     private let transactionBuilder = TransactionBuilder()
@@ -14,7 +13,7 @@ nonisolated struct Preparer: Sendable {
     /// - Parameters:
     ///   - rpc: The provider that reads the blockhash, fee, and simulation.
     ///   - requirements: The submitting service's requirements, whose tip the transaction pays, or `nil` for none.
-    init(rpc: any RPC, requirements: SubmissionRequirements? = nil) {
+    public init(rpc: any RPC, requirements: SubmissionRequirements? = nil) {
         self.rpc = rpc
         self.requirements = requirements
     }
@@ -30,7 +29,7 @@ nonisolated struct Preparer: Sendable {
     /// - Returns: The transaction with its fee and simulation.
     /// - Throws: A validation, RPC, or cancellation error.
     @concurrent
-    func prepare(_ instructions: [Instruction], payer: Address, signer: Address,
+    public func prepare(_ instructions: [Instruction], payer: Address, signer: Address,
                  configuration: Configuration? = nil, minimumSlot: UInt64? = nil) async throws -> Preparation {
         try Task.checkCancellation()
         let minimumFee = requirements?.minimumPriorityFeeLamports ?? 0
@@ -115,7 +114,7 @@ nonisolated struct Preparer: Sendable {
     /// - Returns: The unchanged transaction with its fee and simulation.
     /// - Throws: A validation, RPC, or cancellation error.
     @concurrent
-    func prepare(_ imported: Transaction, for signer: Address) async throws -> Preparation {
+    public func prepare(_ imported: Transaction, for signer: Address) async throws -> Preparation {
         try Task.checkCancellation()
         let network = rpc.network
         let transaction = try transactionBuilder.validateSignatures(in: imported.serializedRepresentation, for: signer)

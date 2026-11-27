@@ -1,8 +1,7 @@
-import RPC
 import Transactions
 
 /// A validator that checks a reviewed preparation against a provider.
-nonisolated struct PreparationValidator: Sendable {
+public struct PreparationValidator: Sendable {
     private let rpc: any RPC
     private let messageBuilder = MessageBuilder()
     private let transactionBuilder = TransactionBuilder()
@@ -10,7 +9,7 @@ nonisolated struct PreparationValidator: Sendable {
     /// Creates a validator.
     ///
     /// - Parameter rpc: The provider that reads the current fee and block height.
-    init(rpc: any RPC) {
+    public init(rpc: any RPC) {
         self.rpc = rpc
     }
 
@@ -19,7 +18,7 @@ nonisolated struct PreparationValidator: Sendable {
     /// - Parameter preparation: The approved preparation.
     /// - Throws: A validation, RPC, or cancellation error.
     @concurrent
-    func validate(_ preparation: Preparation) async throws {
+    public func validate(_ preparation: Preparation) async throws {
         try Task.checkCancellation()
         try validateReview(preparation)
         async let lifetime: Void = validateLifetime(preparation)
@@ -56,7 +55,7 @@ nonisolated struct PreparationValidator: Sendable {
     ///
     /// - Parameter preparation: The approved preparation.
     /// - Throws: An expiry, RPC, or cancellation error.
-    func validateLifetime(_ preparation: Preparation) async throws {
+    public func validateLifetime(_ preparation: Preparation) async throws {
         try Task.checkCancellation()
         switch preparation.source {
         case .local(_, _, _, let blockhash):
