@@ -1,4 +1,3 @@
-import Foundation
 import RPC
 
 /// A type that unlocks a wallet and signs an approved preparation.

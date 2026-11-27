@@ -1,4 +1,3 @@
-import Foundation
 public import Transactions
 
 /// A preparer that compiles and simulates transactions through a provider.

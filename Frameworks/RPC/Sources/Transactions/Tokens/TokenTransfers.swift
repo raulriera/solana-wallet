@@ -75,7 +75,7 @@ public struct TokenTransfers: Sendable {
     ///
     /// - Parameter addresses: The account addresses.
     /// - Returns: The accounts, with `nil` for missing ones.
-    /// - Throws: An error from ``RPC/RPC/accounts(at:minContextSlot:)``, an executable-account error, or a
+    /// - Throws: An error from ``RPC/accounts(at:minContextSlot:)``, an executable-account error, or a
     ///   cancellation error.
     private func accounts(at addresses: [Address]) async throws -> GetMultipleAccounts.Response {
         let response = try await rpc.accounts(at: addresses.map(\.value))

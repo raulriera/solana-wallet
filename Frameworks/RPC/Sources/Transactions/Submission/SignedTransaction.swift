@@ -2,11 +2,11 @@ public import Transactions
 
 /// An approved preparation with the selected account's signature added.
 public struct SignedTransaction: Sendable {
-    public let preparation: Preparation
+    let preparation: Preparation
 
     public let transaction: Transaction
 
-    public var isFullySigned: Bool {
+    var isFullySigned: Bool {
         !transaction.signatures.isEmpty && transaction.signatures.allSatisfy {
             $0.count == 64 && $0.contains(where: { $0 != 0 })
         }

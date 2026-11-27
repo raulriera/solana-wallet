@@ -11,7 +11,7 @@ public struct Preparation: Sendable {
         case external(Context, lastValidBlockHeight: UInt64)
 
         /// The context that fee estimation, simulation, and validation start from.
-        public var context: Context {
+        var context: Context {
             switch self {
             case .local(_, _, _, let blockhash): blockhash.context
             case .external(let context, _): context
@@ -19,7 +19,7 @@ public struct Preparation: Sendable {
         }
 
         /// The last block height at which the blockhash is valid, or an upper bound for an imported transaction.
-        public var lastValidBlockHeight: UInt64 {
+        var lastValidBlockHeight: UInt64 {
             switch self {
             case .local(_, _, _, let blockhash): blockhash.value.lastValidBlockHeight
             case .external(_, let lastValidBlockHeight): lastValidBlockHeight
@@ -43,7 +43,7 @@ public struct Preparation: Sendable {
     public var bytes: Data { transaction.serializedRepresentation }
 
     /// The newest slot among the preparation's reads.
-    public var minimumSlot: UInt64 { max(source.context.slot, fee.context.slot, simulation.context.slot) }
+    var minimumSlot: UInt64 { max(source.context.slot, fee.context.slot, simulation.context.slot) }
 
     /// Creates a preparation.
     ///
