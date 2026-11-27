@@ -2,7 +2,6 @@ import Foundation
 import RPC
 import Testing
 import Transactions
-@testable import widgets
 
 struct ExecutionErrorTests {
     private static let payer = try! Address("7ojbqZyHTdFHMo5WAJyttWEHwtwfStdkAMh8fme8wNFs")
