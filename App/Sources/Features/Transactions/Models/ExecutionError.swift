@@ -1,7 +1,7 @@
 import RPC
 import Transactions
 
-/// Why a transaction can't run, or why a sent transaction failed.
+/// Why a simulated transaction can't run.
 nonisolated enum ExecutionError: Error, Equatable, Sendable {
     /// The account doesn't hold the SOL or tokens that the transaction takes from it, its fee included.
     case insufficientFunds(Address)
@@ -22,7 +22,7 @@ nonisolated extension ExecutionError {
     /// instructions; when another program invokes it, the error stays as Solana reports it.
     ///
     /// - Parameters:
-    ///   - error: The error of a simulation or of a signature status.
+    ///   - error: The simulation's error.
     ///   - transaction: The transaction that the error is about.
     init(_ error: TransactionError, in transaction: Transaction) {
         self = Self.cause(of: error, in: transaction) ?? .other(error)
