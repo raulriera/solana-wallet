@@ -27,6 +27,7 @@ private struct TransactionReviewLifecycle<Proposal: TransactionProposal>: ViewMo
                 if phase == .background { review.stopSending() }
             }
             .alert(error: $review.error, retry: review.prepareReview)
+            .alert(error: $review.unfinishedSendError)
     }
 }
 

@@ -11,28 +11,17 @@ struct TransactionResultCard {
     /// - Parameter error: Why the transaction's check stopped, or `nil` while it runs.
     /// - Returns: The card.
     static func pending(_ error: ConfirmationError?) -> TransactionResultCard {
-        switch error {
-        case nil:
-            TransactionResultCard(
-                title: "Sending",
-                message: "Waiting for the network to confirm it.",
-                systemImage: "clock.circle.fill")
-        case .rateLimited?:
-            TransactionResultCard(
-                title: "Too Many Requests",
-                message: "Your provider is limiting requests. The explorer shows whether it went through.",
-                systemImage: "hourglass.circle.fill")
-        case .invalidKey?:
-            TransactionResultCard(
-                title: "API Key Not Accepted",
-                message: "Your provider didn't accept your saved API key. Enter a new key in Settings.",
-                systemImage: "key.circle.fill")
-        case .unavailable?:
-            TransactionResultCard(
-                title: "Status Unavailable",
-                message: "Your provider can't check it. Choose another provider in Settings.",
-                systemImage: "wifi.exclamationmark.circle.fill")
+        guard let error else {
+            return TransactionResultCard(title: "Sending", message: "Waiting for the network to confirm it.",
+                                         systemImage: "clock.circle.fill")
         }
+        let systemImage =
+            switch error {
+            case .rateLimited: "hourglass.circle.fill"
+            case .invalidKey: "key.circle.fill"
+            case .unavailable: "wifi.exclamationmark.circle.fill"
+            }
+        return TransactionResultCard(title: error.title, message: error.message, systemImage: systemImage)
     }
 
     /// Returns the card of a transaction that the network rejected.

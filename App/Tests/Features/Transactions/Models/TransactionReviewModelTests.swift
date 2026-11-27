@@ -281,30 +281,46 @@ struct TransactionReviewModelTests {
     }
 
     @Test
-    func `A preliminary transaction whose watch stops keeps the send waiting until a later watch settles it`()
-        async throws {
+    func `A preliminary transaction whose check stops ends the send with only the stop's reason`() async throws {
         let refusal = Self.rateLimit
         let sockets = SocketSequence { $0 == 0 ? SocketSequence.failing(with: refusal) : SocketSequence.watch() }
         let review = try LocalSteppedReview(followingTransactions: [1, 0], statuses: [.status(.finalized)],
                                             sockets: sockets)
         let model = review.model
         try await model.runReview()
+
         model.approve()
-        let send = Task { await model.run(model.attempt) }
-        while sockets.sockets.count < 2 {
-            await review.transactions.resume()
-            await Task.yield()
-        }
+        await model.run(model.attempt)
 
-        #expect(model.isSending)
-        #expect(!model.canApprove)
+        #expect(model.unfinishedSendError == .rateLimited)
         #expect(model.error == nil)
+        #expect(model.record == nil)
+        #expect(!model.isSent)
+        #expect(!model.canApprove)
+        #expect(await review.sent.requests.count == 1)
+        await sockets.waitUntilClosed()
+    }
 
-        await send.value
+    @Test
+    func `The proposal's own transaction whose check stops after preliminary ones keeps the reason on its result`()
+        async throws {
+        let refusal = Self.rateLimit
+        let sockets = SocketSequence { $0 == 1 ? SocketSequence.failing(with: refusal) : SocketSequence.watch() }
+        let review = try LocalSteppedReview(followingTransactions: [1, 0], statuses: [.status(.finalized)],
+                                            sockets: sockets)
+        let model = review.model
+        try await model.runReview()
 
-        #expect(model.outcome?.status == .succeeded(slot: 405))
+        model.approve()
+        await model.run(model.attempt)
+        await model.watchOutcome()
+
+        #expect(model.confirmationError == .rateLimited)
+        #expect(model.unfinishedSendError == nil)
+        #expect(model.outcome?.status == .pending)
+        #expect(!model.isSending)
         #expect(await review.sent.requests.count == 2)
-        #expect(sockets.sockets.count == 3)
+        #expect(sockets.sockets.count == 2)
         await sockets.waitUntilClosed()
     }
 
