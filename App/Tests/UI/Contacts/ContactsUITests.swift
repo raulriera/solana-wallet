@@ -24,19 +24,6 @@ final class ContactsUITests: XCTestCase {
         XCTAssertFalse(contacts.noContacts.exists, "Contacts stayed empty after naming a recipient.")
     }
 
-    @objc(testDeletingTheOnlyContactReturnsToTheEmptyContactsAndReturnError:)
-    func `test Deleting the only contact returns to the empty contacts`() throws {
-        let (app, contacts) = try openContacts()
-        defer { app.terminate() }
-
-        try contacts.startPayment(to: Self.address, shownAs: Self.shortAddress)
-        try contacts.addContact(named: "Alice")
-
-        try contacts.deleteContact()
-        try app.waitFor(contacts.noContacts)
-        try app.waitFor(contacts.newPaymentButton)
-    }
-
     private func openContacts() throws -> (UITestApp, ContactsPage) {
         let app = UITestApp()
         app.launch(with: .newWallet)

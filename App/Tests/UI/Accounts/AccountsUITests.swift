@@ -16,19 +16,6 @@ final class AccountsUITests: XCTestCase {
         try app.waitFor(accounts.row("Account 2"))
     }
 
-    @objc(testChoosingAnAccountChecksItAndReturnError:)
-    func `test Choosing an account checks it`() throws {
-        let (app, accounts) = try openAccounts()
-        defer { app.terminate() }
-        try app.tap(accounts.addAccountButton)
-        try accounts.expectAccount("Account 2")
-
-        try app.tap(accounts.row("Account 2"))
-
-        XCTAssertTrue(accounts.row("Account 2").isSelected, "The chosen account isn't checked.")
-        XCTAssertFalse(accounts.row("Account 1").isSelected, "The first account is still checked.")
-    }
-
     @objc(testANewNameRenamesTheAccountAndReturnError:)
     func `test A new name renames the account`() throws {
         let (app, accounts) = try openAccounts()

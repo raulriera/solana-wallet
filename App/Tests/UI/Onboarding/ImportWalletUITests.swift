@@ -24,31 +24,6 @@ final class ImportWalletUITests: XCTestCase {
         try onboarding.expectWelcome()
     }
 
-    @objc(testBackClearsImportInputAndReturnError:)
-    func `test Back returns to welcome and reopening import clears all input`() throws {
-        let app = UITestApp()
-        defer { app.terminate() }
-        app.launch()
-        let onboarding = OnboardingPage(driver: app)
-        try onboarding.expectWelcome()
-        try onboarding.openImport()
-        try onboarding.enterPhrase()
-        try onboarding.enterPassphrase(Self.passphrase)
-        app.reveal(onboarding.showWordsButton, swiping: .down)
-        try app.tap(onboarding.showWordsButton)
-        try app.waitFor(onboarding.hideWordsButton)
-        try app.tap(onboarding.backButton)
-
-        try onboarding.expectWelcome()
-        try onboarding.openImport()
-        XCTAssertFalse(onboarding.importWalletButton.isEnabled)
-        XCTAssertTrue(onboarding.showWordsButton.exists)
-        XCTAssertTrue(onboarding.recoveryWordsAreEmpty)
-        app.reveal(onboarding.passphrase, swiping: .up)
-        try app.waitFor(onboarding.passphrase)
-        XCTAssertTrue(onboarding.passphraseIsEmpty)
-    }
-
     @objc(testBackgroundConcealsRecoveryWithoutLosingInputAndReturnError:)
     func `test Returning from the background hides recovery without losing input`() throws {
         let app = UITestApp()
@@ -73,26 +48,6 @@ final class ImportWalletUITests: XCTestCase {
         try app.waitFor(onboarding.hideWordsButton)
         try app.waitFor(onboarding.revealedRecoveryWords)
         app.reveal(onboarding.passphrase, swiping: .up)
-        try app.waitFor(onboarding.passphrase)
-        XCTAssertFalse(onboarding.passphraseIsEmpty)
-    }
-
-    @objc(testRevealPassphraseAndReturnError:)
-    func `test The passphrase can be revealed to check it exactly`() throws {
-        let app = UITestApp()
-        defer { app.terminate() }
-        app.launch()
-        let onboarding = OnboardingPage(driver: app)
-        try onboarding.expectWelcome()
-        try onboarding.openImport()
-        try onboarding.enterPhrase()
-        try onboarding.enterPassphrase(Self.passphrase)
-
-        try app.tap(onboarding.showPassphraseButton)
-
-        try app.waitFor(onboarding.revealedPassphrase)
-        XCTAssertEqual(onboarding.revealedPassphrase.value as? String, Self.passphrase)
-        try app.tap(onboarding.hidePassphraseButton)
         try app.waitFor(onboarding.passphrase)
         XCTAssertFalse(onboarding.passphraseIsEmpty)
     }

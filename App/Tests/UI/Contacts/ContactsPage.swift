@@ -38,17 +38,4 @@ struct ContactsPage {
         if showSidebar.exists { try driver.tap(showSidebar, file: file, line: line) }
         return false
     }
-
-    func addContact(named name: String, file: StaticString = #filePath, line: UInt = #line) throws {
-        try driver.tap(driver.app.buttons["Details"], file: file, line: line)
-        try driver.tap(driver.app.buttons["Add Contact"], file: file, line: line)
-        try driver.type(name, into: driver.app.textFields["Name"], file: file, line: line)
-        try driver.tap(try driver.frontButton("Save Contact", file: file, line: line), file: file, line: line)
-        try driver.waitFor(driver.app.navigationBars[name], file: file, line: line)
-    }
-
-    func deleteContact(file: StaticString = #filePath, line: UInt = #line) throws {
-        try driver.tap(driver.app.buttons["Delete Contact"], file: file, line: line)
-        try driver.tap(try driver.frontButton("Delete Contact", file: file, line: line), file: file, line: line)
-    }
 }
