@@ -82,17 +82,9 @@ public struct Confirmer: TransactionConfirming {
     /// - Returns: The next event, or `nil` when the stream ends.
     /// - Throws: `RPCError.transport(.timedOut)` after a stall, the stream's error, or a cancellation error.
     private func next(from events: AsyncThrowingStream<SignatureEvent, any Error>) async throws -> SignatureEvent? {
-        try await withThrowingTaskGroup(of: SignatureEvent?.self) { group in
-            group.addTask {
-                var iterator = events.makeAsyncIterator()
-                return try await iterator.next()
-            }
-            group.addTask {
-                try await clock.sleep(for: Self.stallTimeout)
-                throw RPCError.transport(.timedOut)
-            }
-            defer { group.cancelAll() }
-            return try await group.next() ?? nil
+        try await withTimeout(Self.stallTimeout, clock: clock) {
+            var iterator = events.makeAsyncIterator()
+            return try await iterator.next()
         }
     }
 
