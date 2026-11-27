@@ -1,10 +1,10 @@
 import Foundation
 import Synchronization
 import Testing
-import Transactions
 @testable import RPC
 @testable import widgets
 
+@Suite(.timeLimit(.minutes(1)))
 struct ConfirmationTests {
     private static let unavailable = RPCError.http(statusCode: 503, retryAfter: nil)
     private static let rateLimit = RPCError.http(statusCode: 429, retryAfter: "3")
@@ -14,7 +14,7 @@ struct ConfirmationTests {
 
     private let pending = Self.outcome(.pending)
 
-    @Test(.timeLimit(.minutes(1)), arguments: [
+    @Test(arguments: [
         ("null", TransactionOutcome.Status.succeeded),
         (#"{"InstructionError":[0,{"Custom":6001}]}"#, .failed),
     ])
@@ -38,7 +38,7 @@ struct ConfirmationTests {
         await sockets.waitUntilClosed()
     }
 
-    @Test(.timeLimit(.minutes(1)), arguments: [
+    @Test(arguments: [
         (TransactionError?.none, TransactionOutcome.Status.succeeded),
         (TransactionError.instructionError(0, custom: 6001), .failed),
     ])
@@ -57,7 +57,7 @@ struct ConfirmationTests {
         await sockets.waitUntilClosed()
     }
 
-    @Test(.timeLimit(.minutes(1)), arguments: [Commitment.confirmed, nil])
+    @Test(arguments: [Commitment.confirmed, nil])
     func `A status that isn't finalized keeps watching until the landing`(_ commitment: Commitment?) async throws {
         let http = try HTTPResponses.confirmation(statuses: [response(status(commitment))],
                                                   epochs: [epoch(slot: 1_000, height: 600)])
@@ -71,7 +71,7 @@ struct ConfirmationTests {
         #expect(try await reads(of: http) == ["getSignatureStatuses": 1, "getEpochInfo": 1])
     }
 
-    @Test(.timeLimit(.minutes(1)))
+    @Test
     func `Roots check the expiry only from the scheduled slot, then a missing status reports a drop`() async throws {
         let http = try HTTPResponses.confirmation(statuses: [response(nil), response(nil, at: 1_062)], epochs: [
             epoch(slot: 1_000, height: 600), epoch(slot: 1_051, height: 640), epoch(slot: 1_062, height: 651),
@@ -84,7 +84,7 @@ struct ConfirmationTests {
         #expect(try await self.reads(of: http) == ["getSignatureStatuses": 2, "getEpochInfo": 3])
     }
 
-    @Test(.timeLimit(.minutes(1)))
+    @Test
     func `A status found after expiry settles the watch with its outcome`() async throws {
         let failure = status(.finalized, error: .instructionError(0, custom: 6001))
         let http = try HTTPResponses.confirmation(statuses: [response(nil), response(failure)],
@@ -97,7 +97,7 @@ struct ConfirmationTests {
         #expect(try await reads(of: http) == ["getSignatureStatuses": 2, "getEpochInfo": 2])
     }
 
-    @Test(.timeLimit(.minutes(1)))
+    @Test
     func `A status read behind the expiry slot waits for roots to cover the lag`() async throws {
         let http = try HTTPResponses.confirmation(statuses: [response(nil), response(nil, at: 1_041), response(nil, at: 1_051)],
                                                   epochs: [epoch(slot: 1_000, height: 600), epoch(slot: 1_051, height: 651)])
@@ -109,7 +109,7 @@ struct ConfirmationTests {
         #expect(try await self.reads(of: http) == ["getSignatureStatuses": 3, "getEpochInfo": 2])
     }
 
-    @Test(.timeLimit(.minutes(1)))
+    @Test
     func `A processed status after expiry is read again, then a missing one reports a drop`() async throws {
         let http = try HTTPResponses.confirmation(statuses: [response(nil), response(status(.processed), at: 1_051), response(nil)],
                                                   epochs: [epoch(slot: 1_000, height: 600), epoch(slot: 1_051, height: 651)])
@@ -121,7 +121,7 @@ struct ConfirmationTests {
         #expect(try await self.reads(of: http) == ["getSignatureStatuses": 3, "getEpochInfo": 2])
     }
 
-    @Test(.timeLimit(.minutes(1)), arguments: [
+    @Test(arguments: [
         (UInt64.max, UInt64(1_000), UInt64(0), ["getSignatureStatuses": 1, "getEpochInfo": 1]),
         (650, .max, 651, ["getSignatureStatuses": 2, "getEpochInfo": 1]),
     ])
@@ -141,7 +141,7 @@ struct ConfirmationTests {
         await sockets.waitUntilClosed()
     }
 
-    @Test(.timeLimit(.minutes(1)))
+    @Test
     func `A catch-up read past an expiry found alongside it proves a drop`() async throws {
         let http = try HTTPResponses.confirmation(statuses: [response(nil, at: 1_060)],
                                                   epochs: [epoch(slot: 1_051, height: 651)])
@@ -154,7 +154,7 @@ struct ConfirmationTests {
         await sockets.waitUntilClosed()
     }
 
-    @Test(.timeLimit(.minutes(1)))
+    @Test
     func `A reconnection after expiry settles the watch with one status read`() async throws {
         let http = try HTTPResponses.confirmation(statuses: [response(nil, at: 1_000), response(nil, at: 1_041),
                                                              response(nil, at: 1_051)],
@@ -177,7 +177,7 @@ struct ConfirmationTests {
         #expect(try await reads(of: http) == ["getSignatureStatuses": 3, "getEpochInfo": 1])
     }
 
-    @Test(.timeLimit(.minutes(1)))
+    @Test
     func `A lost connection reconnects after two seconds and catches up`() async throws {
         let held = Suspension()
         let http = try HTTPResponses.confirmation(statuses: [response(nil), response(status(.finalized))],
@@ -199,7 +199,7 @@ struct ConfirmationTests {
         #expect(try await reads(of: http)["getSignatureStatuses"] == 2)
     }
 
-    @Test(.timeLimit(.minutes(1)))
+    @Test
     func `Reconnection waits double up to a minute and reset after a subscription and its first reads`() async throws {
         let http = try HTTPResponses.confirmation(statuses: [response(nil), response(status(.finalized))],
                                                   epochs: [epoch(slot: 1_000, height: 600)])
@@ -223,7 +223,7 @@ struct ConfirmationTests {
         #expect(try await reads(of: http)["getSignatureStatuses"] == 2)
     }
 
-    @Test(.timeLimit(.minutes(1)))
+    @Test
     func `A connection without roots for thirty seconds reconnects`() async throws {
         let http = try HTTPResponses.confirmation(statuses: [response(nil), response(status(.finalized))],
                                                   epochs: [epoch(slot: 1_000, height: 600)])
@@ -243,7 +243,7 @@ struct ConfirmationTests {
         #expect(try await reads(of: http)["getSignatureStatuses"] == 2)
     }
 
-    @Test(.timeLimit(.minutes(1)), arguments: [
+    @Test(arguments: [
         (RPCError?.none, String?.none, SocketSequence.failing(with: Self.unavailable), 0),
         (.transport(.timedOut), nil, SocketSequence.watch(), 2),
         (Self.unavailable, "getEpochInfo", SocketSequence.watch(), 2),
@@ -271,7 +271,7 @@ struct ConfirmationTests {
         #expect(try await reads(of: http)["getSignatureStatuses", default: 0] == statusReads)
     }
 
-    @Test(.timeLimit(.minutes(1)), arguments: [
+    @Test(arguments: [
         (Self.rateLimit, RPCError?.none, SocketSequence.failing(with: Self.rateLimit), 0),
         (Self.rejectedKey, nil, SocketSequence.failing(with: Self.rejectedKey), 0),
         (Self.rateLimit, Self.rateLimit, SocketSequence.watch(), 1),
@@ -292,7 +292,7 @@ struct ConfirmationTests {
         await sockets.waitUntilClosed()
     }
 
-    @Test(.timeLimit(.minutes(1)))
+    @Test
     func `Cancelling a watch during a read cancels the read`() async throws {
         let held = Suspension()
         let http = try HTTPResponses.confirmation(statuses: [response(nil)], gate: held)
@@ -309,7 +309,7 @@ struct ConfirmationTests {
         await sockets.waitUntilClosed()
     }
 
-    @Test(.timeLimit(.minutes(1)))
+    @Test
     func `A refused subscription throws without reading or reconnecting`() async throws {
         let http = try HTTPResponses.confirmation(statuses: [])
         let refusal: SocketFixture.Responder = { request, ordinal in
@@ -327,7 +327,7 @@ struct ConfirmationTests {
         await sockets.waitUntilClosed()
     }
 
-    @Test(.timeLimit(.minutes(1)))
+    @Test
     func `A malformed landing throws without reconnecting`() async throws {
         let http = try HTTPResponses.confirmation(statuses: [response(nil)], epochs: [epoch(slot: 1_000, height: 600)])
         let malformed = Data(#"{"jsonrpc":"2.0","method":"signatureNotification","params":{"subscription":1,"result":{"context":{"slot":5},"value":{}}}}"#.utf8)
@@ -342,7 +342,7 @@ struct ConfirmationTests {
         await sockets.waitUntilClosed()
     }
 
-    @Test(.timeLimit(.minutes(1)))
+    @Test
     func `An invalid status response cannot confirm a transaction`() async throws {
         let http = try HTTPResponses.confirmation(statuses: [.init(context: Context(slot: 404), value: [Self.finalizedStatus])],
                                                   epochs: [epoch(slot: 1_000, height: 600)])
@@ -357,7 +357,7 @@ struct ConfirmationTests {
         await sockets.waitUntilClosed()
     }
 
-    @Test(.timeLimit(.minutes(1)))
+    @Test
     func `Cancelling a subscription closes its connection before any read`() async throws {
         let http = try HTTPResponses.confirmation(statuses: [])
         let sockets = SocketSequence { _ in { _, _ in [] } }
@@ -375,7 +375,7 @@ struct ConfirmationTests {
         #expect(await http.requests.isEmpty)
     }
 
-    @Test(.timeLimit(.minutes(1)), arguments: [
+    @Test(arguments: [
         (SocketSequence.watch(), 2), (SocketSequence.failing(with: URLError(.notConnectedToInternet)), 0),
     ])
     func `Cancelling a waiting watch stops it and closes its connection`(connection: @escaping SocketFixture.Responder,

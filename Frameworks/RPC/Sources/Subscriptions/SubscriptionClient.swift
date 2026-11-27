@@ -42,7 +42,7 @@ struct SubscriptionClient: Sendable, Redacted {
         try Task.checkCancellation()
         let socket = connect(endpoint)
         do {
-            let (state, setupEvents) = try await withTimeout(Self.setupTimeout) {
+            let (state, setupEvents) = try await withTimeout(Self.setupTimeout, clock: clock) {
                 try await withTaskCancellationHandler {
                     try await handshake(subscriptions, socket: socket)
                 } onCancel: { socket.cancel() }
@@ -69,7 +69,7 @@ struct SubscriptionClient: Sendable, Redacted {
                             try await withTaskCancellationHandler {
                                 while !Task.isCancelled {
                                     try await clock.sleep(for: Self.pingInterval)
-                                    try await withTimeout(Self.pongTimeout) { try await socket.ping() }
+                                    try await withTimeout(Self.pongTimeout, clock: clock) { try await socket.ping() }
                                 }
                             } onCancel: { socket.cancel() }
                         }
@@ -84,27 +84,6 @@ struct SubscriptionClient: Sendable, Redacted {
         } catch {
             socket.cancel()
             throw RPCError.sanitized(error, redactor: redactor)
-        }
-    }
-
-    /// Runs an operation that must finish within a time limit.
-    ///
-    /// - Parameters:
-    ///   - limit: The longest the operation may take.
-    ///   - operation: The work to run.
-    /// - Returns: The operation's result.
-    /// - Throws: A timeout ``RPCError`` or the operation's error.
-    private func withTimeout<Value: Sendable>(_ limit: Duration,
-                                              _ operation: @escaping @Sendable () async throws -> Value) async throws -> Value {
-        try await withThrowingTaskGroup(of: Value.self) { group in
-            group.addTask { try await operation() }
-            group.addTask {
-                try await clock.sleep(for: limit)
-                throw RPCError.transport(.timedOut)
-            }
-            defer { group.cancelAll() }
-            guard let value = try await group.next() else { throw RPCError.transport(.timedOut) }
-            return value
         }
     }
 

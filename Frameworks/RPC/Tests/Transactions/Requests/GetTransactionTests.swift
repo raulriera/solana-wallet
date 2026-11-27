@@ -46,7 +46,7 @@ struct GetTransactionTests {
             + #"{"index":0,"instructions":[{"programIdIndex":5,"accounts":[0],"data":"1","stackHeight":2},"#
             + #"{"programIdIndex":2,"accounts":[],"data":"","stackHeight":3}]}]"#
 
-        let transaction = try #require(try await read(Self.transaction(instructions: instructions, innerInstructions: inner)))
+        let transaction = try await read(Self.transaction(instructions: instructions, innerInstructions: inner))
 
         #expect(transaction.error == nil)
         #expect(transaction.instructionData(invoking: Self.pool) == [Data([16, 1, 2, 3]), Data(), Data([0, 16])])
@@ -62,7 +62,7 @@ struct GetTransactionTests {
 
         let transaction = try await read(Self.transaction(instructions: instructions, innerInstructions: "null", loadedAddresses: nil))
 
-        #expect(transaction?.instructionData(invoking: Self.pool) == [Data([0, 16])])
+        #expect(transaction.instructionData(invoking: Self.pool) == [Data([0, 16])])
     }
 
     @Test
@@ -71,8 +71,8 @@ struct GetTransactionTests {
 
         let transaction = try await read(Self.transaction(error: #"{"InstructionError":[0,{"Custom":6001}]}"#, instructions: instructions))
 
-        #expect(transaction?.error == TransactionError(name: "InstructionError", details: .array([.integer(0), .object(["Custom": .integer(6_001)])])))
-        #expect(transaction?.instructionData(invoking: Self.pool) == [Data([16, 1, 2, 3])])
+        #expect(transaction.error == TransactionError(name: "InstructionError", details: .array([.integer(0), .object(["Custom": .integer(6_001)])])))
+        #expect(transaction.instructionData(invoking: Self.pool) == [Data([16, 1, 2, 3])])
     }
 
     @Test
@@ -81,8 +81,8 @@ struct GetTransactionTests {
 
         let transaction = try await read(Self.transaction(instructions: instructions))
 
-        #expect(transaction?.instructionData(invoking: Self.pool) == [Data([16, 1, 2, 3])])
-        #expect(transaction?.instructionData(invoking: Self.system) == [])
+        #expect(transaction.instructionData(invoking: Self.pool) == [Data([16, 1, 2, 3])])
+        #expect(transaction.instructionData(invoking: Self.system) == [])
     }
 
     @Test
@@ -94,7 +94,7 @@ struct GetTransactionTests {
 
         let transaction = try await read(Self.transaction(instructions: instructions))
 
-        #expect(transaction?.instructionData(invoking: Self.pool) == [Data(count: 4_096)])
+        #expect(transaction.instructionData(invoking: Self.pool) == [Data(count: 4_096)])
     }
 
     @Test(arguments: [
@@ -128,9 +128,9 @@ struct GetTransactionTests {
         }
     }
 
-    private func read(_ result: String) async throws -> GetTransaction.Value? {
+    private func read(_ result: String) async throws -> GetTransaction.Value {
         let transport = StubTransport { try reply(to: $0, payload: #""result":\#(result)"#) }
-        return try await SolanaRPC.devnet(transport: transport).send(GetTransaction(signature: Self.signature))
+        return try #require(try await SolanaRPC.devnet(transport: transport).send(GetTransaction(signature: Self.signature)))
     }
 
     private static func transaction(
