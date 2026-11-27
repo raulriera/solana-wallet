@@ -27,11 +27,7 @@ struct OnboardingPage {
         driver.app.staticTexts["These words don't form a valid recovery phrase. Check their spelling and order."]
     }
     var passphrase: XCUIElement { driver.app.secureTextFields["BIP-39 passphrase, optional"] }
-    var revealedPassphrase: XCUIElement { driver.app.textFields["BIP-39 passphrase, optional"] }
-    var showPassphraseButton: XCUIElement { driver.app.buttons["Show passphrase"] }
-    var hidePassphraseButton: XCUIElement { driver.app.buttons["Hide passphrase"] }
     var solanaProvider: XCUIElement { driver.app.buttons["Solana"] }
-    var recoveryWordsAreEmpty: Bool { recoveryWords.value as? String == "Recovery words" }
     var passphraseIsEmpty: Bool { (passphrase.value as? String ?? "Optional") == "Optional" }
 
     func expectWelcome() throws {
