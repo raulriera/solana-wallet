@@ -124,7 +124,7 @@ actor HTTPResponses: HTTPTransport {
             try json(["context": ["slot": response.context.slot], "value": response.value.map { status -> Any in
                 guard let status else { return NSNull() }
                 return ["slot": status.slot, "confirmations": status.confirmations as Any? ?? NSNull(),
-                        "err": try errorValue(status.error), "confirmationStatus": status.confirmationStatus?.rawValue as Any? ?? NSNull()]
+                        "err": errorValue(status.error), "confirmationStatus": status.confirmationStatus?.rawValue as Any? ?? NSNull()]
             }])
         }
         var responses = ["getSignatureStatuses": values]
@@ -164,8 +164,18 @@ actor HTTPResponses: HTTPTransport {
         String(decoding: try JSONSerialization.data(withJSONObject: value, options: [.fragmentsAllowed, .sortedKeys]), as: UTF8.self)
     }
 
-    private static func errorValue(_ error: TransactionError?) throws -> Any {
-        try JSONSerialization.jsonObject(with: JSONEncoder().encode(error), options: .fragmentsAllowed)
+    private static func errorValue(_ error: TransactionError?) -> Any {
+        guard let error else { return NSNull() }
+        return error.details.map { [error.name: detailValue($0)] } as Any? ?? error.name
+    }
+
+    private static func detailValue(_ detail: TransactionError.Detail) -> Any {
+        switch detail {
+        case .string(let value): value
+        case .integer(let value): value
+        case .array(let values): values.map(detailValue)
+        case .object(let values): values.mapValues(detailValue)
+        }
     }
 }
 

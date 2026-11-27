@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Shows a sent payment's outcome, with a link to its explorer page, a way to retry a dropped payment, and, once the
-/// payment settles or its check stops, a way to start a new payment.
+/// Shows how a sent payment settled, with a link to its explorer page, a way to retry a dropped payment, and a way to
+/// start a new payment.
 struct PaymentResultScreen: TransactionResultContent {
     @Environment(\.newPayment) private var newPayment
     @AccessibilityFocusState private var isFocused: Bool
@@ -13,7 +13,6 @@ struct PaymentResultScreen: TransactionResultContent {
         Form {
             Section {
                 TitleCardContent(title: card.title, message: card.message, systemImage: card.systemImage)
-                    .symbolEffect(.breathe, isActive: review.isSending)
                     .accessibilityElement(children: .combine)
                     .accessibilityFocused($isFocused)
             }
@@ -23,7 +22,7 @@ struct PaymentResultScreen: TransactionResultContent {
                     Button("Try Again", action: review.tryAgain)
                 }
                 Link("View in Explorer", destination: outcome.explorerURL)
-                if let newPayment, !review.isSending {
+                if let newPayment {
                     Button("New Payment") { newPayment() }
                 }
             }
@@ -34,23 +33,23 @@ struct PaymentResultScreen: TransactionResultContent {
         .onChange(of: outcome, initial: true) { isFocused = true }
     }
 
-    private var card: TransactionResultCard {
+    /// The result's symbol, title, and explanation.
+    private var card: (title: LocalizedStringResource, message: LocalizedStringResource, systemImage: String) {
         let payment = review.proposal
         return switch outcome.status {
         case .pending:
-            .pending(review.confirmationError)
+            preconditionFailure("A result screen shows only a settled transaction.")
         case .succeeded:
-            TransactionResultCard(
-                title: "Sent",
-                message: LocalizedStringResource("You sent \(payment.sent, format: .amount(of: payment.asset)) to \(payment.recipient.title).",
-                                                 comment: "Message after a payment landed. The variables are the amount with its symbol, such as 0.5 SOL, and the recipient's name or short address."),
-                systemImage: "checkmark.circle.fill")
+            ("Sent",
+             LocalizedStringResource("You sent \(payment.sent, format: .amount(of: payment.asset)) to \(payment.recipient.title).",
+                                     comment: "Message after a payment landed. The variables are the amount with its symbol, such as 0.5 SOL, and the recipient's name or short address."),
+             "checkmark.circle.fill")
         case .failed:
-            .failed(
-                title: "Payment Failed",
-                message: "The network rejected this payment. Its network fee was paid. Nothing else left your wallet.")
+            ("Payment Failed",
+             "The network rejected this payment. Its network fee was paid. Nothing else left your wallet.",
+             "exclamationmark.triangle.fill")
         case .dropped:
-            .dropped(message: "Nothing left your wallet.")
+            ("Not Sent", "Nothing left your wallet.", "xmark.circle.fill")
         }
     }
 }

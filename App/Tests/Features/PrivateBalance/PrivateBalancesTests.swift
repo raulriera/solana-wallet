@@ -671,7 +671,7 @@ struct PrivateBalancesTests {
         #expect(spend.amount == 400_000)
         #expect(spend.receivedAmount == 600_000)
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 1)
-        #expect(try await balances.complete(prepared, with: PrivateBalanceFixtures.outcome(.succeeded(slot: 5)))
+        #expect(try await balances.complete(prepared, with: PrivateBalanceFixtures.outcome(.succeeded))
             == .balance(available: 0, pending: 600_000, of: asset))
         #expect(await sender.notes.value?[sender.id]?.notes.isEmpty == true)
     }
@@ -698,7 +698,7 @@ struct PrivateBalancesTests {
         #expect(spend.amount == 400_000)
         #expect(spend.receivedAmount == 600_000)
         #expect(transact.accounts.map(\.address).contains(tokenAccount))
-        #expect(try await balances.complete(prepared, with: PrivateBalanceFixtures.outcome(.succeeded(slot: 5)))
+        #expect(try await balances.complete(prepared, with: PrivateBalanceFixtures.outcome(.succeeded))
             == .balance(available: 0, pending: 600_000, of: .token(.devnetUSDC)))
     }
 
@@ -726,7 +726,7 @@ struct PrivateBalancesTests {
 
         let status = try await balances.complete(
             PrivateBalanceFixtures.preparedDeposit(5_000, of: .token(.devnetUSDC), from: account),
-            with: PrivateBalanceFixtures.outcome(.succeeded(slot: 5))
+            with: PrivateBalanceFixtures.outcome(.succeeded)
         )
 
         #expect(status == .balance(available: 0, pending: 5_000, of: .token(.devnetUSDC)))
@@ -743,7 +743,7 @@ struct PrivateBalancesTests {
                                                notes: notes)
         let prepared = try await balances.prepare(.deposit(5_000, of: .nativeSOL), from: account, on: .devnet)
 
-        let status = try await balances.complete(prepared, with: PrivateBalanceFixtures.outcome(.succeeded(slot: 5)))
+        let status = try await balances.complete(prepared, with: PrivateBalanceFixtures.outcome(.succeeded))
 
         #expect(status == .balance(available: 0, pending: 5_000, of: .nativeSOL))
         #expect(await notes.value?[PrivateBalances.noteID(of: account, on: .devnet)]?.pendingAmount(of: .nativeSOL) == 5_000)
@@ -759,7 +759,7 @@ struct PrivateBalancesTests {
 
         let status = try await balances.complete(
             PrivateBalanceFixtures.preparedDeposit(5_000, of: .nativeSOL, from: account),
-            with: PrivateBalanceFixtures.outcome(.failed(slot: 5, .program(instruction: 0, code: 6001)))
+            with: PrivateBalanceFixtures.outcome(.failed)
         )
 
         #expect(status == .balance(available: 0, pending: 0, of: .nativeSOL))
@@ -880,7 +880,7 @@ struct PrivateBalancesTests {
         #expect(merge.amount == 40)
         #expect(merge.receivedAmount == 40)
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 1)
-        #expect(try await balances.complete(prepared, with: PrivateBalanceFixtures.outcome(.succeeded(slot: 5)))
+        #expect(try await balances.complete(prepared, with: PrivateBalanceFixtures.outcome(.succeeded))
             == .balance(available: 1, pending: 40, of: asset))
     }
 
@@ -898,7 +898,7 @@ struct PrivateBalancesTests {
         #expect(spend.amount == 9)
         #expect(spend.receivedAmount == 9)
         #expect(spend.treeIDs == [1, 2, 3])
-        #expect(try await balances.complete(prepared, with: PrivateBalanceFixtures.outcome(.succeeded(slot: 5)))
+        #expect(try await balances.complete(prepared, with: PrivateBalanceFixtures.outcome(.succeeded))
             == .balance(available: 2, pending: 9, of: .nativeSOL))
     }
 
@@ -911,7 +911,7 @@ struct PrivateBalancesTests {
         let account = sender.account
         let request = PrivateTransactionRequest.withdraw(41, of: .nativeSOL, to: account.address)
         let merge = try await balances.prepare(request, from: account, on: .devnet)
-        _ = try await balances.complete(merge, with: PrivateBalanceFixtures.outcome(.succeeded(slot: 5)))
+        _ = try await balances.complete(merge, with: PrivateBalanceFixtures.outcome(.succeeded))
         var waits = clock.waits.makeAsyncIterator()
 
         let spend = Task { try await balances.prepare(request, from: account, on: .devnet) }
@@ -934,7 +934,7 @@ struct PrivateBalancesTests {
         let request = PrivateTransactionRequest.withdraw(41, of: .nativeSOL, to: account.address)
         let merge = try await balances.prepare(request, from: account, on: .devnet)
         let mergeSignature = RedeemCodeFixtures.signature(ofDepositAt: 42)
-        _ = try await balances.complete(merge, with: PrivateBalanceFixtures.outcome(.succeeded(slot: 5),
+        _ = try await balances.complete(merge, with: PrivateBalanceFixtures.outcome(.succeeded,
                                                                                     signature: mergeSignature))
         var waits = clock.waits.makeAsyncIterator()
 
@@ -955,7 +955,7 @@ struct PrivateBalancesTests {
         let clock = ManualClock()
         let balances = try await Self.balances(sender.responses, keys: sender.keys, notes: sender.notes, clock: clock)
         _ = try await balances.complete(PrivateBalanceFixtures.preparedDeposit(pending, of: .nativeSOL, from: sender.account),
-                                        with: PrivateBalanceFixtures.outcome(.succeeded(slot: 5)))
+                                        with: PrivateBalanceFixtures.outcome(.succeeded))
         let request = PrivateTransactionRequest.withdraw(41, of: .nativeSOL, to: sender.account.address)
         var waitStream = clock.waits.makeAsyncIterator()
 
@@ -985,7 +985,7 @@ struct PrivateBalancesTests {
             try ShieldedPool.deposit(5_000, of: asset, from: sender.account.address, to: shielded.recipient, treeID: 1),
         ])
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 1)
-        #expect(try await balances.complete(prepared, with: PrivateBalanceFixtures.outcome(.succeeded(slot: 5)))
+        #expect(try await balances.complete(prepared, with: PrivateBalanceFixtures.outcome(.succeeded))
             == .balance(available: 1, pending: 5_040, of: asset))
     }
 
@@ -1010,7 +1010,7 @@ struct PrivateBalancesTests {
     }
 
     @Test(arguments: [
-        PrivateBalanceFixtures.outcome(.failed(slot: 5, .program(instruction: 0, code: 6001))),
+        PrivateBalanceFixtures.outcome(.failed),
         PrivateBalanceFixtures.outcome(.dropped),
     ])
     func `A deposit that merges notes records nothing when it fails or is dropped`(outcome: TransactionOutcome)
@@ -1090,7 +1090,7 @@ struct PrivateBalancesTests {
 
     private static func startCompletion(of transaction: PreparedPrivateTransaction, signature: String = "private",
                                         in balances: isolated PrivateBalances) -> Task<PrivateBalanceStatus, any Error> {
-        let outcome = PrivateBalanceFixtures.outcome(.succeeded(slot: 5), signature: signature)
+        let outcome = PrivateBalanceFixtures.outcome(.succeeded, signature: signature)
         return Task.immediate { try await balances.complete(transaction, with: outcome) }
     }
 

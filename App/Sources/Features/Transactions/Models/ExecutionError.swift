@@ -2,7 +2,7 @@ import RPC
 import Transactions
 
 /// Why a transaction can't run, or why a sent transaction failed.
-nonisolated enum ExecutionError: Error, Codable, Equatable, Sendable {
+nonisolated enum ExecutionError: Error, Equatable, Sendable {
     /// The account doesn't hold the SOL or tokens that the transaction takes from it, its fee included.
     case insufficientFunds(Address)
     /// The transaction would leave the account with less than its rent-exempt minimum.

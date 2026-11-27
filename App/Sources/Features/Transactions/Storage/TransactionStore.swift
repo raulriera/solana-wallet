@@ -89,16 +89,6 @@ final class TransactionStore: Erasable {
         records(for: key).first { $0.id == id }
     }
 
-    /// Returns why the watch of one of an account's pending records stopped.
-    ///
-    /// - Parameters:
-    ///   - id: The record's signature.
-    ///   - key: The account and network.
-    /// - Returns: Why the record's watch stopped, or `nil` while it runs or once the record settles.
-    func confirmationError(of id: TransactionRecord.ID, for key: TransactionRecord.Key) -> ConfirmationError? {
-        entry(for: key).confirmationErrors[id]
-    }
-
     /// Returns how many of an account's transactions on a network settled since launch.
     ///
     /// - Parameter key: The account and network.
@@ -130,33 +120,31 @@ final class TransactionStore: Erasable {
             } catch let error as DeliveryError {
                 outcome = error.outcome
             }
-            return await self.track(TransactionRecord(kind, from: account.id, transaction: simulation.transaction,
-                                                      outcome: outcome),
-                                    settling: settling)
+            return await self.track(TransactionRecord(kind, from: account.id, outcome: outcome), settling: settling)
         }
         return try await delivery.value
     }
 
-    /// Waits for a record to settle, joining its latest watch or starting one; a settled record returns at once.
+    /// Waits for a record to settle, joining its watch or starting one; a settled record returns at once.
     ///
     /// - Parameters:
     ///   - id: The record's signature.
     ///   - key: The account and network.
     /// - Returns: The transaction's settled outcome.
     /// - Throws: ``TransactionStoreError/missingRecord`` if the record isn't kept, `CancellationError` if the caller
-    ///   is cancelled, or ``ConfirmationError`` if the watch stopped.
+    ///   is cancelled, or the watch's error.
     func watch(_ id: TransactionRecord.ID, for key: TransactionRecord.Key) async throws -> TransactionOutcome {
         let entry = entry(for: key)
-        if let watch = entry.watches[id] { return try await watch.value() }
+        if let watch = entry.watches[id] { return try await result(of: watch, for: id, in: entry) }
         await load()
         guard let record = record(id, for: key) else { throw TransactionStoreError.missingRecord }
         guard record.outcome.isPending else { return record.outcome }
-        return try await startWatch(of: record, in: entry).value()
+        return try await result(of: startWatch(of: record, in: entry), for: id, in: entry)
     }
 
     /// Starts watching every pending record that has no watch.
     ///
-    /// - Parameter replacingFailedWatches: Whether to restart watches that ended with an error.
+    /// - Parameter replacingFailedWatches: Whether to restart watches that ended with an error that no caller read.
     func resume(replacingFailedWatches: Bool = false) async {
         await load()
         for entry in entries.values {
@@ -212,7 +200,6 @@ final class TransactionStore: Erasable {
         for watch in entry.watches.values { watch.cancel() }
         entry.watches = [:]
         entry.settlings = [:]
-        entry.confirmationErrors = [:]
     }
 
     /// Keeps a pending record as the newest, starts watching it, and saves the pending records.
@@ -236,7 +223,7 @@ final class TransactionStore: Erasable {
         try? await storage.save(pending)
     }
 
-    /// Starts watching a pending record, and forgets why an earlier watch of it stopped; a watch that stops keeps why.
+    /// Starts watching a pending record.
     ///
     /// - Parameters:
     ///   - record: The pending record.
@@ -244,18 +231,23 @@ final class TransactionStore: Erasable {
     /// - Returns: The running watch.
     @discardableResult
     private func startWatch(of record: TransactionRecord, in entry: Entry) -> TransactionWatch {
-        entry.confirmationErrors[record.id] = nil
-        let watch = TransactionWatch { [self] in
-            do {
-                return try await settle(record, in: entry)
-            } catch where !(error is CancellationError) {
-                let confirmationError = ConfirmationError(error)
-                entry.confirmationErrors[record.id] = confirmationError
-                throw confirmationError
-            }
-        }
+        let watch = TransactionWatch { [self] in try await settle(record, in: entry) }
         entry.watches[record.id] = watch
         return watch
+    }
+
+    /// Waits for a watch's result, then forgets the watch once it ended.
+    ///
+    /// - Parameters:
+    ///   - watch: The record's watch.
+    ///   - id: The record's signature.
+    ///   - entry: The record's key's entry.
+    /// - Returns: The transaction's settled outcome.
+    /// - Throws: `CancellationError` if the caller is cancelled, or the watch's error.
+    private func result(of watch: TransactionWatch, for id: TransactionRecord.ID, in entry: Entry) async throws
+        -> TransactionOutcome {
+        defer { if watch.isFinished, entry.watches[id] === watch { entry.watches[id] = nil } }
+        return try await watch.value()
     }
 
     /// Watches a pending record's transaction until it settles, keeps the outcome, and runs its settling once.
@@ -266,7 +258,7 @@ final class TransactionStore: Erasable {
     /// - Returns: The transaction's settled outcome.
     /// - Throws: The coordinator's creation or watch error, or `CancellationError`.
     private func settle(_ record: TransactionRecord, in entry: Entry) async throws -> TransactionOutcome {
-        let outcome = try await coordinator(for: record.outcome.network).confirm(record.outcome, of: record.transaction)
+        let outcome = try await coordinator(for: record.outcome.network).confirm(record.outcome)
         try Task.checkCancellation()
         if let index = entry.records.firstIndex(where: { $0.id == record.id }) {
             entry.records[index].settle(outcome.status, at: .now)
@@ -286,10 +278,8 @@ final class TransactionStore: Erasable {
         var records: [TransactionRecord] = []
         /// How many of the key's transactions settled since launch.
         var settledCount = 0
-        /// The latest watch of each record, kept after it ends.
+        /// The watch of each pending record, kept after it ends until a caller reads its result.
         @ObservationIgnored var watches: [TransactionRecord.ID: TransactionWatch] = [:]
         @ObservationIgnored var settlings: [TransactionRecord.ID: any TransactionSettling] = [:]
-        /// Why the watch of each pending record stopped, until a new watch of it starts.
-        var confirmationErrors: [TransactionRecord.ID: ConfirmationError] = [:]
     }
 }

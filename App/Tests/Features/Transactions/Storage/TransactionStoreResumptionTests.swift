@@ -17,7 +17,7 @@ struct TransactionStoreResumptionTests {
         await resuming.store.resume()
 
         for record in records {
-            #expect(try await resuming.store.settledOutcome(of: record).status == .succeeded(slot: 405))
+            #expect(try await resuming.store.settledOutcome(of: record).status == .succeeded)
         }
         #expect(await resuming.pending.value == [])
         await resuming.sockets.waitUntilClosed()
@@ -39,33 +39,38 @@ struct TransactionStoreResumptionTests {
         await store.resume()
 
         gate.resume()
-        #expect(try await resuming.settle(record) == .succeeded(slot: 405))
+        #expect(try await resuming.settle(record) == .succeeded)
         #expect(resuming.sockets.sockets.count == 1)
     }
 
     @Test
-    func `Resuming retries a failed watch only on a new connection`() async throws {
+    func `Resuming retries a failed watch only after its error is read or on a new connection`() async throws {
         let fixture = try SigningFixture()
         let record = TransactionRecord.fixture(.payment, signature: "pending", account: fixture.account.id)
         let sockets = SocketSequence()
         let coordinator = try LocalTransactions(fixture: fixture, statuses: [.status(.finalized)],
                                                 sockets: sockets).coordinator
-        var fails = true
+        let (attempts, attempted) = AsyncStream.makeStream(of: Void.self)
+        var failures = 2
         let store = TransactionStore.inMemory(StoredValue([record])) { _ in
-            guard !fails else {
-                fails = false
+            attempted.yield()
+            guard failures == 0 else {
+                failures -= 1
                 throw TransactionCoordinatorError.unsupportedNetwork
             }
             return coordinator
         }
+        var attemptsMade = attempts.makeAsyncIterator()
 
         await store.resume()
-        await #expect(throws: ConfirmationError.unavailable) { try await store.watch(record.id, for: record.key) }
+        _ = await attemptsMade.next()
         await store.resume()
 
-        await #expect(throws: ConfirmationError.unavailable) { try await store.watch(record.id, for: record.key) }
+        await #expect(throws: TransactionCoordinatorError.unsupportedNetwork) { try await store.watch(record.id, for: record.key) }
+        await store.resume()
+        _ = await attemptsMade.next()
         await store.resume(replacingFailedWatches: true)
-        #expect(try await store.settledOutcome(of: record).status == .succeeded(slot: 405))
+        #expect(try await store.settledOutcome(of: record).status == .succeeded)
         await sockets.waitUntilClosed()
     }
 }

@@ -1,6 +1,5 @@
 import Foundation
 import RPC
-import Transactions
 
 /// A confirmer that watches one sent transaction until it lands or can never land.
 nonisolated struct Confirmer: TransactionConfirming {
@@ -21,12 +20,12 @@ nonisolated struct Confirmer: TransactionConfirming {
     }
 
     @concurrent
-    func confirm(_ pending: TransactionOutcome, of transaction: Transaction) async throws -> TransactionOutcome {
+    func confirm(_ pending: TransactionOutcome) async throws -> TransactionOutcome {
         try Task.checkCancellation()
         var schedule = Schedule()
         while true {
             do {
-                return try await watch(pending, of: transaction, schedule: &schedule)
+                return try await watch(pending, schedule: &schedule)
             } catch {
                 try Task.checkCancellation()
                 guard (error as? RPCError)?.isRecoverable == true else { throw error }
@@ -39,26 +38,24 @@ nonisolated struct Confirmer: TransactionConfirming {
     ///
     /// - Parameters:
     ///   - pending: The transaction's pending outcome.
-    ///   - transaction: The sent transaction.
     ///   - schedule: The checks and reconnection wait that every connection shares.
     /// - Returns: The settled outcome.
     /// - Throws: A subscription, RPC, stall, lost connection, or cancellation error.
-    private func watch(_ pending: TransactionOutcome, of transaction: Transaction,
-                       schedule: inout Schedule) async throws -> TransactionOutcome {
+    private func watch(_ pending: TransactionOutcome, schedule: inout Schedule) async throws -> TransactionOutcome {
         let events = try await rpc.events(for: pending.signature)
         let checksExpiry = schedule.expiry == nil
         async let catchUpRead = rpc.send(GetSignatureStatuses(signatures: [pending.signature]))
         async let epochRead = checksExpiry ? rpc.send(GetEpochInfo()) : nil
         let catchUp = try await catchUpRead
-        if let outcome = settle(catchUp, for: pending, of: transaction, at: schedule.root, schedule: &schedule) {
+        if let outcome = settle(catchUp, for: pending, at: schedule.root, schedule: &schedule) {
             return outcome
         }
         if let epoch = try await epochRead { record(epoch, for: pending, at: schedule.root, schedule: &schedule) }
         if checksExpiry, schedule.expiry != nil {
-            if let outcome = settle(catchUp, for: pending, of: transaction, at: schedule.root, schedule: &schedule) {
+            if let outcome = settle(catchUp, for: pending, at: schedule.root, schedule: &schedule) {
                 return outcome
             }
-            if let outcome = try await check(pending, of: transaction, at: schedule.root, schedule: &schedule) {
+            if let outcome = try await check(pending, at: schedule.root, schedule: &schedule) {
                 return outcome
             }
         }
@@ -66,12 +63,12 @@ nonisolated struct Confirmer: TransactionConfirming {
         while let event = try await next(from: events) {
             try Task.checkCancellation()
             switch event {
-            case .landed(let slot, let error):
-                return pending.landed(at: slot, error: error, in: transaction)
+            case .landed(_, let error):
+                return pending.landed(with: error)
             case .rooted(let root):
                 schedule.root = root
                 guard root >= schedule.nextCheck else { continue }
-                if let outcome = try await check(pending, of: transaction, at: root, schedule: &schedule) {
+                if let outcome = try await check(pending, at: root, schedule: &schedule) {
                     return outcome
                 }
             }
@@ -104,16 +101,15 @@ nonisolated struct Confirmer: TransactionConfirming {
     ///
     /// - Parameters:
     ///   - pending: The transaction's pending outcome.
-    ///   - transaction: The sent transaction.
     ///   - root: The newest root.
     ///   - schedule: The next check and, once read, the expiry slot.
     /// - Returns: The outcome once a status read settles it, or `nil` to keep watching.
     /// - Throws: An RPC or cancellation error.
-    private func check(_ pending: TransactionOutcome, of transaction: Transaction, at root: UInt64,
-                       schedule: inout Schedule) async throws -> TransactionOutcome? {
+    private func check(_ pending: TransactionOutcome, at root: UInt64, schedule: inout Schedule) async throws
+        -> TransactionOutcome? {
         guard try await hasExpired(pending, at: root, schedule: &schedule) else { return nil }
         let response = try await rpc.send(GetSignatureStatuses(signatures: [pending.signature]))
-        return settle(response, for: pending, of: transaction, at: root, schedule: &schedule)
+        return settle(response, for: pending, at: root, schedule: &schedule)
     }
 
     /// Returns the outcome that a status read proves, or schedules the next check.
@@ -121,15 +117,14 @@ nonisolated struct Confirmer: TransactionConfirming {
     /// - Parameters:
     ///   - response: The transaction's status read.
     ///   - pending: The transaction's pending outcome.
-    ///   - transaction: The sent transaction.
     ///   - root: The newest root, or `0` before the first one.
     ///   - schedule: The expiry slot, once read, and the next check.
     /// - Returns: The outcome, or `nil` to keep watching.
-    private func settle(_ response: GetSignatureStatuses.Response, for pending: TransactionOutcome,
-                        of transaction: Transaction, at root: UInt64, schedule: inout Schedule) -> TransactionOutcome? {
+    private func settle(_ response: GetSignatureStatuses.Response, for pending: TransactionOutcome, at root: UInt64,
+                        schedule: inout Schedule) -> TransactionOutcome? {
         let status = response.value[0]
         if let status, status.confirmationStatus == .finalized {
-            return pending.landed(at: status.slot, error: status.error, in: transaction)
+            return pending.landed(with: status.error)
         }
         guard let expiry = schedule.expiry else { return nil }
         let context = response.context.slot
@@ -199,12 +194,9 @@ nonisolated struct Confirmer: TransactionConfirming {
 private nonisolated extension TransactionOutcome {
     /// Returns the succeeded or failed outcome of a landing.
     ///
-    /// - Parameters:
-    ///   - slot: The slot that the transaction landed in.
-    ///   - error: The transaction's error, or `nil` if it ran.
-    ///   - transaction: The sent transaction.
+    /// - Parameter error: The transaction's error, or `nil` if it ran.
     /// - Returns: The settled outcome.
-    func landed(at slot: UInt64, error: TransactionError?, in transaction: Transaction) -> TransactionOutcome {
-        settled(error.map { .failed(slot: slot, ExecutionError($0, in: transaction)) } ?? .succeeded(slot: slot))
+    func landed(with error: TransactionError?) -> TransactionOutcome {
+        settled(error == nil ? .succeeded : .failed)
     }
 }

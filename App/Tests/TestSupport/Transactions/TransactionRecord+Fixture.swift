@@ -2,15 +2,11 @@ import Foundation
 import RPC
 @testable import widgets
 
-// swift-format-ignore: NeverUseForceTry
 extension TransactionRecord {
-    private static let preparation = try! PreparationFixture.preparation()
-
     static func fixture(_ kind: Kind, signature: String = "signature", account: UUID,
                         network: Network = .devnet) -> TransactionRecord {
-        TransactionRecord(kind, from: account, transaction: preparation.transaction,
-                          outcome: TransactionOutcome(signature: signature, network: network,
-                                                      lastValidBlockHeight: preparation.source.lastValidBlockHeight,
+        TransactionRecord(kind, from: account,
+                          outcome: TransactionOutcome(signature: signature, network: network, lastValidBlockHeight: 550,
                                                       status: .pending))
     }
 }

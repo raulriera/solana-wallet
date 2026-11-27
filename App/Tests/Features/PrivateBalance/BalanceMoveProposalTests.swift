@@ -105,8 +105,8 @@ struct BalanceMoveProposalTests {
 
         #expect(record.kind == .privateDeposit)
         #expect(record.outcome.network == .devnet)
-        #expect(try await deposit.transactions.watch(record.id, for: record.key).status == .succeeded(slot: 405))
-        #expect(deposit.model.outcome?.status == .succeeded(slot: 405))
+        #expect(try await deposit.transactions.watch(record.id, for: record.key).status == .succeeded)
+        #expect(deposit.model.outcome?.status == .succeeded)
         #expect(try await deposit.balances.refresh(deposit.account, on: .devnet)
             == .balance(available: 0, pending: LocalBalanceMove.amount, of: .nativeSOL))
         #expect(deposit.model.error == nil)
@@ -165,8 +165,8 @@ struct BalanceMoveProposalTests {
         let record = try await spend.model.runApproval()
 
         #expect(record.kind == kind)
-        #expect(try await spend.transactions.watch(record.id, for: record.key).status == .succeeded(slot: 405))
-        #expect(spend.model.outcome?.status == .succeeded(slot: 405))
+        #expect(try await spend.transactions.watch(record.id, for: record.key).status == .succeeded)
+        #expect(spend.model.outcome?.status == .succeeded)
         #expect(try await spend.balances.refresh(spend.account, on: .devnet)
             == .balance(available: 0, pending: LocalBalanceMove.privateAmount - LocalBalanceMove.amount, of: .nativeSOL))
         #expect(spend.model.error == nil)

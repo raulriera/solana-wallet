@@ -33,8 +33,14 @@ public struct Address: Sendable, Hashable {
 
 extension Address: Codable {
     public init(from decoder: any Decoder) throws {
-        self = try decoder.singleValueContainer().decode(parsing: Address.init,
-                                                         debugDescription: "Invalid Solana address.")
+        let container = try decoder.singleValueContainer()
+        let value = try container.decode(String.self)
+        do {
+            try self.init(value)
+        } catch {
+            throw DecodingError.dataCorrupted(DecodingError.Context(
+                codingPath: container.codingPath, debugDescription: "Invalid Solana address.", underlyingError: error))
+        }
     }
 
     public func encode(to encoder: any Encoder) throws {

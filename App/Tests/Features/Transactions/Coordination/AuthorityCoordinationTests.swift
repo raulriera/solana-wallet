@@ -44,7 +44,6 @@ struct AuthorityCoordinationTests {
 
         let error = try await #require(throws: DeliveryError.self) { try await coordinator.submit(review) }
 
-        #expect((error.cause as? RPCError) == Self.rateLimit)
         #expect(!error.outcome.signature.isEmpty)
         #expect(await store.reads.count == 1)
     }

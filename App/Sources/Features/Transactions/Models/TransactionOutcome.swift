@@ -15,10 +15,9 @@ nonisolated struct TransactionOutcome: Codable, Equatable, Sendable {
     enum Status: Codable, Equatable, Sendable {
         /// The transaction isn't finalized yet but can still be.
         case pending
-        /// The transaction succeeded in `slot`, which is finalized.
-        case succeeded(slot: UInt64)
-        /// The transaction failed in `slot`, which is finalized; its fee was paid.
-        case failed(slot: UInt64, ExecutionError)
+        case succeeded
+        /// The transaction landed and failed; its fee was paid.
+        case failed
         /// The transaction can never land.
         case dropped
     }

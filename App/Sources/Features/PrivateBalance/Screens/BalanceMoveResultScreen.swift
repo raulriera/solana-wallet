@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Shows a sent balance move's outcome, with its explorer link, a retry for a dropped move, and, once the move settles
-/// or its check stops, a way to close it.
+/// Shows how a sent balance move settled, with its explorer link, a retry for a dropped move, and a way to close it.
 struct BalanceMoveResultScreen: TransactionResultContent {
     @Environment(\.dismissParentContainer) private var dismissParentContainer
     @AccessibilityFocusState private var isFocused: Bool
@@ -13,7 +12,6 @@ struct BalanceMoveResultScreen: TransactionResultContent {
         Form {
             Section {
                 TitleCardContent(title: card.title, message: card.message, systemImage: card.systemImage)
-                    .symbolEffect(.breathe, isActive: review.isSending)
                     .accessibilityElement(children: .combine)
                     .accessibilityFocused($isFocused)
             }
@@ -23,7 +21,7 @@ struct BalanceMoveResultScreen: TransactionResultContent {
                     Button("Try Again", action: review.tryAgain)
                 }
                 Link("View in Explorer", destination: outcome.explorerURL)
-                if let dismissParentContainer, !review.isSending {
+                if let dismissParentContainer {
                     Button("Done") { dismissParentContainer() }
                 }
             }
@@ -34,23 +32,23 @@ struct BalanceMoveResultScreen: TransactionResultContent {
         .onChange(of: outcome, initial: true) { isFocused = true }
     }
 
-    private var card: TransactionResultCard {
+    /// The result's title, message, and symbol.
+    private var card: (title: LocalizedStringResource, message: LocalizedStringResource, systemImage: String) {
         let move = review.proposal
         let sent = move.sent
         let asset = move.asset
         switch (move.direction, outcome.status) {
         case (_, .pending):
-            return .pending(review.confirmationError)
+            preconditionFailure("A result screen shows only a settled transaction.")
         case (.toPrivate, .succeeded):
             let title = LocalizedStringResource(
                 "\(asset.displaySymbol) Is Private",
                 comment: "Title after a deposit into the private balance succeeded. The variable is the token's symbol, such as SOL or USDC."
             )
-            return TransactionResultCard(
-                title: title,
-                message: LocalizedStringResource("\(sent, format: .amount(of: asset)) is pending. It becomes available when the network reports it, usually within a minute.",
-                                                 comment: "Message after a deposit into the private balance succeeded. The variable is the amount with its symbol, such as 0.5 SOL."),
-                systemImage: "checkmark.shield.fill")
+            return (title,
+                    LocalizedStringResource("\(sent, format: .amount(of: asset)) is pending. It becomes available when the network reports it, usually within a minute.",
+                                            comment: "Message after a deposit into the private balance succeeded. The variable is the amount with its symbol, such as 0.5 SOL."),
+                    "checkmark.shield.fill")
         case (.toPublic, .succeeded):
             let message: LocalizedStringResource = if review.review?.pendingChange != nil {
                 LocalizedStringResource("\(sent, format: .amount(of: asset)) is in your public balance. The rest of your private balance becomes available within a minute.",
@@ -63,10 +61,7 @@ struct BalanceMoveResultScreen: TransactionResultContent {
                 "\(asset.displaySymbol) Is Public",
                 comment: "Title after a private token moved to the public balance. The variable is the token's symbol, such as SOL or USDC."
             )
-            return TransactionResultCard(
-                title: title,
-                message: message,
-                systemImage: "checkmark.circle.fill")
+            return (title, message, "checkmark.circle.fill")
         case (.toRecipient(let recipient, _), .succeeded):
             let message: LocalizedStringResource = if review.review?.pendingChange != nil {
                 LocalizedStringResource("\(sent, format: .amount(of: asset)) is in \(recipient.title)'s private balance. The rest of your private balance becomes available within a minute.",
@@ -75,19 +70,19 @@ struct BalanceMoveResultScreen: TransactionResultContent {
                 LocalizedStringResource("\(sent, format: .amount(of: asset)) is in \(recipient.title)'s private balance.",
                                         comment: "Message after a private token was sent to another person's private balance. The variables are the amount with its symbol, such as 0.5 SOL, and the recipient's name or short address.")
             }
-            return TransactionResultCard(
-                title: "Sent Privately",
-                message: message,
-                systemImage: "checkmark.shield.fill")
+            return ("Sent Privately", message, "checkmark.shield.fill")
         case (_, .failed):
-            return .failed(title: "Transaction Failed",
-                           message: move.direction.source == .publicBalance
-                               ? "The network rejected this transaction. Its network fee was paid. Nothing was added to your private balance."
-                               : "The network rejected this transaction. Its network fee was paid. Nothing left your private balance.")
+            return ("Transaction Failed",
+                    move.direction.source == .publicBalance
+                        ? "The network rejected this transaction. Its network fee was paid. Nothing was added to your private balance."
+                        : "The network rejected this transaction. Its network fee was paid. Nothing left your private balance.",
+                    "exclamationmark.triangle.fill")
         case (_, .dropped):
-            return .dropped(message: move.direction.source == .publicBalance
-                                ? "Nothing left your public balance."
-                                : "Nothing left your private balance.")
+            return ("Not Sent",
+                    move.direction.source == .publicBalance
+                        ? "Nothing left your public balance."
+                        : "Nothing left your private balance.",
+                    "xmark.circle.fill")
         }
     }
 }

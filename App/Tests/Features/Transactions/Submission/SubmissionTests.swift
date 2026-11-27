@@ -27,7 +27,7 @@ struct SubmissionTests {
     }
 
     @Test
-    func `A rate-limited submission keeps its pending outcome and rate-limit details`() async throws {
+    func `A rate-limited submission keeps its pending outcome`() async throws {
         let signed = try ExternalFixture.signedResult()
         let limited = HTTPResponses([:], error: Self.rateLimit)
 
@@ -36,7 +36,6 @@ struct SubmissionTests {
         }
 
         #expect(error.outcome == Self.pending)
-        #expect(error.cause as? RPCError == Self.rateLimit)
         #expect(await limited.requests.count == 1)
     }
 
@@ -45,11 +44,10 @@ struct SubmissionTests {
         let signed = try ExternalFixture.signedResult()
         let mismatched = HTTPResponses(["sendTransaction": [#""another-signature""#]])
 
-        let error = try await #require(throws: DeliveryError.self) {
+        await #expect(throws: DeliveryError.self) {
             try await Submitter(rpc: mismatched.client).submit(signed)
         }
 
-        #expect(error.cause as? SubmitterError == .responseMismatch(expectedSignature: ExternalFixture.signature))
         #expect(await mismatched.requests.count == 1)
     }
 
@@ -109,9 +107,11 @@ struct SubmissionTests {
                                   instructions: original.instructions, signatures: [replacement, original.signatures[1]])
         let input = SignedTransaction(preparation: signed.preparation, transaction: altered)
 
-        let error = try await #require(throws: DeliveryError.self) {
-            try await Submitter(rpc: SolanaRPC(network: .devnet)).submit(input)
+        let unused = HTTPResponses([:])
+
+        await #expect(throws: DeliveryError.self) {
+            try await Submitter(rpc: unused.client).submit(input)
         }
-        #expect(error.cause as? SubmitterError == .transactionMismatch)
+        #expect(await unused.requests.isEmpty)
     }
 }

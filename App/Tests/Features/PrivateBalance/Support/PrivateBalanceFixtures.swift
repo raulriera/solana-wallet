@@ -63,7 +63,7 @@ enum PrivateBalanceFixtures {
         let notes = StoredValue<PrivateBalances.Notes>([PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()])
         let balances = PrivateBalances.inMemory(keys: keys, notes: notes, recovery: try recoveryStore(),
                                                 responses: HTTPResponses.privateNotes())
-        _ = try await balances.complete(preparedDeposit(1_000_000, of: .nativeSOL, from: account), with: outcome(.succeeded(slot: 5)))
+        _ = try await balances.complete(preparedDeposit(1_000_000, of: .nativeSOL, from: account), with: outcome(.succeeded))
         let store = try PrivateBalanceStore.fixture(responses, keys: keys, notes: notes,
                                                     transactions: transactions, clock: clock)
         return (store, notes)

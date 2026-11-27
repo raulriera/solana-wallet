@@ -53,8 +53,8 @@ struct PaymentProposalTests {
     }
 
     @Test(arguments: [
-        (TransactionOutcome.Status.succeeded(slot: 5), true),
-        (.failed(slot: 5, .program(instruction: 0, code: 6001)), false),
+        (TransactionOutcome.Status.succeeded, true),
+        (.failed, false),
         (.dropped, false),
     ])
     func `A payment's recipient becomes a recent payment only when the payment succeeds`(

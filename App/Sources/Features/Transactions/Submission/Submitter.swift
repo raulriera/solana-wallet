@@ -23,7 +23,7 @@ nonisolated struct Submitter: TransactionSubmitting {
             try await send(signed, signature: signature)
             return pending
         } catch {
-            throw DeliveryError(outcome: pending, cause: error)
+            throw DeliveryError(outcome: pending)
         }
     }
 

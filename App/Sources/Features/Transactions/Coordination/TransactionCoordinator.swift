@@ -133,8 +133,8 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
         }
     }
 
-    func confirm(_ pending: TransactionOutcome, of transaction: Transaction) async throws -> TransactionOutcome {
-        try await confirmer.confirm(pending, of: transaction)
+    func confirm(_ pending: TransactionOutcome) async throws -> TransactionOutcome {
+        try await confirmer.confirm(pending)
     }
 
     /// Signs an approved simulation with each of its authorities in order.
@@ -212,14 +212,14 @@ nonisolated struct Simulation: Sendable {
     let tokenTransfer: TokenTransfer?
     /// The new destination account's rent in lamports, or `nil` if not estimated.
     let destinationAccountRent: UInt64?
+    /// Why the simulated transaction can't run, or `nil` if it ran.
+    let executionError: ExecutionError?
     var transaction: Transaction { preparation.transaction }
     var network: Network { preparation.network }
     /// The network fee in lamports, including its priority fee, or `nil` if unknown.
     var fee: UInt64? { preparation.fee.value }
     /// The simulation's response, including any execution error.
     var diagnostics: SimulateTransaction.Response { preparation.simulation }
-    /// Why the simulated transaction can't run, or `nil` if it ran.
-    var executionError: ExecutionError? { diagnostics.value.error.map { ExecutionError($0, in: transaction) } }
     /// The balances that the simulation changed, or `nil` if unknown.
     var balanceChanges: [BalanceChange]? { BalanceChange.changes(in: transaction, from: diagnostics.value) }
     /// The submitting service's requirements, whose tip the transaction pays, or `nil` for none.
@@ -240,6 +240,7 @@ nonisolated struct Simulation: Sendable {
         self.coordinator = coordinator
         self.tokenTransfer = tokenTransfer
         self.destinationAccountRent = destinationAccountRent
+        executionError = preparation.simulation.value.error.map { ExecutionError($0, in: preparation.transaction) }
     }
 }
 

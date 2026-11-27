@@ -1,8 +1,7 @@
 import Foundation
 import RPC
-import Transactions
 
-/// A sent transaction's public facts: who sent it, what it does, the transaction as reviewed, and its outcome.
+/// A sent transaction's public facts: who sent it, what it does, and its outcome.
 nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable {
     /// The account and network whose records are kept together.
     struct Key: Hashable, Sendable {
@@ -24,8 +23,6 @@ nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable
     /// The identifier of the account that sent the transaction.
     let account: UUID
     let kind: Kind
-    /// The transaction as reviewed, with the message that was signed and sent.
-    let transaction: Transaction
     private(set) var outcome: TransactionOutcome
     /// When the transaction's settled status was found, or `nil` while it's pending.
     private(set) var settled: Date?
@@ -39,12 +36,10 @@ nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable
     /// - Parameters:
     ///   - kind: What the transaction does.
     ///   - account: The identifier of the account that sent it.
-    ///   - transaction: The transaction as reviewed.
     ///   - outcome: The transaction's pending outcome.
-    init(_ kind: Kind, from account: UUID, transaction: Transaction, outcome: TransactionOutcome) {
+    init(_ kind: Kind, from account: UUID, outcome: TransactionOutcome) {
         self.account = account
         self.kind = kind
-        self.transaction = transaction
         self.outcome = outcome
     }
 

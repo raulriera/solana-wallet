@@ -33,13 +33,8 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     /// Once a send with preliminary transactions is sent, it's the review of the proposal's own transaction.
     private(set) var review: Proposal.Review?
     /// The sent transaction's record as saved when it was sent, or `nil` before it's sent.
-    ///
-    /// A send with preliminary transactions keeps its last transaction's record once that transaction settles or its
-    /// check stops.
     private(set) var record: TransactionRecord?
     var error: Proposal.Error?
-    /// Why a send ended before its own transaction because the check of a preliminary transaction stopped, or `nil`.
-    var unfinishedSendError: ConfirmationError?
     /// The attempt that's waiting or running, or `nil` for none.
     private(set) var attempt: Attempt?
     @ObservationIgnored private var preparation: Proposal.Preparation?
@@ -65,20 +60,15 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     /// The most times that a send tries its next transaction again after an error that can clear by itself.
     private static var maximumRetries: Int { 2 }
 
-    /// The sent transaction's outcome, or `nil` before it's sent.
+    /// How the sent transaction settled, or `nil` before it's sent and while it's pending.
     var outcome: TransactionOutcome? {
-        guard let record else { return nil }
-        return transactions.record(record.id, for: record.key)?.outcome
+        guard let record, let outcome = transactions.record(record.id, for: record.key)?.outcome,
+              !outcome.isPending else { return nil }
+        return outcome
     }
 
-    /// Why the check of the sent transaction stopped, or `nil` while it runs or once the transaction settles.
-    var confirmationError: ConfirmationError? {
-        guard let record else { return nil }
-        return transactions.confirmationError(of: record.id, for: record.key)
-    }
-
-    /// Whether the transaction is being signed and sent, or waits to settle while its check runs.
-    var isSending: Bool { attempt?.work == .send || (outcome?.status == .pending && confirmationError == nil) }
+    /// Whether the transaction is being signed and sent, or waits to settle.
+    var isSending: Bool { attempt?.work == .send || (record != nil && outcome == nil) }
 
     /// Whether the transaction is being signed and sent, or was sent.
     var isSent: Bool { isSending || outcome != nil }
@@ -172,7 +162,6 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     /// - Parameter work: The attempt's work.
     private func start(_ work: Work) {
         error = nil
-        unfinishedSendError = nil
         isStopping = false
         hasLanded = false
         attempt = Attempt(work: work)
@@ -204,7 +193,7 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     ///
     /// An error of the proposal, such as a next transaction that the account can't pay for, shows as itself; any other
     /// error shows as the proposal's not-finished error once one of the send's transactions landed, and as its not-sent
-    /// error before. A preliminary transaction whose check stops ends the send with only the stop's reason.
+    /// error before.
     private func send() async {
         guard let proposed else { return }
         do {
@@ -218,8 +207,6 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
                 record = try await transactions.send(proposed.simulation, as: proposed.kind, from: account,
                                                      settling: proposed.settling)
             }
-        } catch let error as ConfirmationError {
-            unfinishedSendError = error
         } catch is CancellationError {
             guard !Task.isCancelled else { return }
             await prepare()
@@ -230,8 +217,8 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     }
 
     /// Sends the proposal's preliminary transactions and then its own: it sends each transaction, waits for it to
-    /// settle, and prepares the next one. A transaction whose check stops ends the send and keeps the stop's reason.
-    /// It sends a dropped transaction again only with the same preparation, and ends when the proposal
+    /// settle, and prepares the next one. A transaction whose watch ends with an error waits until a later watch
+    /// settles it. It sends a dropped transaction again only with the same preparation, and ends when the proposal
     /// rejects that preparation, so that a transaction that landed despite a drop can't be paid again with a new
     /// preparation.
     ///
@@ -241,8 +228,7 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
     ///   - first: The approved simulation of the first preliminary transaction.
     ///   - coordinator: The coordinator whose signatures share one authentication.
     /// - Returns: The record of the proposal's own transaction, and that transaction's review.
-    /// - Throws: ``ConfirmationError`` if the check of a preliminary transaction stopped;
-    ///   ``Error/endedBeforeNextTransaction`` if the send was stopped while it prepared the next transaction,
+    /// - Throws: ``Error/endedBeforeNextTransaction`` if the send was stopped while it prepared the next transaction,
     ///   or that transaction needs more transactions than the person approved with the first one; the proposal's
     ///   not-finished error, or its not-sent error before a transaction landed, if a preliminary transaction didn't
     ///   succeed or the send was stopped before it prepared the next transaction; the proposal's error if it rejects
@@ -258,12 +244,7 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
             let sent = try await transactions.send(proposed.simulation, as: proposed.kind, from: account,
                                                    settling: proposed.settling, using: coordinator)
             self.proposed = nil
-            let settled: TransactionOutcome
-            do {
-                settled = try await transactions.watch(sent.id, for: sent.key)
-            } catch is ConfirmationError where !proposed.isPreliminary {
-                return (sent, proposed.review)
-            }
+            let settled = try await outcome(of: sent)
             if settled.status != .dropped { hasLanded = true }
             switch settled.status {
             case .succeeded where proposed.isPreliminary:
@@ -285,6 +266,23 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
             guard !isStopping, proposed.followingTransactions <= approvedTransactions else {
                 throw Error.endedBeforeNextTransaction
             }
+        }
+    }
+
+    /// Waits for a sent transaction's settled outcome; when its watch ends with an error, it waits until a later watch
+    /// settles it.
+    ///
+    /// - Parameter sent: The sent transaction's record.
+    /// - Returns: The transaction's settled outcome.
+    /// - Throws: `CancellationError` if the task or the watch is cancelled.
+    private func outcome(of sent: TransactionRecord) async throws -> TransactionOutcome {
+        do {
+            return try await transactions.watch(sent.id, for: sent.key)
+        } catch where !(error is CancellationError) {
+            for await kept in Observations({ self.transactions.record(sent.id, for: sent.key) }) {
+                if let kept, !kept.outcome.isPending { return kept.outcome }
+            }
+            throw CancellationError()
         }
     }
 
