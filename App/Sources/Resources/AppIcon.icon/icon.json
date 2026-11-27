@@ -5,7 +5,7 @@
   "fill-specializations" : [
     {
       "value" : {
-        "automatic-gradient" : "display-p3:0.94118,0.94118,0.94118,1.00000"
+        "automatic-gradient" : "display-p3:0.05030,0.04719,0.06515,1.00000"
       }
     },
     {
@@ -20,95 +20,108 @@
       "blur-material" : null,
       "layers" : [
         {
-          "fill-specializations" : [
-            {
-              "value" : {
-                "linear-gradient" : [
-                  "display-p3:0.44680,0.85849,0.63479,1.00000",
-                  "display-p3:0.33627,0.73779,0.47088,1.00000"
-                ]
-              }
-            },
-            {
-              "appearance" : "dark",
-              "value" : {
-                "linear-gradient" : [
-                  "display-p3:0.46543,0.93933,0.66094,1.00000",
-                  "display-p3:0.34740,0.74563,0.49195,1.00000"
-                ]
-              }
-            }
-          ],
+          "fill" : {
+            "solid" : "display-p3:0.31266,0.67107,0.44276,1.00000"
+          },
+          "glass" : false,
+          "image-name" : "line.svg",
+          "name" : "Green line",
+          "position" : {
+            "scale" : 1.115,
+            "translation-in-points" : [
+              192,
+              -10
+            ]
+          }
+        },
+        {
+          "fill" : {
+            "linear-gradient" : [
+              "display-p3:0.46543,0.93933,0.66094,1.00000",
+              "display-p3:0.34740,0.74563,0.49195,1.00000"
+            ]
+          },
           "glass" : true,
           "image-name" : "key-square.svg",
           "name" : "Green key",
           "opacity" : 0.95,
           "position" : {
-            "scale" : 1,
+            "scale" : 1.115,
             "translation-in-points" : [
-              200,
-              0
+              192,
+              -10
             ]
           }
         },
         {
-          "fill-specializations" : [
-            {
-              "value" : {
-                "linear-gradient" : [
-                  "display-p3:0.36220,0.65005,0.97300,1.00000",
-                  "display-p3:0.21222,0.48645,0.87329,1.00000"
-                ]
-              }
-            },
-            {
-              "appearance" : "dark",
-              "value" : {
-                "linear-gradient" : [
-                  "display-p3:0.38215,0.73470,0.97697,1.00000",
-                  "display-p3:0.26250,0.56013,0.77996,1.00000"
-                ]
-              }
-            }
-          ],
-          "image-name" : "key.svg",
-          "name" : "Blue key",
-          "opacity" : 0.95
+          "fill" : {
+            "solid" : "display-p3:0.23625,0.50412,0.70196,1.00000"
+          },
+          "glass" : false,
+          "image-name" : "line.svg",
+          "name" : "Blue line",
+          "position" : {
+            "scale" : 1.115,
+            "translation-in-points" : [
+              -8,
+              -10
+            ]
+          }
         },
         {
-          "fill-specializations" : [
-            {
-              "value" : {
-                "linear-gradient" : [
-                  "display-p3:0.62613,0.41227,0.96716,1.00000",
-                  "display-p3:0.46491,0.21167,0.86844,1.00000"
-                ]
-              }
-            },
-            {
-              "appearance" : "dark",
-              "value" : {
-                "linear-gradient" : [
-                  "display-p3:0.60806,0.37130,0.96606,1.00000",
-                  "display-p3:0.44529,0.23045,0.77103,1.00000"
-                ]
-              }
-            }
-          ],
+          "fill" : {
+            "linear-gradient" : [
+              "display-p3:0.38215,0.73470,0.97697,1.00000",
+              "display-p3:0.26250,0.56013,0.77996,1.00000"
+            ]
+          },
+          "image-name" : "key.svg",
+          "name" : "Blue key",
+          "opacity" : 0.95,
+          "position" : {
+            "scale" : 1.115,
+            "translation-in-points" : [
+              -8,
+              -10
+            ]
+          }
+        },
+        {
+          "fill" : {
+            "solid" : "display-p3:0.40076,0.20741,0.69393,1.00000"
+          },
+          "glass" : false,
+          "image-name" : "line.svg",
+          "name" : "Purple line",
+          "position" : {
+            "scale" : 1.115,
+            "translation-in-points" : [
+              -208,
+              -10
+            ]
+          }
+        },
+        {
+          "fill" : {
+            "linear-gradient" : [
+              "display-p3:0.60806,0.37130,0.96606,1.00000",
+              "display-p3:0.44529,0.23045,0.77103,1.00000"
+            ]
+          },
           "image-name" : "key.svg",
           "name" : "Purple key",
           "position" : {
-            "scale" : 1,
+            "scale" : 1.115,
             "translation-in-points" : [
-              -220,
-              0
+              -208,
+              -10
             ]
           }
         }
       ],
       "name" : "Keys",
       "shadow" : {
-        "kind" : "layer-color",
+        "kind" : "neutral",
         "opacity" : 0.5
       },
       "specular" : "inside",
